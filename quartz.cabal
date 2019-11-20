@@ -38,3 +38,21 @@ executable quartz
   build-depends:       base ^>=4.12.0.0
   hs-source-dirs:      src
   default-language:    Haskell2010
+
+test-suite unit-tests
+  type: exitcode-stdio-1.0
+  main-is: Driver.hs
+  build-tool-depends:
+    tasty-discover:tasty-discover >= 4.2 && < 4.3,
+  build-depends:
+    base,
+    errors,
+    quartz,
+    tasty,
+    tasty-hspec,
+    containers,
+    mtl,
+  hs-source-dirs:      test
+  default-language:    Haskell2010
+  default-extensions:
+    OverloadedStrings

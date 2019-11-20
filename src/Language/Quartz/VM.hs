@@ -40,6 +40,7 @@ data VM
   deriving (Eq, Show)
 
 newtype Context = Context { getContext :: M.Map Id VM }
+  deriving (Eq, Show)
 
 subst :: VM -> Id -> VM -> VM
 subst vm var term = case vm of
@@ -59,7 +60,7 @@ subst vm var term = case vm of
 
 isNormalForm :: VM -> Bool
 isNormalForm vm = case vm of
-  Var _            -> True
+  Var _            -> False
   Lit _            -> True
   Lam _         _  -> True
   App (Lam _ _) _  -> False
@@ -85,7 +86,9 @@ data RuntimeExceptions
   = NotFound Id
   | PatternNotMatch Pattern VM
   | PatternExhausted
+  deriving (Eq, Show)
 
+-- Assume renaming is done
 evaluate :: MonadIO m => VM -> StateT Context (ExceptT RuntimeExceptions m) VM
 evaluate vm = case vm of
   _ | isNormalForm vm -> return vm
@@ -95,11 +98,16 @@ evaluate vm = case vm of
     xs' <- mapM evaluate xs
 
     case f' of
+      _ | null xs' -> return f'
       Lam fargs fbody ->
         let fbody' = foldl' (uncurry . subst) fbody $ zip fargs xs'
-        in  evaluate $ if length fargs > length xs'
-              then Lam (drop (length xs') fargs) fbody'
-              else App fbody' (drop (length fargs) xs')
+        in  evaluate $ case () of
+              _ | length fargs == length xs' -> fbody'
+              _ | length fargs > length xs'  -> Lam
+                (drop (length xs') fargs)
+                fbody'
+              _ -> App fbody' (drop (length fargs) xs')
+      _ -> evaluate $ App f' xs'
   Let x t1 t2 -> do
     f <- evaluate t1
     modify (Context . M.insert x f . getContext)
@@ -115,3 +123,6 @@ evaluate vm = case vm of
           Right ctx' -> put ctx' >> return b
     )
     brs
+
+runEvaluate :: MonadIO m => VM -> ExceptT RuntimeExceptions m VM
+runEvaluate m = evalStateT (evaluate m) $ Context M.empty
