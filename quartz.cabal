@@ -18,6 +18,9 @@ extra-source-files:  CHANGELOG.md
 library
   exposed-modules:
     Language.Quartz.VM
+    Language.Quartz.AST
+    Language.Quartz.Parser
+    Language.Quartz.Lexer
   -- other-modules:
   -- other-extensions:
   build-depends:
