@@ -29,6 +29,7 @@ tokens :-
   \. { \_ -> TDot }
   \-> { \_ -> TArrow }
   \* { \_ -> TStar }
+  \= { \_ -> TEq }
   $digit+ { TInt . read }
   [$alpha \_] [$alpha $digit \_]* { TVar }
 
@@ -54,6 +55,7 @@ data Token
   | TDot
   | TArrow
   | TStar
+  | TEq
   | TInt Int
   | TVar String
   deriving (Eq, Show)

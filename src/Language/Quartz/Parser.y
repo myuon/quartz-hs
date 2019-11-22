@@ -11,45 +11,47 @@ import Language.Quartz.AST
 %monad { Either String } { (>>=) } { return }
 
 %token
-  '<' { TLAngle }
-  '>' { TRAngle }
-  '(' { TLParen }
-  ')' { TRParen }
-  '{' { TLBrace }
-  '}' { TRBrace }
-  ',' { TComma }
-  ':' { TColon }
-  ';' { TSemiColon }
-  '.' { TDot }
-  '->' { TArrow }
-  '*' { TStar }
+    '<' { TLAngle }
+    '>' { TRAngle }
+    '(' { TLParen }
+    ')' { TRParen }
+    '{' { TLBrace }
+    '}' { TRBrace }
+    ',' { TComma }
+    ':' { TColon }
+    ';' { TSemiColon }
+    '.' { TDot }
+    '->' { TArrow }
+    '*' { TStar }
+    '=' { TEq }
 
-  FUNC { TFunc }
-  ENUM { TEnum }
-  RECORD { TRecord }
-  INSTANCE { TInstance }
-  OPEN { TOpen }
-  LET { TLet }
-  SELF { TSelf }
-  CASE { TCase }
+    FUNC { TFunc }
+    ENUM { TEnum }
+    RECORD { TRecord }
+    INSTANCE { TInstance }
+    OPEN { TOpen }
+    LET { TLet }
+    SELF { TSelf }
+    CASE { TCase }
 
-  INT { TInt $$ }
-  VAR { TVar $$ }
+    INT { TInt $$ }
+    VAR { TVar $$ }
 
 %%
 
 decl :: { Decl }
 decl
-    : FUNC VAR '(' arg_types ')' may_return_type '{' exprs '}'  { Func $2 (createClosure $4 $6 $8) }
+    : FUNC VAR '(' arg_types ')' may_return_type '{' stmts '}'  { Func $2 (createClosure $4 $6 $8) }
 
 may_return_type :: { Maybe Type }
 may_return_type
     : ':' type  { Just $2 }
     | {- empty -}  { Nothing }
 
-exprs :: { [Expr] }
-exprs
-    : expr ';' exprs  { $1 : $3 }
+stmts :: { [Expr] }
+stmts
+    : expr ';' stmts  { $1 : $3 }
+    | LET VAR '=' expr ';' stmts { Let $2 $4 : $6 }
     | expr  { [$1] }
     | {- empty -}  { [] }
 
@@ -74,6 +76,7 @@ exprs_comma
 arg_types :: { [(String, Type)] }
 arg_types
     : VAR ':' type ',' arg_types  { ($1, $3) : $5 }
+    | VAR ':' type  { [($1, $3)] }
     | {- empty -}  { [] }
 
 literal :: { Literal }
@@ -83,6 +86,7 @@ literal
 type :: { Type }
 type
     : '(' ')'  { UnitType }
+    | VAR  { VarType $1 }
 
 {
 happyError tokens = Left $ "Parse error\n" ++ show tokens

@@ -20,6 +20,7 @@ data Expr
 data Type
   = ArrowType Type Type
   | UnitType
+  | VarType String
   deriving (Eq, Show)
 
 data Pattern = Pattern
