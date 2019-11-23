@@ -16,7 +16,7 @@ tokens :-
   open { \_ -> TOpen }
   let { \_ -> TLet }
   self { \_ -> TSelf }
-  case { \_ -> TCase }
+  match { \_ -> TMatch }
   \< { \_ -> TLAngle }
   \> { \_ -> TRAngle }
   \( { \_ -> TLParen }
@@ -30,6 +30,7 @@ tokens :-
   \-> { \_ -> TArrow }
   \* { \_ -> TStar }
   \= { \_ -> TEq }
+  \_ { \_ -> TUnderscore }
   $digit+ { TInt . read }
   [$alpha \_] [$alpha $digit \_]* { TVar }
 
@@ -42,7 +43,7 @@ data Token
   | TOpen
   | TLet
   | TSelf
-  | TCase
+  | TMatch
   | TLAngle
   | TRAngle
   | TLParen
@@ -56,6 +57,7 @@ data Token
   | TArrow
   | TStar
   | TEq
+  | TUnderscore
   | TInt Int
   | TVar String
   deriving (Eq, Show)

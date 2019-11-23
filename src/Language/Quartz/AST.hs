@@ -14,16 +14,21 @@ data Expr
   | Let String Expr
   | ClosureE Closure
   | OpenE String
-  | Case Expr Type [(Pattern, Expr)]
+  | Match Expr [(Pattern, Expr)]
   deriving (Eq, Show)
 
 data Type
   = ArrowType Type Type
   | UnitType
   | VarType String
+  | SelfType
   deriving (Eq, Show)
 
-data Pattern = Pattern
+data Pattern
+  = PVar String
+  | PLit Literal
+  | PApp Pattern [Pattern]
+  | PAny
   deriving (Eq, Show)
 
 data Closure = Closure Type [String] [Expr]
@@ -32,9 +37,10 @@ data Closure = Closure Type [String] [Expr]
 data Decl
   = Enum String [EnumField]
   | Record String [RecordField]
-  | Instance [Decl]
+  | Instance String [Decl]
   | OpenD String
   | Func String Closure
+  | Method String Closure
   deriving (Eq, Show)
 
 data EnumField = EnumField String [Type]

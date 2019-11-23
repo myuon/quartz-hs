@@ -36,3 +36,23 @@ spec_parser = do
         [ RecordField "user_id" (VarType "string")
         , RecordField "age"     (VarType "int")
         ]
+
+      parseD "open List.Foo.Bar.*;" `shouldBe` OpenD "List.Foo.Bar.*"
+
+      parseD
+          "instance Nat { func is_zero(self): bool { match self { Zero -> true, Succ(_) -> false } } }"
+        `shouldBe` Instance
+                     "Nat"
+                     [ Method
+                         "is_zero"
+                         ( Closure
+                           (ArrowType SelfType (VarType "bool"))
+                           ["self"]
+                           [ Match
+                               (Var "self")
+                               [ (PVar "Zero"              , Var "true")
+                               , (PApp (PVar "Succ") [PAny], Var "false")
+                               ]
+                           ]
+                         )
+                     ]

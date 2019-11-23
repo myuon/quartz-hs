@@ -24,6 +24,7 @@ import Language.Quartz.AST
     '->' { TArrow }
     '*' { TStar }
     '=' { TEq }
+    '_' { TUnderscore }
 
     FUNC { TFunc }
     ENUM { TEnum }
@@ -32,7 +33,7 @@ import Language.Quartz.AST
     OPEN { TOpen }
     LET { TLet }
     SELF { TSelf }
-    CASE { TCase }
+    MATCH { TMatch }
 
     INT { TInt $$ }
     VAR { TVar $$ }
@@ -42,8 +43,23 @@ import Language.Quartz.AST
 decl :: { Decl }
 decl
     : FUNC VAR '(' arg_types ')' may_return_type '{' stmts '}'  { Func $2 (createClosure $4 $6 $8) }
+    | FUNC VAR '(' self_arg_types ')' may_return_type '{' stmts '}'  { Method $2 (createClosure $4 $6 $8) }
     | ENUM VAR '{' enum_fields '}'  { Enum $2 $4 }
     | RECORD VAR '{' record_fields '}'  { Record $2 $4 }
+    | INSTANCE VAR '{' decls '}'  { Instance $2 $4 }
+    | OPEN path ';'  { OpenD $2 }
+
+decls :: { [Decl] }
+decls
+    : decl decls  { $1 : $2 }
+    | {- empty -}  { [] }
+
+path :: { String }
+path
+    : VAR  { $1 }
+    | VAR '.' path  { $1 ++ "." ++ $3 }
+    | '*'  { "*" }
+    | {- empty -}  { "" }
 
 enum_fields :: { [EnumField] }
 enum_fields
@@ -87,10 +103,30 @@ stmts
 expr :: { Expr }
 expr
     : literal  { Lit $1 }
+    | MATCH expr '{' match_branches '}'  { Match $2 $4 }
     | expr args  { App $1 $2 }
     | expr '.' VAR args  { App (Var $3) ($1 : $4) }
     | '(' expr ')'  { $2 }
     | VAR  { Var $1 }
+    | SELF  { Var "self" }
+
+match_branches :: { [(Pattern, Expr)] }
+match_branches
+    : {- empty -}  { [] }
+    | pattern '->' expr  { [($1, $3)] }
+    | pattern '->' expr ',' match_branches  { ($1, $3) : $5 }
+
+pattern :: { Pattern }
+pattern
+    : '_'  { PAny }
+    | pattern '(' patterns ')'  { PApp $1 $3 }
+    | VAR  { PVar $1 }
+    | literal  { PLit $1 }
+
+patterns :: { [Pattern] }
+patterns
+    : pattern  { [$1] }
+    | pattern ',' patterns  { $1 : $3 }
 
 args :: { [Expr] }
 args
@@ -107,6 +143,11 @@ arg_types
     : VAR ':' type ',' arg_types  { ($1, $3) : $5 }
     | VAR ':' type  { [($1, $3)] }
     | {- empty -}  { [] }
+
+self_arg_types :: { [(String, Type)] }
+self_arg_types
+    : SELF ',' arg_types  { ("self", SelfType) : $3 }
+    | SELF  { [("self", SelfType)] }
 
 literal :: { Literal }
 literal
