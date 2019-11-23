@@ -27,9 +27,10 @@ spec_parser = do
 
       parseD "func id(x: A): A { let y = x; y }" `shouldBe` Func
         "id"
-        ( Closure (ArrowType (VarType "A") (VarType "A"))
-                  ["x"]
-                  [Let "y" (Var (Id ["x"])), Var (Id ["y"])]
+        ( Closure
+          (ArrowType (VarType "A") (VarType "A"))
+          ["x"]
+          (Procedure [Let (Id ["y"]) (Var (Id ["x"])), Var (Id ["y"])])
         )
 
       parseD "enum Nat { Zero, Succ(Nat) }" `shouldBe` Enum
@@ -53,11 +54,15 @@ spec_parser = do
                          ( Closure
                            (ArrowType SelfType (VarType "bool"))
                            ["self"]
-                           [ Match
-                               (Var (Id ["self"]))
-                               [ (PVar "Zero"              , Var (Id ["true"]))
-                               , (PApp (PVar "Succ") [PAny], Var (Id ["false"]))
-                               ]
-                           ]
+                           ( Procedure
+                             [ Match
+                                 (Var (Id ["self"]))
+                                 [ (PVar "Zero", Var (Id ["true"]))
+                                 , ( PApp (PVar "Succ") [PAny]
+                                   , Var (Id ["false"])
+                                   )
+                                 ]
+                             ]
+                           )
                          )
                      ]

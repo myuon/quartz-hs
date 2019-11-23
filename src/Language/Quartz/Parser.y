@@ -96,7 +96,7 @@ may_return_type
 stmts :: { [Expr] }
 stmts
     : expr ';' stmts  { $1 : $3 }
-    | LET VAR '=' expr ';' stmts { Let $2 $4 : $6 }
+    | LET VAR '=' expr ';' stmts { Let (Id [$2]) $4 : $6 }
     | expr  { [$1] }
     | {- empty -}  { [] }
 
@@ -172,5 +172,5 @@ happyError tokens = Left $ "Parse error\n" ++ show tokens
 createClosure :: [(String, Type)] -> Maybe Type -> [Expr] -> Closure
 createClosure args ret es =
   let retType = maybe UnitType id ret in
-  Closure (foldr ArrowType retType $ map snd args) (map fst args) es
+  Closure (foldr ArrowType retType $ map snd args) (map fst args) (Procedure es)
 }

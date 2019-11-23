@@ -8,16 +8,18 @@ data Literal
   deriving (Eq, Show)
 
 data Id = Id [String]
-  deriving (Eq, Show)
+  deriving (Eq, Ord, Show)
 
 data Expr
   = Var Id
   | Lit Literal
   | FnCall Expr [Expr]
-  | Let String Expr
+  | Let Id Expr
   | ClosureE Closure
   | OpenE String
   | Match Expr [(Pattern, Expr)]
+  | Procedure [Expr]
+  | NoExpr
   deriving (Eq, Show)
 
 data Type
@@ -25,6 +27,7 @@ data Type
   | UnitType
   | VarType String
   | SelfType
+  | NoType
   deriving (Eq, Show)
 
 data Pattern
@@ -34,7 +37,7 @@ data Pattern
   | PAny
   deriving (Eq, Show)
 
-data Closure = Closure Type [String] [Expr]
+data Closure = Closure Type [String] Expr
   deriving (Eq, Show)
 
 data Decl
