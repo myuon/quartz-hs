@@ -95,6 +95,7 @@ evaluate vm = case vm of
           Right ctx' -> put ctx' >> return b
     )
     brs
+  Procedure es -> foldl' (\m e -> m >> evaluate e) (return NoExpr) es
 
 runEvaluate :: MonadIO m => Expr -> ExceptT RuntimeExceptions m Expr
 runEvaluate m = evalStateT (evaluate m) $ Context M.empty

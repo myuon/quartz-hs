@@ -42,8 +42,8 @@ import Language.Quartz.AST
 
 decl :: { Decl }
 decl
-    : FUNC VAR '(' arg_types ')' may_return_type '{' stmts '}'  { Func $2 (createClosure $4 $6 $8) }
-    | FUNC VAR '(' self_arg_types ')' may_return_type '{' stmts '}'  { Method $2 (createClosure $4 $6 $8) }
+    : FUNC VAR '(' arg_types ')' may_return_type '{' stmts '}'  { Func $2 (createClosure $4 $6 (Procedure $8)) }
+    | FUNC VAR '(' self_arg_types ')' may_return_type '{' stmts '}'  { Method $2 (createClosure $4 $6 (Procedure $8)) }
     | ENUM VAR '{' enum_fields '}'  { Enum $2 $4 }
     | RECORD VAR '{' record_fields '}'  { Record $2 $4 }
     | INSTANCE VAR '{' decls '}'  { Instance $2 $4 }
@@ -105,7 +105,9 @@ expr
     : literal  { Lit $1 }
     | MATCH expr '{' match_branches '}'  { Match $2 $4 }
     | expr args  { FnCall $1 $2 }
+    | '(' arg_types ')' may_return_type '->' expr  { ClosureE (createClosure $2 $4 $6) }
     | '(' expr ')'  { $2 }
+    | '{' stmts '}'  { Procedure $2 }
     | var  { Var $1 }
     | SELF  { Var (Id ["self"]) }
 
@@ -169,8 +171,8 @@ var_internal
 {
 happyError tokens = Left $ "Parse error\n" ++ show tokens
 
-createClosure :: [(String, Type)] -> Maybe Type -> [Expr] -> Closure
-createClosure args ret es =
+createClosure :: [(String, Type)] -> Maybe Type -> Expr -> Closure
+createClosure args ret body =
   let retType = maybe UnitType id ret in
-  Closure (foldr ArrowType retType $ map snd args) (map fst args) (Procedure es)
+  Closure (foldr ArrowType retType $ map snd args) (map fst args) body
 }

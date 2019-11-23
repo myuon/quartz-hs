@@ -25,6 +25,35 @@ spec_parser = do
 
       parseE "a.b.c" `shouldBe` Var (Id ["a", "b", "c"])
 
+      parseE "(a: string): string -> a" `shouldBe` ClosureE
+        ( Closure (VarType "string" `ArrowType` VarType "string")
+                  ["a"]
+                  (Var (Id ["a"]))
+        )
+
+      parseE "(a: int, b: int, c: int) -> { let z = sum(a,b,c); z }"
+        `shouldBe` ClosureE
+                     ( Closure
+                       (           VarType "int"
+                       `ArrowType` (           VarType "int"
+                                   `ArrowType` (           VarType "int"
+                                               `ArrowType` UnitType
+                                               )
+                                   )
+                       )
+                       ["a", "b", "c"]
+                       ( Procedure
+                         [ Let
+                           (Id ["z"])
+                           ( FnCall
+                             (Var (Id ["sum"]))
+                             [Var (Id ["a"]), Var (Id ["b"]), Var (Id ["c"])]
+                           )
+                         , Var (Id ["z"])
+                         ]
+                       )
+                     )
+
       parseD "func id(x: A): A { let y = x; y }" `shouldBe` Func
         "id"
         ( Closure

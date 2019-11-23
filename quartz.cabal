@@ -55,6 +55,7 @@ test-suite unit-tests
     tasty-hspec,
     containers,
     mtl,
+    raw-strings-qq,
   hs-source-dirs:      test
   default-language:    Haskell2010
   default-extensions:
