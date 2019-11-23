@@ -42,6 +42,35 @@ import Language.Quartz.AST
 decl :: { Decl }
 decl
     : FUNC VAR '(' arg_types ')' may_return_type '{' stmts '}'  { Func $2 (createClosure $4 $6 $8) }
+    | ENUM VAR '{' enum_fields '}'  { Enum $2 $4 }
+    | RECORD VAR '{' record_fields '}'  { Record $2 $4 }
+
+enum_fields :: { [EnumField] }
+enum_fields
+    : enum_field ',' enum_fields  { $1 : $3 }
+    | enum_field  { [$1] }
+    | {- empty -}  { [] }
+
+enum_field :: { EnumField }
+enum_field
+    : VAR  { EnumField $1 [] }
+    | VAR '(' type_args ')'  { EnumField $1 $3 }
+
+type_args :: { [Type] }
+type_args
+    : type ',' type_args  { $1 : $3 }
+    | type  { [$1] }
+    | {- empty -}  { [] }
+
+record_fields :: { [RecordField] }
+record_fields
+    : record_field ',' record_fields  { $1 : $3 }
+    | record_field  { [$1] }
+    | {- empty -}  { [] }
+
+record_field :: { RecordField }
+record_field
+    : VAR ':' type  { RecordField $1 $3 }
 
 may_return_type :: { Maybe Type }
 may_return_type
