@@ -7,10 +7,13 @@ data Literal
   | StringLit String
   deriving (Eq, Show)
 
+data Id = Id [String]
+  deriving (Eq, Show)
+
 data Expr
-  = Var String
+  = Var Id
   | Lit Literal
-  | App Expr [Expr]
+  | FnCall Expr [Expr]
   | Let String Expr
   | ClosureE Closure
   | OpenE String

@@ -104,11 +104,10 @@ expr :: { Expr }
 expr
     : literal  { Lit $1 }
     | MATCH expr '{' match_branches '}'  { Match $2 $4 }
-    | expr args  { App $1 $2 }
-    | expr '.' VAR args  { App (Var $3) ($1 : $4) }
+    | expr args  { FnCall $1 $2 }
     | '(' expr ')'  { $2 }
-    | VAR  { Var $1 }
-    | SELF  { Var "self" }
+    | var  { Var $1 }
+    | SELF  { Var (Id ["self"]) }
 
 match_branches :: { [(Pattern, Expr)] }
 match_branches
@@ -157,6 +156,15 @@ type :: { Type }
 type
     : '(' ')'  { UnitType }
     | VAR  { VarType $1 }
+
+var :: { Id }
+var
+    : var_internal  { Id $1 }
+
+var_internal :: { [String] }
+var_internal
+    : VAR  { [$1] }
+    | VAR '.' var_internal  { $1 : $3 }
 
 {
 happyError tokens = Left $ "Parse error\n" ++ show tokens

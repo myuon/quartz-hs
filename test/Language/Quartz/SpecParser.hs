@@ -12,19 +12,24 @@ spec_parser :: Spec
 spec_parser = do
   describe "parser" $ do
     it "should parse" $ do
-      parseE "xxx" `shouldBe` Var "xxx"
+      parseE "xxx" `shouldBe` Var (Id ["xxx"])
 
       parseE "10" `shouldBe` Lit (IntLit 10)
 
-      parseE "foo(x,y,z)" `shouldBe` App (Var "foo") [Var "x", Var "y", Var "z"]
+      parseE "foo(x,y,z)" `shouldBe` FnCall
+        (Var (Id ["foo"]))
+        [Var (Id ["x"]), Var (Id ["y"]), Var (Id ["z"])]
 
-      parseE "x.foo(y,z)" `shouldBe` App (Var "foo") [Var "x", Var "y", Var "z"]
+      parseE "x.foo(y,z)" `shouldBe` FnCall (Var (Id ["x", "foo"]))
+                                            [Var (Id ["y"]), Var (Id ["z"])]
+
+      parseE "a.b.c" `shouldBe` Var (Id ["a", "b", "c"])
 
       parseD "func id(x: A): A { let y = x; y }" `shouldBe` Func
         "id"
         ( Closure (ArrowType (VarType "A") (VarType "A"))
                   ["x"]
-                  [Let "y" (Var "x"), Var "y"]
+                  [Let "y" (Var (Id ["x"])), Var (Id ["y"])]
         )
 
       parseD "enum Nat { Zero, Succ(Nat) }" `shouldBe` Enum
@@ -49,9 +54,9 @@ spec_parser = do
                            (ArrowType SelfType (VarType "bool"))
                            ["self"]
                            [ Match
-                               (Var "self")
-                               [ (PVar "Zero"              , Var "true")
-                               , (PApp (PVar "Succ") [PAny], Var "false")
+                               (Var (Id ["self"]))
+                               [ (PVar "Zero"              , Var (Id ["true"]))
+                               , (PApp (PVar "Succ") [PAny], Var (Id ["false"]))
                                ]
                            ]
                          )
