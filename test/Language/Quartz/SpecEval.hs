@@ -17,8 +17,15 @@ evaluatedToBe r1 r2 = do
     Right v   -> v `shouldBe` r2
     Left  err -> fail $ show err
 
+runMainResult r1 r2 = do
+  result <- runExceptT $ runMain r1
+  case result of
+    Right v   -> v `shouldBe` r2
+    Left  err -> fail $ show err
+
 parseE = either error id . parserExpr . alexScanTokens
 parseD = either error id . parser . alexScanTokens
+parseDs = either error id . parserDecls . alexScanTokens
 
 spec_Evaluate :: Spec
 spec_Evaluate = do
@@ -50,3 +57,13 @@ spec_Evaluate = do
           f(z, 20)
         }
       |] `evaluatedToBe` parseE [r| 20 |]
+
+      parseDs [r|
+        func id(x: nat): nat {
+          x
+        }
+
+        func main(): nat {
+          id(10)
+        }
+      |] `runMainResult` parseE [r| 10 |]

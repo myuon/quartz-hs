@@ -1,6 +1,8 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Language.Quartz.Eval where
 
+import Control.Applicative
 import Control.Monad.State
 import Control.Monad.IO.Class
 import Control.Error
@@ -11,7 +13,7 @@ import Language.Quartz.AST
 import qualified Data.PathTree as PathTree
 
 data Context = Context {
-  decls :: M.Map Id Decl,
+  decls :: PathTree.PathTree String Decl,
   exprs :: M.Map Id Expr
 } deriving (Eq, Show)
 
@@ -42,6 +44,7 @@ isNormalForm vm = case vm of
   Match  _ _  -> False
   OpenE     _ -> True
   Procedure _ -> False
+  Unit        -> True
 
 
 match
@@ -101,15 +104,25 @@ evalE vm = case vm of
   Procedure es -> foldl' (\m e -> m >> evalE e) (return NoExpr) es
 
 runEvalE :: MonadIO m => Expr -> ExceptT RuntimeExceptions m Expr
-runEvalE m = evalStateT (evalE m) $ Context M.empty M.empty
+runEvalE m =
+  evalStateT (evalE m) $ Context {exprs = M.empty, decls = PathTree.empty}
 
 evalD :: MonadIO m => Decl -> StateT Context (ExceptT RuntimeExceptions m) ()
-evalD decl = case decl of
-  Enum d _ ->
-    modify $ \ctx -> ctx { decls = M.insert (Id [d]) decl (decls ctx) }
-  Record d _ ->
-    modify $ \ctx -> ctx { decls = M.insert (Id [d]) decl (decls ctx) }
-  Func d _ ->
-    modify $ \ctx -> ctx { decls = M.insert (Id [d]) decl (decls ctx) }
-  Method d _ ->
-    modify $ \ctx -> ctx { decls = M.insert (Id [d]) decl (decls ctx) }
+evalD decl = go [] decl
+ where
+  go path decl = case decl of
+    Enum d _ ->
+      modify $ \ctx -> ctx { decls = PathTree.insert [d] decl (decls ctx) }
+    Record d _ ->
+      modify $ \ctx -> ctx { decls = PathTree.insert [d] decl (decls ctx) }
+    Func d body ->
+      modify $ \ctx ->
+        ctx { exprs = M.insert (Id [d]) (ClosureE body) (exprs ctx) }
+    Method d _ ->
+      modify $ \ctx -> ctx { decls = PathTree.insert [d] decl (decls ctx) }
+
+runMain :: MonadIO m => [Decl] -> ExceptT RuntimeExceptions m Expr
+runMain decls =
+  flip evalStateT (Context {exprs = M.empty, decls = PathTree.empty}) $ do
+    mapM_ evalD decls
+    evalE (FnCall (Var (Id ["main"])) [Unit])

@@ -6,6 +6,7 @@ import Language.Quartz.AST
 }
 
 %name parser decl
+%name parserDecls decls
 %name parserExpr expr
 %tokentype { Token }
 %monad { Either String } { (>>=) } { return }
@@ -143,7 +144,7 @@ arg_types :: { [(String, Type)] }
 arg_types
     : VAR ':' type ',' arg_types  { ($1, $3) : $5 }
     | VAR ':' type  { [($1, $3)] }
-    | {- empty -}  { [] }
+    | {- empty -}  { [("", UnitType)] }
 
 self_arg_types :: { [(String, Type)] }
 self_arg_types

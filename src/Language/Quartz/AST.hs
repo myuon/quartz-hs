@@ -19,6 +19,7 @@ data Expr
   | OpenE String
   | Match Expr [(Pattern, Expr)]
   | Procedure [Expr]
+  | Unit
   | NoExpr
   deriving (Eq, Show)
 
