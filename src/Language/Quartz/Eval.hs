@@ -46,7 +46,7 @@ match
   => Pattern
   -> Expr
   -> StateT Context (ExceptT RuntimeExceptions m) ()
-match pat term = evaluate term >>= \t' -> case (pat, t') of
+match pat term = evalE term >>= \t' -> case (pat, t') of
   (PVar p, t) -> modify (Context . M.insert (Id [p]) t . getContext)
   (PLit lit, Lit lit') ->
     lift $ assertMay (lit == lit') ?? PatternNotMatch (PLit lit) term
@@ -61,27 +61,26 @@ data RuntimeExceptions
   deriving (Eq, Show)
 
 -- Assume renaming is done
-evaluate
-  :: MonadIO m => Expr -> StateT Context (ExceptT RuntimeExceptions m) Expr
-evaluate vm = case vm of
+evalE :: MonadIO m => Expr -> StateT Context (ExceptT RuntimeExceptions m) Expr
+evalE vm = case vm of
   _ | isNormalForm vm -> return vm
   Var t -> get >>= \ctx -> lift $ getContext ctx M.!? t ?? NotFound t
   FnCall f xs -> do
-    f'  <- evaluate f
-    xs' <- mapM evaluate xs
+    f'  <- evalE f
+    xs' <- mapM evalE xs
 
     case f' of
       _ | null xs' -> return f'
       ClosureE (Closure _ fargs fbody) ->
         let fbody' = foldl' (uncurry . subst) fbody $ zip fargs xs'
-        in  evaluate $ case () of
+        in  evalE $ case () of
               _ | length fargs == length xs' -> fbody'
               _ | length fargs > length xs' ->
                 ClosureE $ Closure NoType (drop (length xs') fargs) fbody'
               _ -> FnCall fbody' (drop (length fargs) xs')
-      _ -> evaluate $ FnCall f' xs'
+      _ -> evalE $ FnCall f' xs'
   Let x t -> do
-    f <- evaluate t
+    f <- evalE t
     modify (Context . M.insert x f . getContext)
     return NoExpr
   Match t brs -> fix
@@ -95,7 +94,7 @@ evaluate vm = case vm of
           Right ctx' -> put ctx' >> return b
     )
     brs
-  Procedure es -> foldl' (\m e -> m >> evaluate e) (return NoExpr) es
+  Procedure es -> foldl' (\m e -> m >> evalE e) (return NoExpr) es
 
-runEvaluate :: MonadIO m => Expr -> ExceptT RuntimeExceptions m Expr
-runEvaluate m = evalStateT (evaluate m) $ Context M.empty
+runEvalE :: MonadIO m => Expr -> ExceptT RuntimeExceptions m Expr
+runEvalE m = evalStateT (evalE m) $ Context M.empty

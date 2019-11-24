@@ -12,7 +12,7 @@ import qualified Data.Map as M
 import Text.RawString.QQ
 
 evaluatedToBe r1 r2 = do
-  result <- runExceptT $ runEvaluate r1
+  result <- runExceptT $ runEvalE r1
   case result of
     Right v   -> v `shouldBe` r2
     Left  err -> fail $ show err
