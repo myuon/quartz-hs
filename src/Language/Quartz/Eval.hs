@@ -8,6 +8,7 @@ import qualified Data.Map as M
 import Data.Dynamic
 import Data.Foldable
 import Language.Quartz.AST
+import qualified Data.PathTree as PathTree
 
 data Context = Context {
   decls :: M.Map Id Decl,
