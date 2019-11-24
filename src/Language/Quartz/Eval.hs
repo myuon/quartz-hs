@@ -9,8 +9,10 @@ import Data.Dynamic
 import Data.Foldable
 import Language.Quartz.AST
 
-newtype Context = Context { getContext :: M.Map Id Expr }
-  deriving (Eq, Show)
+data Context = Context {
+  decls :: M.Map Id Decl,
+  exprs :: M.Map Id Expr
+} deriving (Eq, Show)
 
 subst :: Expr -> String -> Expr -> Expr
 subst expr var term = case expr of
@@ -47,7 +49,8 @@ match
   -> Expr
   -> StateT Context (ExceptT RuntimeExceptions m) ()
 match pat term = evalE term >>= \t' -> case (pat, t') of
-  (PVar p, t) -> modify (Context . M.insert (Id [p]) t . getContext)
+  (PVar p, t) ->
+    modify $ \ctx -> ctx { exprs = M.insert (Id [p]) t (exprs ctx) }
   (PLit lit, Lit lit') ->
     lift $ assertMay (lit == lit') ?? PatternNotMatch (PLit lit) term
   (PApp pf pxs, FnCall f xs) ->
@@ -64,8 +67,8 @@ data RuntimeExceptions
 evalE :: MonadIO m => Expr -> StateT Context (ExceptT RuntimeExceptions m) Expr
 evalE vm = case vm of
   _ | isNormalForm vm -> return vm
-  Var t -> get >>= \ctx -> lift $ getContext ctx M.!? t ?? NotFound t
-  FnCall f xs -> do
+  Var t               -> get >>= \ctx -> lift $ exprs ctx M.!? t ?? NotFound t
+  FnCall f xs         -> do
     f'  <- evalE f
     xs' <- mapM evalE xs
 
@@ -81,7 +84,7 @@ evalE vm = case vm of
       _ -> evalE $ FnCall f' xs'
   Let x t -> do
     f <- evalE t
-    modify (Context . M.insert x f . getContext)
+    modify $ \ctx -> ctx { exprs = M.insert x f (exprs ctx) }
     return NoExpr
   Match t brs -> fix
     ( \cont brs -> case brs of
@@ -97,4 +100,15 @@ evalE vm = case vm of
   Procedure es -> foldl' (\m e -> m >> evalE e) (return NoExpr) es
 
 runEvalE :: MonadIO m => Expr -> ExceptT RuntimeExceptions m Expr
-runEvalE m = evalStateT (evalE m) $ Context M.empty
+runEvalE m = evalStateT (evalE m) $ Context M.empty M.empty
+
+evalD :: MonadIO m => Decl -> StateT Context (ExceptT RuntimeExceptions m) ()
+evalD decl = case decl of
+  Enum d _ ->
+    modify $ \ctx -> ctx { decls = M.insert (Id [d]) decl (decls ctx) }
+  Record d _ ->
+    modify $ \ctx -> ctx { decls = M.insert (Id [d]) decl (decls ctx) }
+  Func d _ ->
+    modify $ \ctx -> ctx { decls = M.insert (Id [d]) decl (decls ctx) }
+  Method d _ ->
+    modify $ \ctx -> ctx { decls = M.insert (Id [d]) decl (decls ctx) }
