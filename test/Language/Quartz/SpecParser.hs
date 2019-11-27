@@ -37,7 +37,8 @@ spec_parser = do
                        (           VarType "int"
                        `ArrowType` (           VarType "int"
                                    `ArrowType` (           VarType "int"
-                                               `ArrowType` UnitType
+                                               `ArrowType` ConType
+                                                             (Id ["unit"])
                                                )
                                    )
                        )

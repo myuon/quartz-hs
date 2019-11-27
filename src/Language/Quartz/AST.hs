@@ -25,7 +25,7 @@ data Expr
 
 data Type
   = ArrowType Type Type
-  | UnitType
+  | ConType Id
   | VarType String
   | SelfType
   | NoType

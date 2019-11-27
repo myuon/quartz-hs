@@ -144,7 +144,7 @@ arg_types :: { [(String, Type)] }
 arg_types
     : VAR ':' type ',' arg_types  { ($1, $3) : $5 }
     | VAR ':' type  { [($1, $3)] }
-    | {- empty -}  { [("", UnitType)] }
+    | {- empty -}  { [("", ConType (Id ["unit"]))] }
 
 self_arg_types :: { [(String, Type)] }
 self_arg_types
@@ -157,7 +157,7 @@ literal
 
 type :: { Type }
 type
-    : '(' ')'  { UnitType }
+    : '(' ')'  { ConType (Id ["unit"]) }
     | VAR  { VarType $1 }
 
 var :: { Id }
@@ -174,6 +174,6 @@ happyError tokens = Left $ "Parse error\n" ++ show tokens
 
 createClosure :: [(String, Type)] -> Maybe Type -> Expr -> Closure
 createClosure args ret body =
-  let retType = maybe UnitType id ret in
+  let retType = maybe (ConType (Id ["unit"])) id ret in
   Closure (foldr ArrowType retType $ map snd args) (map fst args) body
 }
