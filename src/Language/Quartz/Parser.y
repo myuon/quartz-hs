@@ -37,6 +37,7 @@ import Language.Quartz.AST
     MATCH { TMatch }
 
     INT { TInt $$ }
+    STRLIT { TStrLit $$ }
     VAR { TVar $$ }
 
 %%
@@ -99,7 +100,7 @@ stmts
     : expr ';' stmts  { $1 : $3 }
     | LET VAR '=' expr ';' stmts { Let (Id [$2]) $4 : $6 }
     | expr  { [$1] }
-    | {- empty -}  { [] }
+    | {- empty -}  { [Unit] }
 
 expr :: { Expr }
 expr
@@ -153,7 +154,8 @@ self_arg_types
 
 literal :: { Literal }
 literal
-    : INT { IntLit $1 }
+    : INT  { IntLit $1 }
+    | STRLIT  { StringLit $1 }
 
 type :: { Type }
 type

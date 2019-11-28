@@ -6,6 +6,8 @@ module Language.Quartz.Lexer where
 
 $digit = [0-9]
 $alpha = [a-zA-Z]
+$graphic = $printable # $white
+@string = \" ($graphic # \")* \"
 
 tokens :-
   $white+ ;
@@ -33,6 +35,7 @@ tokens :-
   \_ { \_ -> TUnderscore }
   $digit+ { TInt . read }
   [$alpha \_] [$alpha $digit \_]* { TVar }
+  @string { TStrLit }
 
 {
 data Token
@@ -60,5 +63,6 @@ data Token
   | TUnderscore
   | TInt Int
   | TVar String
+  | TStrLit String
   deriving (Eq, Show)
 }

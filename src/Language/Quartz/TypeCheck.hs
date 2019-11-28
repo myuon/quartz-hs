@@ -121,10 +121,8 @@ algoW expr = case expr of
     return (s1, ConType (Id ["unit"]))
   Unit         -> return (emptySubst, ConType (Id ["unit"]))
   Procedure es -> foldlM
-    ( \(s1, t1) e -> do
-      when (t1 /= ConType (Id ["unit"])) $ lift $ throwE $ TypeNotMatch
-        (ConType (Id ["unit"]))
-        t1
+    ( \(s1, _) e -> do
+      -- discarding the previous type information
       (s2, t2) <- algoW e
       return (s2 `compose` s1, t2)
     )
