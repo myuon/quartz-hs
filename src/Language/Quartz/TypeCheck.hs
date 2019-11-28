@@ -107,7 +107,10 @@ algoW expr = case expr of
                    (getContext ctx)
           $ zip args bs
       algoW body
-    return (s1, foldr' (\t b -> ArrowType b t) t1 bs)
+
+    let t' = foldr' (\t b -> ArrowType b t) t1 bs
+    s2 <- lift $ mgu t t'
+    return (s2 `compose` s1, apply s2 t')
   FnCall f []   -> algoW f
   FnCall f es   -> appW $ reverse $ f : es
   Let    x expr -> do
@@ -118,11 +121,11 @@ algoW expr = case expr of
     return (s1, ConType (Id ["unit"]))
   Unit         -> return (emptySubst, ConType (Id ["unit"]))
   Procedure es -> foldlM
-    ( \(s1, _) e -> do
-      (s2, t2) <- algoW e
-      when (t2 /= ConType (Id ["unit"])) $ lift $ throwE $ TypeNotMatch
+    ( \(s1, t1) e -> do
+      when (t1 /= ConType (Id ["unit"])) $ lift $ throwE $ TypeNotMatch
         (ConType (Id ["unit"]))
-        t2
+        t1
+      (s2, t2) <- algoW e
       return (s2 `compose` s1, t2)
     )
     (emptySubst, ConType (Id ["unit"]))

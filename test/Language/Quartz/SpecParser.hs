@@ -26,17 +26,18 @@ spec_parser = do
       parseE "a.b.c" `shouldBe` Var (Id ["a", "b", "c"])
 
       parseE "(a: string): string -> a" `shouldBe` ClosureE
-        ( Closure (VarType "string" `ArrowType` VarType "string")
-                  ["a"]
-                  (Var (Id ["a"]))
+        ( Closure
+          (ConType (Id ["string"]) `ArrowType` ConType (Id ["string"]))
+          ["a"]
+          (Var (Id ["a"]))
         )
 
       parseE "(a: int, b: int, c: int) -> { let z = sum(a,b,c); z }"
         `shouldBe` ClosureE
                      ( Closure
-                       (           VarType "int"
-                       `ArrowType` (           VarType "int"
-                                   `ArrowType` (           VarType "int"
+                       (           ConType (Id ["int"])
+                       `ArrowType` (           ConType (Id ["int"])
+                                   `ArrowType` (           ConType (Id ["int"])
                                                `ArrowType` ConType
                                                              (Id ["unit"])
                                                )
@@ -58,19 +59,19 @@ spec_parser = do
       parseD "func id(x: A): A { let y = x; y }" `shouldBe` Func
         "id"
         ( Closure
-          (ArrowType (VarType "A") (VarType "A"))
+          (ArrowType (ConType (Id ["A"])) (ConType (Id ["A"])))
           ["x"]
           (Procedure [Let (Id ["y"]) (Var (Id ["x"])), Var (Id ["y"])])
         )
 
       parseD "enum Nat { Zero, Succ(Nat) }" `shouldBe` Enum
         "Nat"
-        [EnumField "Zero" [], EnumField "Succ" [VarType "Nat"]]
+        [EnumField "Zero" [], EnumField "Succ" [ConType (Id ["Nat"])]]
 
       parseD "record User { user_id: string, age: int, }" `shouldBe` Record
         "User"
-        [ RecordField "user_id" (VarType "string")
-        , RecordField "age"     (VarType "int")
+        [ RecordField "user_id" (ConType (Id ["string"]))
+        , RecordField "age"     (ConType (Id ["int"]))
         ]
 
       parseD "open List.Foo.Bar.*;" `shouldBe` OpenD "List.Foo.Bar.*"
@@ -82,7 +83,7 @@ spec_parser = do
                      [ Method
                          "is_zero"
                          ( Closure
-                           (ArrowType SelfType (VarType "bool"))
+                           (ArrowType SelfType (ConType (Id ["bool"])))
                            ["self"]
                            ( Procedure
                              [ Match

@@ -27,18 +27,14 @@ parseE = either error id . parserExpr . alexScanTokens
 parseD = either error id . parser . alexScanTokens
 parseDs = either error id . parserDecls . alexScanTokens
 
-spec_Evaluate :: Spec
-spec_Evaluate = do
+spec_evaluate :: Spec
+spec_evaluate = do
   describe "evaluate" $ do
     it "should evaluate" $ do
       Lit (IntLit 10) `evaluatedToBe` Lit (IntLit 10)
 
     it "should parse and eval" $ do
-      parseE [r| (a: string): string -> a |] `evaluatedToBe` ClosureE
-        ( Closure (VarType "string" `ArrowType` VarType "string")
-                  ["a"]
-                  (Var (Id ["a"]))
-        )
+      parseE [r| (a: string): string -> a |] `evaluatedToBe` parseE [r| (a: string): string -> a |]
 
       parseE [r| { let a = 10; a } |] `evaluatedToBe` parseE [r| 10 |]
 

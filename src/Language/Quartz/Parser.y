@@ -158,7 +158,8 @@ literal
 type :: { Type }
 type
     : '(' ')'  { ConType (Id ["unit"]) }
-    | VAR  { VarType $1 }
+    | '_'  { NoType }
+    | VAR  { ConType (Id [$1]) }
 
 var :: { Id }
 var
