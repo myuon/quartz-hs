@@ -3,13 +3,18 @@ module Language.Quartz (
   evalE,
   evalD,
   runMain,
-  runEval,
+  runEvalE,
   parseExpr,
   parseDecl,
   parseModule,
   typecheck,
+  runModule,
 ) where
 
+import Control.Error
+import Control.Monad.IO.Class
+import Data.Bifunctor
+import Language.Quartz.AST
 import Language.Quartz.Lexer
 import Language.Quartz.Parser
 import Language.Quartz.TypeCheck
@@ -23,3 +28,15 @@ parseDecl = parser . alexScanTokens
 
 parseModule :: String -> Either String [Decl]
 parseModule = parserDecls . alexScanTokens
+
+data CompilerError
+  = ParseError String
+  | TypeCheckError TypeCheckExceptions
+  | EvalError RuntimeExceptions
+  deriving (Eq, Show)
+
+runModule :: MonadIO m => String -> m (Either CompilerError Expr)
+runModule s = runExceptT $ do
+  decls <- withExceptT ParseError $ ExceptT $ return $ parseModule s
+  withExceptT TypeCheckError $ runTypeCheckModule decls
+  withExceptT EvalError $ runMain decls

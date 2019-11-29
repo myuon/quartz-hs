@@ -24,8 +24,18 @@ spec_typecheck = do
   describe "typechecker" $ do
     it "should typecheck" $ do
       parseE [r| 10 |] `runTypeCheck` ConType (Id ["int"])
+
       parseE [r| (x: int): int -> { x } |]
         `runTypeCheck` (ConType (Id ["int"]) `ArrowType` ConType (Id ["int"]))
+
+      parseE [r|
+        {
+          let f = (x: int): int -> x;
+          f(10)
+        }
+      |]
+        `runTypeCheck` ConType (Id ["int"])
+
       parseE [r|
         {
           let f = (x: int): int -> x;
@@ -33,3 +43,13 @@ spec_typecheck = do
         }
       |]
         `runTypeCheck` ConType (Id ["unit"])
+
+      {-
+      parseE [r|
+        {
+          let f = (): int -> 10;
+          f
+        }
+      |]
+        `runTypeCheck` ConType (Id ["int"])
+      -}

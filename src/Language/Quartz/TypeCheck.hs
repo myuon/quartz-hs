@@ -150,3 +150,14 @@ algoW expr = case expr of
 
 typecheck :: MonadIO m => Expr -> ExceptT TypeCheckExceptions m Type
 typecheck e = fmap snd $ evalStateT (algoW e) (Context M.empty)
+
+runTypeCheckModule :: MonadIO m => [Decl] -> ExceptT TypeCheckExceptions m ()
+runTypeCheckModule ds = mapM_ check ds
+ where
+  check d = case d of
+    Enum     _ _  -> return ()
+    Record   _ _  -> return ()
+    Instance _ ds -> runTypeCheckModule ds
+    OpenD _       -> return ()
+    Func   _ c    -> typecheck (ClosureE c) >> return ()
+    Method _ c    -> typecheck (ClosureE c) >> return ()

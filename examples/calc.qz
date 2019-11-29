@@ -1,0 +1,4 @@
+func f(): int {
+  let g = (): int -> 10;
+  g()
+}
