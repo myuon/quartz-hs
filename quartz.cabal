@@ -22,6 +22,7 @@ library
     Language.Quartz.AST
     Language.Quartz.Lexer
     Language.Quartz.Parser
+    Language.Quartz.Std
     Language.Quartz.TypeCheck
     Language.Quartz.Eval
   -- other-modules:

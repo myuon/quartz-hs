@@ -10,12 +10,14 @@ import qualified Data.Map as M
 import Data.Dynamic
 import Data.Foldable
 import Language.Quartz.AST
+import qualified Language.Quartz.Std as Std
 import qualified Data.PathTree as PathTree
 
 data Context = Context {
   decls :: PathTree.PathTree String Decl,
-  exprs :: M.Map Id Expr
-} deriving (Eq, Show)
+  exprs :: M.Map Id Expr,
+  ffi :: M.Map Id ([Dynamic] -> IO Expr)
+}
 
 subst :: Expr -> String -> Expr -> Expr
 subst expr var term = case expr of
@@ -31,6 +33,7 @@ subst expr var term = case expr of
       args
     )
   Procedure es -> Procedure $ map (\x -> subst x var term) es
+  FFI p es     -> FFI p $ map (\x -> subst x var term) es
   _            -> expr
 
 isNormalForm :: Expr -> Bool
@@ -45,6 +48,7 @@ isNormalForm vm = case vm of
   OpenE     _ -> True
   Procedure _ -> False
   Unit        -> True
+  FFI _ _     -> False
 
 
 match
@@ -102,10 +106,12 @@ evalE vm = case vm of
     )
     brs
   Procedure es -> foldl' (\m e -> m >> evalE e) (return NoExpr) es
+  FFI p es     -> get >>= \ctx -> do
+    pf <- lift $ ffi ctx M.!? p ?? NotFound p
+    liftIO $ pf $ map toDyn es
 
 runEvalE :: MonadIO m => Expr -> ExceptT RuntimeExceptions m Expr
-runEvalE m =
-  evalStateT (evalE m) $ Context {exprs = M.empty, decls = PathTree.empty}
+runEvalE m = evalStateT (evalE m) std
 
 evalD :: MonadIO m => Decl -> StateT Context (ExceptT RuntimeExceptions m) ()
 evalD decl = go [] decl
@@ -121,8 +127,10 @@ evalD decl = go [] decl
     Method d _ ->
       modify $ \ctx -> ctx { decls = PathTree.insert [d] decl (decls ctx) }
 
+std :: Context
+std = Context {ffi = Std.ffi, exprs = Std.exprs, decls = PathTree.empty}
+
 runMain :: MonadIO m => [Decl] -> ExceptT RuntimeExceptions m Expr
-runMain decls =
-  flip evalStateT (Context {exprs = M.empty, decls = PathTree.empty}) $ do
-    mapM_ evalD decls
-    evalE (FnCall (Var (Id ["main"])) [Unit])
+runMain decls = flip evalStateT std $ do
+  mapM_ evalD decls
+  evalE (FnCall (Var (Id ["main"])) [Unit])

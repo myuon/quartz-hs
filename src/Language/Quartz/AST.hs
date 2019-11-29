@@ -21,6 +21,7 @@ data Expr
   | Procedure [Expr]
   | Unit
   | NoExpr
+  | FFI Id [Expr]
   deriving (Eq, Show)
 
 data Type

@@ -6,8 +6,7 @@ module Language.Quartz.Lexer where
 
 $digit = [0-9]
 $alpha = [a-zA-Z]
-$graphic = $printable # $white
-@string = \" ($graphic # \")* \"
+@string = \" ($printable # \")* \"
 
 tokens :-
   $white+ ;

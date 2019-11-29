@@ -7,9 +7,13 @@ import qualified Data.PathTree as PathTree
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Language.Quartz.AST
+import qualified Language.Quartz.Std as Std
 import Data.Unique
 
 newtype Context = Context { getContext :: M.Map Id Scheme }
+
+std :: Context
+std = Context $ fmap (Scheme []) Std.types
 
 data Scheme = Scheme [String] Type
 
@@ -92,7 +96,8 @@ algoW
 algoW expr = case expr of
   Var v -> do
     ctx  <- get
-    inst <- instantiate (getContext ctx M.! v)
+    v'   <- lift $ getContext ctx M.!? v ?? NotFound v
+    inst <- instantiate v'
     return (emptySubst, inst)
   Lit      (IntLit    n        ) -> return (emptySubst, ConType (Id ["int"]))
   Lit      (DoubleLit n        ) -> return (emptySubst, ConType (Id ["double"]))
@@ -149,7 +154,7 @@ algoW expr = case expr of
     return (s3 `compose` s2 `compose` s1, apply s3 b)
 
 typecheck :: MonadIO m => Expr -> ExceptT TypeCheckExceptions m Type
-typecheck e = fmap snd $ evalStateT (algoW e) (Context M.empty)
+typecheck e = fmap snd $ evalStateT (algoW e) std
 
 runTypeCheckModule :: MonadIO m => [Decl] -> ExceptT TypeCheckExceptions m ()
 runTypeCheckModule ds = mapM_ check ds

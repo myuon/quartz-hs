@@ -9,6 +9,7 @@ import Text.RawString.QQ
 
 parseE = (\(Right r) -> r) . parserExpr . alexScanTokens
 parseD = either error id . parser . alexScanTokens
+parseDs = either error id . parserDecls . alexScanTokens
 
 spec_parser :: Spec
 spec_parser = do
@@ -17,6 +18,9 @@ spec_parser = do
       parseE "xxx" `shouldBe` Var (Id ["xxx"])
 
       parseE "10" `shouldBe` Lit (IntLit 10)
+
+      parseE [r| "aaa" |] `shouldBe` Lit (StringLit "\"aaa\"")
+      parseE [r| "あああ" |] `shouldBe` Lit (StringLit "\"あああ\"")
 
       parseE "foo(x,y,z)" `shouldBe` FnCall
         (Var (Id ["foo"]))
@@ -106,3 +110,13 @@ spec_parser = do
                            )
                          )
                      ]
+
+      parseD [r|
+        func main() {
+          println("Hello, World!");
+        }
+      |] `shouldBe` Func "main" (Closure
+        (ConType (Id ["unit"]) `ArrowType` ConType (Id ["unit"]))
+        ["()"]
+        (Procedure [FnCall (Var (Id ["println"])) [Lit (StringLit "\"Hello, World!\"")], Unit])
+        )
