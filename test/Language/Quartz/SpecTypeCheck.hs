@@ -44,12 +44,10 @@ spec_typecheck = do
       |]
         `runTypeCheck` ConType (Id ["unit"])
 
-      {-
       parseE [r|
         {
           let f = (): int -> 10;
           f
         }
       |]
-        `runTypeCheck` ConType (Id ["int"])
-      -}
+        `runTypeCheck` (ConType (Id ["unit"]) `ArrowType` ConType (Id ["int"]))

@@ -1,9 +1,11 @@
+{-# LANGUAGE QuasiQuotes #-}
 module Language.Quartz.SpecParser where
 
 import Language.Quartz.Lexer (alexScanTokens)
 import Language.Quartz.AST
 import Language.Quartz.Parser
 import Test.Tasty.Hspec hiding (Failure, Success)
+import Text.RawString.QQ
 
 parseE = (\(Right r) -> r) . parserExpr . alexScanTokens
 parseD = either error id . parser . alexScanTokens
@@ -55,6 +57,13 @@ spec_parser = do
                          ]
                        )
                      )
+
+      parseE [r|
+        {
+          let f = (): int -> 10;
+          f
+        }
+      |] `shouldBe` Procedure [Let (Id ["f"]) (ClosureE (Closure (ConType (Id ["unit"]) `ArrowType` ConType (Id ["int"])) ["()"] (Lit (IntLit 10)))), Var (Id ["f"])]
 
       parseD "func id(x: A): A { let y = x; y }" `shouldBe` Func
         "id"

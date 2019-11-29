@@ -108,7 +108,7 @@ algoW expr = case expr of
           $ zip args bs
       algoW body
 
-    let t' = foldr' (\t b -> ArrowType b t) t1 bs
+    let t' = foldr' ArrowType t1 bs
     s2 <- lift $ mgu t t'
     return (s2 `compose` s1, apply s2 t')
   FnCall f []   -> algoW f

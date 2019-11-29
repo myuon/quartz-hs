@@ -133,7 +133,7 @@ patterns
 
 args :: { [Expr] }
 args
-    : '(' ')'  { [] }
+    : '(' ')'  { [Unit] }
     | '(' exprs_comma ')'  { $2 }
 
 exprs_comma :: { [Expr] }
@@ -145,7 +145,7 @@ arg_types :: { [(String, Type)] }
 arg_types
     : VAR ':' type ',' arg_types  { ($1, $3) : $5 }
     | VAR ':' type  { [($1, $3)] }
-    | {- empty -}  { [("", ConType (Id ["unit"]))] }
+    | {- empty -}  { [("()", ConType (Id ["unit"]))] }
 
 self_arg_types :: { [(String, Type)] }
 self_arg_types
