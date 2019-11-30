@@ -154,6 +154,16 @@ algoW expr = case expr of
     )
     (emptySubst, ConType (Id ["unit"]))
     es
+  ForIn elem arr es -> do
+    b        <- fresh
+    (s1, t1) <- algoW arr
+    s2       <- lift $ mgu t1 (AppType (ConType (Id ["array"])) [VarType b])
+    ctx      <- get
+    modify $ Context . M.insert (Id [elem]) (Scheme [] $ VarType b) . getContext
+    (s3, t3) <- algoW $ Procedure es
+    put ctx
+    s4 <- lift $ mgu t3 $ ConType (Id ["unit"])
+    return (s4 `compose` s3 `compose` s2 `compose` s1, ConType (Id ["unit"]))
  where
   appW (e1:e2:[]) = do
     b        <- VarType <$> fresh

@@ -19,6 +19,8 @@ tokens :-
   self { \_ -> TSelf }
   match { \_ -> TMatch }
   external { \_ -> TExternal }
+  for { \_ -> TFor }
+  in { \_ -> TIn }
   \< { \_ -> TLAngle }
   \> { \_ -> TRAngle }
   \( { \_ -> TLParen }
@@ -50,6 +52,8 @@ data Token
   | TSelf
   | TMatch
   | TExternal
+  | TFor
+  | TIn
   | TLAngle
   | TRAngle
   | TLParen

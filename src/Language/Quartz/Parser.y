@@ -38,6 +38,8 @@ import Language.Quartz.AST
     SELF { TSelf }
     MATCH { TMatch }
     EXTERNAL { TExternal }
+    FOR { TFor }
+    IN { TIn }
 
     INT { TInt $$ }
     STRLIT { TStrLit $$ }
@@ -116,6 +118,7 @@ stmts
     | LET VAR '=' expr ';' stmts { Let (Id [$2]) $4 : $6 }
     | expr  { [$1] }
     | {- empty -}  { [Unit] }
+    | FOR VAR IN expr '{' stmts '}' stmts  { ForIn $2 $4 $6 : $8 }
 
 expr :: { Expr }
 expr

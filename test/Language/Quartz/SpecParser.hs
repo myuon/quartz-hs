@@ -136,3 +136,19 @@ spec_parser = do
       parseD [r|
         external func println(x: string);
       |] `shouldBe` ExternalFunc "println" (Scheme [] $ ArrowType (ConType (Id ["string"])) (ConType (Id ["unit"])))
+
+      parseD [r|
+        func f() {
+          for i in foo {
+            put(i);
+          }
+        }
+      |] `shouldBe` Func "f" (Closure (Scheme [] (ArrowType (ConType (Id ["unit"])) (ConType (Id ["unit"])))) ["()"] (
+                      Procedure [
+                        ForIn "i" (Var (Id ["foo"])) [
+                          FnCall (Var (Id ["put"])) [Var (Id ["i"])],
+                          Unit
+                        ],
+                        Unit
+                      ]
+                    ))

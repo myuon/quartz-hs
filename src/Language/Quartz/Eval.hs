@@ -118,6 +118,19 @@ evalE vm = case vm of
     case (arr, i) of
       (Array m, Lit (IntLit i)) -> liftIO $ Array.readArray (getMArray m) i
       _                         -> lift $ throwE $ Unreachable vm
+  ForIn var e1 es -> do
+    arr <- evalE e1
+    ctx <- get
+    case arr of
+      (Array m) ->
+        forM_ [0 .. Array.sizeofMutableArray (getMArray m) - 1] $ \i -> do
+          r <- liftIO $ Array.readArray (getMArray m) i
+          modify $ \ctx -> ctx { exprs = M.insert (Id [var]) r (exprs ctx) }
+          mapM_ evalE es
+      _ -> lift $ throwE $ Unreachable vm
+    put ctx
+
+    return Unit
 
 runEvalE :: MonadIO m => Expr -> ExceptT RuntimeExceptions m Expr
 runEvalE m = evalStateT (evalE m) std

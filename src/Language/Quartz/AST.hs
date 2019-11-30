@@ -29,6 +29,7 @@ data Expr
   | Array MArray
   | ArrayLit [Expr]
   | IndexArray Expr Expr
+  | ForIn String Expr [Expr]
   deriving (Eq, Show)
 
 newtype MArray = MArray { getMArray :: MutableArray RealWorld Expr }
