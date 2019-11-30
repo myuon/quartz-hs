@@ -18,6 +18,7 @@ tokens :-
   let { \_ -> TLet }
   self { \_ -> TSelf }
   match { \_ -> TMatch }
+  external { \_ -> TExternal }
   \< { \_ -> TLAngle }
   \> { \_ -> TRAngle }
   \( { \_ -> TLParen }
@@ -46,6 +47,7 @@ data Token
   | TLet
   | TSelf
   | TMatch
+  | TExternal
   | TLAngle
   | TRAngle
   | TLParen

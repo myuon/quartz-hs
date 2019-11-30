@@ -7,7 +7,8 @@ module Language.Quartz (
   parseExpr,
   parseDecl,
   parseModule,
-  typecheck,
+  typecheckExpr,
+  typecheckModule,
   runModule,
 ) where
 

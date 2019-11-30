@@ -52,6 +52,7 @@ data Decl
   | OpenD String
   | Func String Closure
   | Method String Closure
+  | ExternalFunc String Type
   deriving (Eq, Show)
 
 data EnumField = EnumField String [Type]

@@ -120,3 +120,7 @@ spec_parser = do
         ["()"]
         (Procedure [FnCall (Var (Id ["println"])) [Lit (StringLit "\"Hello, World!\"")], Unit])
         )
+
+      parseD [r|
+        external func println(x: string);
+      |] `shouldBe` ExternalFunc "println" (ArrowType (ConType (Id ["string"])) (ConType (Id ["unit"])))

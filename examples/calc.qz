@@ -1,4 +1,5 @@
+external func println(s: string);
+
 func main() {
   println("Hello, World!");
-  println(100);
 }

@@ -13,7 +13,7 @@ import Data.Unique
 newtype Context = Context { getContext :: M.Map Id Scheme }
 
 std :: Context
-std = Context Std.types
+std = Context M.empty
 
 data TypeCheckExceptions
   = UnificationFailed Type Type
@@ -151,16 +151,29 @@ algoW expr = case expr of
     s3 <- lift $ mgu (apply s2 t1) (ArrowType t2 b)
     return (s3 `compose` s2 `compose` s1, apply s3 b)
 
-typecheck :: MonadIO m => Expr -> ExceptT TypeCheckExceptions m Type
-typecheck e = fmap snd $ evalStateT (algoW e) std
+typecheckExpr
+  :: MonadIO m => Expr -> StateT Context (ExceptT TypeCheckExceptions m) Type
+typecheckExpr e = fmap snd $ algoW e
 
-runTypeCheckModule :: MonadIO m => [Decl] -> ExceptT TypeCheckExceptions m ()
-runTypeCheckModule ds = mapM_ check ds
+typecheckModule
+  :: MonadIO m => [Decl] -> StateT Context (ExceptT TypeCheckExceptions m) ()
+typecheckModule ds = mapM_ check ds
  where
   check d = case d of
     Enum     _ _  -> return ()
     Record   _ _  -> return ()
-    Instance _ ds -> runTypeCheckModule ds
+    Instance _ ds -> typecheckModule ds
     OpenD _       -> return ()
-    Func   _ c    -> typecheck (ClosureE c) >> return ()
-    Method _ c    -> typecheck (ClosureE c) >> return ()
+    Func   _ c    -> typecheckExpr (ClosureE c) >> return ()
+    Method _ c    -> typecheckExpr (ClosureE c) >> return ()
+    ExternalFunc s c ->
+      modify
+        $ Context
+        . M.insert (Id [s]) (Scheme (S.toList $ ftv c) c)
+        . getContext
+
+runTypeCheckExpr :: MonadIO m => Expr -> ExceptT TypeCheckExceptions m Type
+runTypeCheckExpr e = evalStateT (typecheckExpr e) std
+
+runTypeCheckModule :: MonadIO m => [Decl] -> ExceptT TypeCheckExceptions m ()
+runTypeCheckModule ds = evalStateT (typecheckModule ds) std

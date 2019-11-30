@@ -35,6 +35,7 @@ import Language.Quartz.AST
     LET { TLet }
     SELF { TSelf }
     MATCH { TMatch }
+    EXTERNAL { TExternal }
 
     INT { TInt $$ }
     STRLIT { TStrLit $$ }
@@ -44,7 +45,8 @@ import Language.Quartz.AST
 
 decl :: { Decl }
 decl
-    : FUNC VAR '(' arg_types ')' may_return_type '{' stmts '}'  { Func $2 (createClosure $4 $6 (Procedure $8)) }
+    : EXTERNAL FUNC VAR '(' arg_types ')' may_return_type ';'  { ExternalFunc $3 (createFunctionType $5 $7) }
+    | FUNC VAR '(' arg_types ')' may_return_type '{' stmts '}'  { Func $2 (createClosure $4 $6 (Procedure $8)) }
     | FUNC VAR '(' self_arg_types ')' may_return_type '{' stmts '}'  { Method $2 (createClosure $4 $6 (Procedure $8)) }
     | ENUM VAR '{' enum_fields '}'  { Enum $2 $4 }
     | RECORD VAR '{' record_fields '}'  { Record $2 $4 }
@@ -175,8 +177,11 @@ var_internal
 {
 happyError tokens = Left $ "Parse error\n" ++ show tokens
 
-createClosure :: [(String, Type)] -> Maybe Type -> Expr -> Closure
-createClosure args ret body =
+createFunctionType :: [(String, Type)] -> Maybe Type -> Type
+createFunctionType args ret = 
   let retType = maybe (ConType (Id ["unit"])) id ret in
-  Closure (foldr ArrowType retType $ map snd args) (map fst args) body
+  foldr ArrowType retType $ map snd args
+
+createClosure :: [(String, Type)] -> Maybe Type -> Expr -> Closure
+createClosure args ret body = Closure (createFunctionType args ret) (map fst args) body
 }

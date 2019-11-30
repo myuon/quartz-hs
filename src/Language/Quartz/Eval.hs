@@ -127,6 +127,7 @@ evalD decl = go [] decl
         ctx { exprs = M.insert (Id [d]) (ClosureE body) (exprs ctx) }
     Method d _ ->
       modify $ \ctx -> ctx { decls = PathTree.insert [d] decl (decls ctx) }
+    ExternalFunc _ _ -> return ()
 
 std :: Context
 std = Context {ffi = Std.ffi, exprs = Std.exprs, decls = PathTree.empty}
