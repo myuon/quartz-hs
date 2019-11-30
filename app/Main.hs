@@ -8,4 +8,4 @@ main = do
   args   <- getArgs
   body   <- readFile $ head args
   result <- runModule body
-  print result
+  putStrLn $ ">>> " ++ show result

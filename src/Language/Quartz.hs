@@ -33,7 +33,7 @@ data CompilerError
   = ParseError String
   | TypeCheckError TypeCheckExceptions
   | EvalError RuntimeExceptions
-  deriving (Eq, Show)
+  deriving Show
 
 runModule :: MonadIO m => String -> m (Either CompilerError Expr)
 runModule s = runExceptT $ do

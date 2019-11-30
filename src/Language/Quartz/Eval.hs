@@ -16,7 +16,7 @@ import qualified Data.PathTree as PathTree
 data Context = Context {
   decls :: PathTree.PathTree String Decl,
   exprs :: M.Map Id Expr,
-  ffi :: M.Map Id ([Dynamic] -> IO Expr)
+  ffi :: M.Map Id ([Dynamic] -> ExceptT Std.FFIExceptions IO Expr)
 }
 
 subst :: Expr -> String -> Expr -> Expr
@@ -69,7 +69,8 @@ data RuntimeExceptions
   = NotFound Id
   | PatternNotMatch Pattern Expr
   | PatternExhausted
-  deriving (Eq, Show)
+  | FFIExceptions Std.FFIExceptions
+  deriving Show
 
 -- Assume renaming is done
 evalE :: MonadIO m => Expr -> StateT Context (ExceptT RuntimeExceptions m) Expr
@@ -108,7 +109,7 @@ evalE vm = case vm of
   Procedure es -> foldl' (\m e -> m >> evalE e) (return NoExpr) es
   FFI p es     -> get >>= \ctx -> do
     pf <- lift $ ffi ctx M.!? p ?? NotFound p
-    liftIO $ pf $ map toDyn es
+    lift $ mapExceptT liftIO $ withExceptT FFIExceptions $ pf $ map toDyn es
 
 runEvalE :: MonadIO m => Expr -> ExceptT RuntimeExceptions m Expr
 runEvalE m = evalStateT (evalE m) std
