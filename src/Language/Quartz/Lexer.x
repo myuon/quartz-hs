@@ -25,6 +25,8 @@ tokens :-
   \) { \_ -> TRParen }
   \{ { \_ -> TLBrace }
   \} { \_ -> TRBrace }
+  \[ { \_ -> TLBracket }
+  \] { \_ -> TRBracket }
   \, { \_ -> TComma }
   \: { \_ -> TColon }
   \; { \_ -> TSemiColon }
@@ -54,6 +56,8 @@ data Token
   | TRParen
   | TLBrace
   | TRBrace
+  | TLBracket
+  | TRBracket
   | TComma
   | TColon
   | TSemiColon

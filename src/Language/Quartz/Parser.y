@@ -18,6 +18,8 @@ import Language.Quartz.AST
     ')' { TRParen }
     '{' { TLBrace }
     '}' { TRBrace }
+    '[' { TLBracket }
+    ']' { TRBracket }
     ',' { TComma }
     ':' { TColon }
     ';' { TSemiColon }
@@ -114,6 +116,7 @@ expr
     | '{' stmts '}'  { Procedure $2 }
     | var  { Var $1 }
     | SELF  { Var (Id ["self"]) }
+    | '[' array_lit ']'  { ArrayLit $2 }
 
 match_branches :: { [(Pattern, Expr)] }
 match_branches
@@ -158,6 +161,12 @@ literal :: { Literal }
 literal
     : INT  { IntLit $1 }
     | STRLIT  { StringLit $1 }
+
+array_lit :: { [Expr] }
+array_lit
+    : {- empty -}  { [] }
+    | expr  { [$1] }
+    | expr ',' array_lit  { $1 : $3 }
 
 type :: { Type }
 type

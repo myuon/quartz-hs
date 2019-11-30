@@ -1,5 +1,8 @@
 module Language.Quartz.AST where
 
+import Data.Primitive.Array
+import Control.Monad.Primitive (RealWorld)
+
 data Literal
   = IntLit Int
   | DoubleLit Double
@@ -22,12 +25,22 @@ data Expr
   | Unit
   | NoExpr
   | FFI Id [Expr]
+  -- primitiveのときはMutableByteArrayにしたい
+  | Array MArray
+  | ArrayLit [Expr]
   deriving (Eq, Show)
+
+newtype MArray = MArray { getMArray :: MutableArray RealWorld Expr }
+  deriving Eq
+
+instance Show MArray where
+  show _ = "<<array>>"
 
 data Type
   = ArrowType Type Type
   | ConType Id
   | VarType String
+  | AppType Type [Type]
   | SelfType
   | NoType
   deriving (Eq, Show)

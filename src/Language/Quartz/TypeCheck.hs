@@ -97,10 +97,20 @@ algoW expr = case expr of
     v'   <- lift $ getContext ctx M.!? v ?? NotFound v
     inst <- instantiate v'
     return (emptySubst, inst)
-  Lit      (IntLit    n        ) -> return (emptySubst, ConType (Id ["int"]))
-  Lit      (DoubleLit n        ) -> return (emptySubst, ConType (Id ["double"]))
-  Lit      (CharLit   c        ) -> return (emptySubst, ConType (Id ["char"]))
-  Lit      (StringLit c        ) -> return (emptySubst, ConType (Id ["string"]))
+  Lit      (IntLit    n) -> return (emptySubst, ConType (Id ["int"]))
+  Lit      (DoubleLit n) -> return (emptySubst, ConType (Id ["double"]))
+  Lit      (CharLit   c) -> return (emptySubst, ConType (Id ["char"]))
+  Lit      (StringLit c) -> return (emptySubst, ConType (Id ["string"]))
+  ArrayLit es            -> do
+    b <- fresh
+    fmap (\(s, t) -> (s, AppType (ConType (Id ["array"])) [t])) $ foldlM
+      ( \(s1, t1) e -> do
+        (s2, t2) <- algoW e
+        s3       <- lift $ mgu t1 t2
+        return (s3 `compose` s2 `compose` s1, apply s3 t2)
+      )
+      (emptySubst, VarType b)
+      es
   ClosureE (Closure t args body) -> do
     bs       <- mapM (\_ -> fmap VarType fresh) args
     (s1, t1) <- do

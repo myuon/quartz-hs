@@ -31,6 +31,8 @@ spec_parser = do
 
       parseE "a.b.c" `shouldBe` Var (Id ["a", "b", "c"])
 
+      parseE "[1,2,3,4]" `shouldBe` ArrayLit [Lit (IntLit 1),Lit (IntLit 2),Lit (IntLit 3),Lit (IntLit 4)]
+
       parseE "(a: string): string -> a" `shouldBe` ClosureE
         ( Closure
           (ConType (Id ["string"]) `ArrowType` ConType (Id ["string"]))

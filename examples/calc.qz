@@ -1,5 +1,7 @@
 external func println(s: string);
 
 func main() {
+  let arr = [1,2,3,4];
+
   println("Hello, World!");
 }

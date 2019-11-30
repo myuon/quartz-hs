@@ -13,6 +13,7 @@ import Language.Quartz.AST
 import Language.Quartz.TypeCheck (fresh, argumentOf)
 import qualified Language.Quartz.Std as Std
 import qualified Data.PathTree as PathTree
+import qualified Data.Primitive.Array as Array
 
 data Context = Context {
   decls :: PathTree.PathTree String Decl,
@@ -50,6 +51,8 @@ isNormalForm vm = case vm of
   Procedure _ -> False
   Unit        -> True
   FFI _ _     -> False
+  ArrayLit _  -> False
+  Array    _  -> True
 
 
 match
@@ -95,7 +98,7 @@ evalE vm = case vm of
   Let x t -> do
     f <- evalE t
     modify $ \ctx -> ctx { exprs = M.insert x f (exprs ctx) }
-    return NoExpr
+    return Unit
   Match t brs -> fix
     ( \cont brs -> case brs of
       []            -> lift $ throwE PatternExhausted
@@ -104,13 +107,17 @@ evalE vm = case vm of
         result <- runExceptT $ execStateT (match pat t) ctx0
         case result of
           Left  _    -> cont bs
-          Right ctx' -> put ctx' >> return b
+          Right ctx' -> put ctx' >> evalE b
     )
     brs
-  Procedure es -> foldl' (\m e -> m >> evalE e) (return NoExpr) es
+  Procedure es -> foldl' (\m e -> m >> evalE e) (return Unit) es
   FFI p es     -> get >>= \ctx -> do
     pf <- lift $ ffi ctx M.!? p ?? NotFound p
     lift $ mapExceptT liftIO $ withExceptT FFIExceptions $ pf $ map toDyn es
+  ArrayLit es -> do
+    let arr = Array.fromList es
+    marr <- liftIO $ Array.thawArray arr 0 (Array.sizeofArray arr)
+    return $ Array $ MArray marr
 
 runEvalE :: MonadIO m => Expr -> ExceptT RuntimeExceptions m Expr
 runEvalE m = evalStateT (evalE m) std
