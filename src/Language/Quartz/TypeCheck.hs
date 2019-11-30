@@ -13,9 +13,7 @@ import Data.Unique
 newtype Context = Context { getContext :: M.Map Id Scheme }
 
 std :: Context
-std = Context $ fmap (Scheme []) Std.types
-
-data Scheme = Scheme [String] Type
+std = Context Std.types
 
 data TypeCheckExceptions
   = UnificationFailed Type Type

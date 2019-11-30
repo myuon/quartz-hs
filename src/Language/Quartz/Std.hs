@@ -24,9 +24,12 @@ ffi = M.fromList
     )
   ]
 
-types :: M.Map Id Type
-types =
-  M.fromList [(Id ["println"], VarType "a" `ArrowType` ConType (Id ["unit"]))]
+types :: M.Map Id Scheme
+types = M.fromList
+  [ ( Id ["println"]
+    , Scheme ["a"] (VarType "a" `ArrowType` ConType (Id ["unit"]))
+    )
+  ]
 
 exprs :: M.Map Id Expr
 exprs = M.fromList

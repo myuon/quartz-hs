@@ -32,6 +32,9 @@ data Type
   | NoType
   deriving (Eq, Show)
 
+data Scheme = Scheme [String] Type
+  deriving (Eq, Show)
+
 data Pattern
   = PVar String
   | PLit Literal
