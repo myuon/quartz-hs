@@ -36,6 +36,10 @@ spec_evaluate = do
     it "should parse and eval" $ do
       parseE [r| (a: string): string -> a |] `evaluatedToBe` parseE [r| (a: string): string -> a |]
 
+      parseE [r| { let id = <A>(a: A): A -> a; id(1000) } |] `evaluatedToBe` parseE [r| 1000 |]
+
+      parseE [r| { let id = <A>(a: A): A -> a; id("hello") } |] `evaluatedToBe` parseE [r| "hello" |]
+
       parseE [r| { let a = 10; a } |] `evaluatedToBe` parseE [r| 10 |]
 
       parseE [r|

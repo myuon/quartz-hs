@@ -85,8 +85,8 @@ evalE vm = case vm of
         let fbody' = foldl' (uncurry . subst) fbody $ zip fargs xs'
         in  evalE $ case () of
               _ | length fargs == length xs' -> fbody'
-              _ | length fargs > length xs' ->
-                ClosureE $ Closure NoType (drop (length xs') fargs) fbody'
+              _ | length fargs > length xs'  -> ClosureE
+                $ Closure (Scheme [] NoType) (drop (length xs') fargs) fbody'
               _ -> FnCall fbody' (drop (length fargs) xs')
       _ -> lift $ throwE $ Unreachable vm
   Let x t -> do
@@ -135,11 +135,12 @@ evalD decl = go [] decl
         ctx { exprs = M.insert (Id [d]) (ClosureE body) (exprs ctx) }
     Method d _ ->
       modify $ \ctx -> ctx { decls = PathTree.insert [d] decl (decls ctx) }
-    ExternalFunc f c -> do
+    ExternalFunc f typ@(Scheme _ c) -> do
       let (args, _) = argumentOf c
       bs <- mapM (\_ -> fresh) args
 
-      evalD $ Func f (Closure c bs (FFI (Id [f]) (map (\n -> Var (Id [n])) bs)))
+      evalD
+        $ Func f (Closure typ bs (FFI (Id [f]) (map (\n -> Var (Id [n])) bs)))
 
 std :: Context
 std = Context {ffi = Std.ffi, exprs = M.empty, decls = PathTree.empty}

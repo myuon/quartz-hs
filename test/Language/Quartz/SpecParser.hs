@@ -7,7 +7,7 @@ import Language.Quartz.Parser
 import Test.Tasty.Hspec hiding (Failure, Success)
 import Text.RawString.QQ
 
-parseE = (\(Right r) -> r) . parserExpr . alexScanTokens
+parseE = either error id . parserExpr . alexScanTokens
 parseD = either error id . parser . alexScanTokens
 parseDs = either error id . parserDecls . alexScanTokens
 
@@ -37,15 +37,23 @@ spec_parser = do
 
       parseE "(a: string): string -> a" `shouldBe` ClosureE
         ( Closure
-          (ConType (Id ["string"]) `ArrowType` ConType (Id ["string"]))
+          (Scheme [] $ ConType (Id ["string"]) `ArrowType` ConType (Id ["string"]))
           ["a"]
           (Var (Id ["a"]))
         )
 
+      parseE "<A>(a: A): A -> a" `shouldBe` ClosureE
+        ( Closure
+          (Scheme ["A"] (VarType "A" `ArrowType` VarType "A"))
+          ["a"]
+          (Var (Id ["a"]))
+        )
+
+
       parseE "(a: int, b: int, c: int) -> { let z = sum(a,b,c); z }"
         `shouldBe` ClosureE
                      ( Closure
-                       (           ConType (Id ["int"])
+                       ( Scheme [] $ ConType (Id ["int"])
                        `ArrowType` (           ConType (Id ["int"])
                                    `ArrowType` (           ConType (Id ["int"])
                                                `ArrowType` ConType
@@ -71,12 +79,12 @@ spec_parser = do
           let f = (): int -> 10;
           f
         }
-      |] `shouldBe` Procedure [Let (Id ["f"]) (ClosureE (Closure (ConType (Id ["unit"]) `ArrowType` ConType (Id ["int"])) ["()"] (Lit (IntLit 10)))), Var (Id ["f"])]
+      |] `shouldBe` Procedure [Let (Id ["f"]) (ClosureE (Closure (Scheme [] $ ConType (Id ["unit"]) `ArrowType` ConType (Id ["int"])) ["()"] (Lit (IntLit 10)))), Var (Id ["f"])]
 
       parseD "func id(x: A): A { let y = x; y }" `shouldBe` Func
         "id"
         ( Closure
-          (ArrowType (ConType (Id ["A"])) (ConType (Id ["A"])))
+          (Scheme [] $ ArrowType (ConType (Id ["A"])) (ConType (Id ["A"])))
           ["x"]
           (Procedure [Let (Id ["y"]) (Var (Id ["x"])), Var (Id ["y"])])
         )
@@ -100,7 +108,7 @@ spec_parser = do
                      [ Method
                          "is_zero"
                          ( Closure
-                           (ArrowType SelfType (ConType (Id ["bool"])))
+                           (Scheme [] $ ArrowType SelfType (ConType (Id ["bool"])))
                            ["self"]
                            ( Procedure
                              [ Match
@@ -120,11 +128,11 @@ spec_parser = do
           println("Hello, World!");
         }
       |] `shouldBe` Func "main" (Closure
-        (ConType (Id ["unit"]) `ArrowType` ConType (Id ["unit"]))
+        (Scheme [] $ ConType (Id ["unit"]) `ArrowType` ConType (Id ["unit"]))
         ["()"]
         (Procedure [FnCall (Var (Id ["println"])) [Lit (StringLit "\"Hello, World!\"")], Unit])
         )
 
       parseD [r|
         external func println(x: string);
-      |] `shouldBe` ExternalFunc "println" (ArrowType (ConType (Id ["string"])) (ConType (Id ["unit"])))
+      |] `shouldBe` ExternalFunc "println" (Scheme [] $ ArrowType (ConType (Id ["string"])) (ConType (Id ["unit"])))

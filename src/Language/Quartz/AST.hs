@@ -56,7 +56,7 @@ data Pattern
   | PAny
   deriving (Eq, Show)
 
-data Closure = Closure Type [String] Expr
+data Closure = Closure Scheme [String] Expr
   deriving (Eq, Show)
 
 data Decl
@@ -66,7 +66,7 @@ data Decl
   | OpenD String
   | Func String Closure
   | Method String Closure
-  | ExternalFunc String Type
+  | ExternalFunc String Scheme
   deriving (Eq, Show)
 
 data EnumField = EnumField String [Type]

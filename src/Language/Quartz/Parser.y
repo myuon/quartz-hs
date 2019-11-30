@@ -47,9 +47,9 @@ import Language.Quartz.AST
 
 decl :: { Decl }
 decl
-    : EXTERNAL FUNC VAR '(' arg_types ')' may_return_type ';'  { ExternalFunc $3 (createFunctionType $5 $7) }
-    | FUNC VAR '(' arg_types ')' may_return_type '{' stmts '}'  { Func $2 (createClosure $4 $6 (Procedure $8)) }
-    | FUNC VAR '(' self_arg_types ')' may_return_type '{' stmts '}'  { Method $2 (createClosure $4 $6 (Procedure $8)) }
+    : EXTERNAL FUNC VAR may_generics '(' arg_types ')' may_return_type ';'  { ExternalFunc $3 (createFunctionType $4 $6 $8) }
+    | FUNC VAR may_generics '(' arg_types ')' may_return_type '{' stmts '}'  { Func $2 (createClosure $3 $5 $7 (Procedure $9)) }
+    | FUNC VAR may_generics '(' self_arg_types ')' may_return_type '{' stmts '}'  { Method $2 (createClosure $3 $5 $7 (Procedure $9)) }
     | ENUM VAR '{' enum_fields '}'  { Enum $2 $4 }
     | RECORD VAR '{' record_fields '}'  { Record $2 $4 }
     | INSTANCE VAR '{' decls '}'  { Instance $2 $4 }
@@ -94,6 +94,17 @@ record_field :: { RecordField }
 record_field
     : VAR ':' type  { RecordField $1 $3 }
 
+may_generics :: { [String] }
+may_generics
+    : {- empty -}  { [] }
+    | '<' may_generics_internal '>'  { $2 }
+
+may_generics_internal :: { [String] }
+may_generics_internal
+    : {- empty -}  { [] }
+    | VAR  { [$1] }
+    | VAR ',' may_generics  { $1 : $3 }
+
 may_return_type :: { Maybe Type }
 may_return_type
     : ':' type  { Just $2 }
@@ -112,7 +123,11 @@ expr
     | MATCH expr '{' match_branches '}'  { Match $2 $4 }
     | expr args  { FnCall $1 $2 }
     | expr '[' expr ']'  { IndexArray $1 $3 }
-    | '(' arg_types ')' may_return_type '->' expr  { ClosureE (createClosure $2 $4 $6) }
+
+    -- ここをmay_genericsでまとめると動かなくなる？
+    | '<' may_generics_internal '>' '(' arg_types ')' may_return_type '->' expr  { ClosureE (createClosure $2 $5 $7 $9) }
+    | '(' arg_types ')' may_return_type '->' expr  { ClosureE (createClosure [] $2 $4 $6) }
+
     | '(' expr ')'  { $2 }
     | '{' stmts '}'  { Procedure $2 }
     | var  { Var $1 }
@@ -187,11 +202,17 @@ var_internal
 {
 happyError tokens = Left $ "Parse error\n" ++ show tokens
 
-createFunctionType :: [(String, Type)] -> Maybe Type -> Type
-createFunctionType args ret = 
-  let retType = maybe (ConType (Id ["unit"])) id ret in
-  foldr ArrowType retType $ map snd args
+toVarType :: [String] -> Type -> Type
+toVarType vars t = case t of
+    ConType (Id [i]) | i `elem` vars -> VarType i
+    _ -> t
 
-createClosure :: [(String, Type)] -> Maybe Type -> Expr -> Closure
-createClosure args ret body = Closure (createFunctionType args ret) (map fst args) body
+createFunctionType :: [String] -> [(String, Type)] -> Maybe Type -> Scheme
+createFunctionType vars args ret = 
+  let args' = map (\(s,t) -> (s, toVarType vars t)) args in
+  let retType = toVarType vars $ maybe (ConType (Id ["unit"])) id ret in
+  Scheme vars $ foldr ArrowType retType $ map snd args'
+
+createClosure :: [String] -> [(String, Type)] -> Maybe Type -> Expr -> Closure
+createClosure vars args ret body = Closure (createFunctionType vars args ret) (map fst args) body
 }

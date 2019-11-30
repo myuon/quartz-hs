@@ -47,7 +47,7 @@ mgu x y = case (x, y) of
   (t            , VarType u    )          -> varBind u t
   (ConType s    , ConType t    ) | s == t -> return emptySubst
   (AppType s1 s2, AppType t1 t2)          -> do
-    u1 <- mgu s1 t1
+    u1  <- mgu s1 t1
     u2s <- zipWithM mgu s2 t2
     return $ u1 `compose` foldr' compose emptySubst u2s
   _ -> throwE $ TypeNotMatch x y
@@ -123,7 +123,8 @@ algoW expr = case expr of
     (s3, t3) <- algoW i
     s4       <- lift $ mgu t3 (ConType (Id ["int"]))
     return (s4 `compose` s3 `compose` s2 `compose` s1, apply s2 (VarType b))
-  ClosureE (Closure t args body) -> do
+  -- ここでSchemeの引数を無視しているが問題ないか？
+  ClosureE (Closure (Scheme _ t) args body) -> do
     bs       <- mapM (\_ -> fmap VarType fresh) args
     (s1, t1) <- do
       modify $ \ctx ->
@@ -182,17 +183,13 @@ typecheckModule
 typecheckModule ds = mapM_ check ds
  where
   check d = case d of
-    Enum     _ _  -> return ()
-    Record   _ _  -> return ()
-    Instance _ ds -> typecheckModule ds
-    OpenD _       -> return ()
-    Func   _ c    -> typecheckExpr (ClosureE c) >> return ()
-    Method _ c    -> typecheckExpr (ClosureE c) >> return ()
-    ExternalFunc s c ->
-      modify
-        $ Context
-        . M.insert (Id [s]) (Scheme (S.toList $ ftv c) c)
-        . getContext
+    Enum     _ _     -> return ()
+    Record   _ _     -> return ()
+    Instance _ ds    -> typecheckModule ds
+    OpenD _          -> return ()
+    Func         _ c -> typecheckExpr (ClosureE c) >> return ()
+    Method       _ c -> typecheckExpr (ClosureE c) >> return ()
+    ExternalFunc s c -> modify $ Context . M.insert (Id [s]) c . getContext
 
 runTypeCheckExpr :: MonadIO m => Expr -> ExceptT TypeCheckExceptions m Type
 runTypeCheckExpr e = evalStateT (typecheckExpr e) std
