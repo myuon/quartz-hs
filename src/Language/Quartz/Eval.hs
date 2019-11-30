@@ -10,6 +10,7 @@ import qualified Data.Map as M
 import Data.Dynamic
 import Data.Foldable
 import Language.Quartz.AST
+import Language.Quartz.TypeCheck (fresh, argumentOf)
 import qualified Language.Quartz.Std as Std
 import qualified Data.PathTree as PathTree
 
@@ -127,10 +128,14 @@ evalD decl = go [] decl
         ctx { exprs = M.insert (Id [d]) (ClosureE body) (exprs ctx) }
     Method d _ ->
       modify $ \ctx -> ctx { decls = PathTree.insert [d] decl (decls ctx) }
-    ExternalFunc _ _ -> return ()
+    ExternalFunc f c -> do
+      let (args, _) = argumentOf c
+      bs <- mapM (\_ -> fresh) args
+
+      evalD $ Func f (Closure c bs (FFI (Id [f]) (map (\n -> Var (Id [n])) bs)))
 
 std :: Context
-std = Context {ffi = Std.ffi, exprs = Std.exprs, decls = PathTree.empty}
+std = Context {ffi = Std.ffi, exprs = M.empty, decls = PathTree.empty}
 
 runMain :: MonadIO m => [Decl] -> ExceptT RuntimeExceptions m Expr
 runMain decls = flip evalStateT std $ do

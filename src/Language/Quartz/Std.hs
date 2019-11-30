@@ -23,14 +23,3 @@ ffi = M.fromList
       return Unit
     )
   ]
-
-exprs :: M.Map Id Expr
-exprs = M.fromList
-  [ ( Id ["println"]
-    , ClosureE
-      ( Closure (ConType (Id ["string"]) `ArrowType` ConType (Id ["unit"]))
-                ["x"]
-                (FFI (Id ["println"]) [Var (Id ["x"])])
-      )
-    )
-  ]

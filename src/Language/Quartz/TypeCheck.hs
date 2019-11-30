@@ -73,7 +73,7 @@ instance Apply Type where
   ftv (ArrowType t1 t2) = S.union (ftv t1) (ftv t2)
   ftv _ = S.empty
 
-fresh :: MonadIO m => StateT Context (ExceptT TypeCheckExceptions m) String
+fresh :: MonadIO m => m String
 fresh = do
   n <- liftIO $ hashUnique <$> newUnique
   return $ "?" ++ show n
