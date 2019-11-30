@@ -27,6 +27,8 @@ spec_typecheck = do
 
       parseE [r| [1,2,3,4] |] `runTypeCheck` AppType (ConType (Id ["array"])) [ConType (Id ["int"])]
 
+      parseE [r| ["aaa","bbb"][0] |] `runTypeCheck` ConType (Id ["string"])
+
       parseE [r| (x: int): int -> { x } |]
         `runTypeCheck` (ConType (Id ["int"]) `ArrowType` ConType (Id ["int"]))
 

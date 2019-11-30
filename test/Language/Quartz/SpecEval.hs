@@ -63,3 +63,10 @@ spec_evaluate = do
           id(10)
         }
       |] `runMainResult` parseE [r| 10 |]
+
+      parseE [r|
+        {
+          let a = [1,2,3,4];
+          a[2]
+        }
+      |] `evaluatedToBe` parseE [r| 3 |]

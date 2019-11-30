@@ -43,9 +43,13 @@ mgu x y = case (x, y) of
     u1 <- mgu t1 s1
     u2 <- mgu (apply u1 t2) (apply u1 s2)
     return $ u1 `compose` u2
-  (VarType u, t        ) -> varBind u t
-  (t        , VarType u) -> varBind u t
-  (ConType s, ConType t) | s == t -> return emptySubst
+  (VarType u    , t            )          -> varBind u t
+  (t            , VarType u    )          -> varBind u t
+  (ConType s    , ConType t    ) | s == t -> return emptySubst
+  (AppType s1 s2, AppType t1 t2)          -> do
+    u1 <- mgu s1 t1
+    u2s <- zipWithM mgu s2 t2
+    return $ u1 `compose` foldr' compose emptySubst u2s
   _ -> throwE $ TypeNotMatch x y
  where
   varBind u t | t == VarType u     = return emptySubst
@@ -111,6 +115,14 @@ algoW expr = case expr of
       )
       (emptySubst, VarType b)
       es
+  IndexArray arr i -> do
+    (s1, t1) <- algoW arr
+    b        <- fresh
+    s2       <- lift $ mgu t1 (AppType (ConType (Id ["array"])) [VarType b])
+
+    (s3, t3) <- algoW i
+    s4       <- lift $ mgu t3 (ConType (Id ["int"]))
+    return (s4 `compose` s3 `compose` s2 `compose` s1, apply s2 (VarType b))
   ClosureE (Closure t args body) -> do
     bs       <- mapM (\_ -> fmap VarType fresh) args
     (s1, t1) <- do

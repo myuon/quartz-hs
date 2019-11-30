@@ -40,19 +40,12 @@ subst expr var term = case expr of
 
 isNormalForm :: Expr -> Bool
 isNormalForm vm = case vm of
-  Var      _  -> False
-  Lit      _  -> True
-  ClosureE _  -> True
-  -- 型チェックに通っているならFnCallは必ず簡約できるはずである(ここではFFIは考えていない)
-  FnCall _ _  -> False
-  Let    _ _  -> False
-  Match  _ _  -> False
-  OpenE     _ -> True
-  Procedure _ -> False
-  Unit        -> True
-  FFI _ _     -> False
-  ArrayLit _  -> False
-  Array    _  -> True
+  Lit      _ -> True
+  ClosureE _ -> True
+  OpenE    _ -> True
+  Unit       -> True
+  Array _    -> True
+  _          -> False
 
 
 match
@@ -74,6 +67,7 @@ data RuntimeExceptions
   | PatternNotMatch Pattern Expr
   | PatternExhausted
   | FFIExceptions Std.FFIExceptions
+  | Unreachable Expr
   deriving Show
 
 -- Assume renaming is done
@@ -94,7 +88,7 @@ evalE vm = case vm of
               _ | length fargs > length xs' ->
                 ClosureE $ Closure NoType (drop (length xs') fargs) fbody'
               _ -> FnCall fbody' (drop (length fargs) xs')
-      _ -> evalE $ FnCall f' xs'
+      _ -> lift $ throwE $ Unreachable vm
   Let x t -> do
     f <- evalE t
     modify $ \ctx -> ctx { exprs = M.insert x f (exprs ctx) }
@@ -118,6 +112,12 @@ evalE vm = case vm of
     let arr = Array.fromList es
     marr <- liftIO $ Array.thawArray arr 0 (Array.sizeofArray arr)
     return $ Array $ MArray marr
+  IndexArray e1 e2 -> do
+    arr <- evalE e1
+    i   <- evalE e2
+    case (arr, i) of
+      (Array m, Lit (IntLit i)) -> liftIO $ Array.readArray (getMArray m) i
+      _                         -> lift $ throwE $ Unreachable vm
 
 runEvalE :: MonadIO m => Expr -> ExceptT RuntimeExceptions m Expr
 runEvalE m = evalStateT (evalE m) std

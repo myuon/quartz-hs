@@ -28,6 +28,7 @@ data Expr
   -- primitiveのときはMutableByteArrayにしたい
   | Array MArray
   | ArrayLit [Expr]
+  | IndexArray Expr Expr
   deriving (Eq, Show)
 
 newtype MArray = MArray { getMArray :: MutableArray RealWorld Expr }

@@ -111,6 +111,7 @@ expr
     : literal  { Lit $1 }
     | MATCH expr '{' match_branches '}'  { Match $2 $4 }
     | expr args  { FnCall $1 $2 }
+    | expr '[' expr ']'  { IndexArray $1 $3 }
     | '(' arg_types ')' may_return_type '->' expr  { ClosureE (createClosure $2 $4 $6) }
     | '(' expr ')'  { $2 }
     | '{' stmts '}'  { Procedure $2 }
