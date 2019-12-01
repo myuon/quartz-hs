@@ -10,10 +10,13 @@ import Language.Quartz.AST
 import qualified Language.Quartz.Std as Std
 import Data.Unique
 
-newtype Context = Context { getContext :: M.Map Id Scheme }
+data Context = Context {
+  schemes :: M.Map Id Scheme,
+  selfType :: Maybe Type
+}
 
 std :: Context
-std = Context M.empty
+std = Context M.empty Nothing
 
 data TypeCheckExceptions
   = UnificationFailed Type Type
@@ -65,8 +68,8 @@ instance Apply Scheme where
   ftv (Scheme vars t) = ftv t S.\\ S.fromList vars
 
 instance Apply Context where
-  apply s = Context . fmap (apply s) . getContext
-  ftv s = S.unions $ map ftv $ M.elems $ getContext s
+  apply s ctx = ctx { schemes = fmap (apply s) (schemes ctx) }
+  ftv s = S.unions $ map ftv $ M.elems $ schemes s
 
 instance Apply Type where
   apply s typ = case typ of
@@ -98,7 +101,7 @@ algoW
 algoW expr = case expr of
   Var v -> do
     ctx  <- get
-    v'   <- lift $ getContext ctx M.!? v ?? NotFound v
+    v'   <- lift $ schemes ctx M.!? v ?? NotFound v
     inst <- instantiate v'
     return (emptySubst, inst)
   Lit      (IntLit    n) -> return (emptySubst, ConType (Id ["int"]))
@@ -127,11 +130,12 @@ algoW expr = case expr of
   ClosureE (Closure (Scheme _ t) args body) -> do
     bs       <- mapM (\_ -> fmap VarType fresh) args
     (s1, t1) <- do
-      modify $ \ctx ->
-        Context
-          $ foldl' (\ctx (a, b) -> M.insert (Id [a]) (Scheme [] b) ctx)
-                   (getContext ctx)
+      modify $ \ctx -> ctx
+        { schemes = foldl'
+            (\ctx (a, b) -> M.insert (Id [a]) (Scheme [] b) ctx)
+            (schemes ctx)
           $ zip args bs
+        }
       algoW body
 
     let t' = foldr' ArrowType t1 bs
@@ -143,7 +147,9 @@ algoW expr = case expr of
     (s1, t1) <- algoW expr
     modify $ \ctx -> apply
       s1
-      (Context $ M.insert x (generalize (apply s1 ctx) t1) $ getContext ctx)
+      ( ctx { schemes = M.insert x (generalize (apply s1 ctx) t1) $ schemes ctx
+            }
+      )
     return (s1, ConType (Id ["unit"]))
   Unit         -> return (emptySubst, ConType (Id ["unit"]))
   Procedure es -> foldlM
@@ -159,7 +165,9 @@ algoW expr = case expr of
     (s1, t1) <- algoW arr
     s2       <- lift $ mgu t1 (AppType (ConType (Id ["array"])) [VarType b])
     ctx      <- get
-    modify $ Context . M.insert (Id [elem]) (Scheme [] $ VarType b) . getContext
+    modify $ \ctx -> ctx
+      { schemes = M.insert (Id [elem]) (Scheme [] (VarType b)) $ schemes ctx
+      }
     (s3, t3) <- algoW $ Procedure es
     put ctx
     s4 <- lift $ mgu t3 $ ConType (Id ["unit"])
@@ -208,13 +216,14 @@ typecheckModule
 typecheckModule ds = mapM_ check ds
  where
   check d = case d of
-    Enum     _ _     -> return ()
-    Record   _ _     -> return ()
-    Instance _ ds    -> typecheckModule ds
-    OpenD _          -> return ()
-    Func         _ c -> typecheckExpr (ClosureE c) >> return ()
-    Method       _ c -> typecheckExpr (ClosureE c) >> return ()
-    ExternalFunc s c -> modify $ Context . M.insert (Id [s]) c . getContext
+    Enum     _ _  -> return ()
+    Record   _ _  -> return ()
+    Instance _ ds -> typecheckModule ds
+    OpenD _       -> return ()
+    Func   _ c    -> typecheckExpr (ClosureE c) >> return ()
+    Method _ c    -> typecheckExpr (ClosureE c) >> return ()
+    ExternalFunc s c ->
+      modify $ \ctx -> ctx { schemes = M.insert (Id [s]) c $ schemes ctx }
 
 runTypeCheckExpr :: MonadIO m => Expr -> ExceptT TypeCheckExceptions m Type
 runTypeCheckExpr e = evalStateT (typecheckExpr e) std
