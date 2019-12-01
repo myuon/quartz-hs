@@ -131,6 +131,11 @@ evalE vm = case vm of
     put ctx
 
     return Unit
+  If b e1 e2 -> do
+    cond <- evalE b
+    case cond of
+      Lit (BoolLit b) -> if b then evalE e1 else evalE e2
+      _               -> lift $ throwE $ Unreachable vm
 
 runEvalE :: MonadIO m => Expr -> ExceptT RuntimeExceptions m Expr
 runEvalE m = evalStateT (evalE m) std

@@ -78,3 +78,7 @@ spec_evaluate = do
       parseE [r|
         if true { 0 } else { 1 }
       |] `evaluatedToBe` parseE [r| 0 |]
+
+      parseE [r|
+        if false { 0 } else if true { 1 } else { 2 }
+      |] `evaluatedToBe` parseE [r| 1 |]
