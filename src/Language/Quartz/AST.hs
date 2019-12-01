@@ -14,6 +14,10 @@ data Literal
 data Id = Id [String]
   deriving (Eq, Ord, Show)
 
+data Op
+  = Eq
+  deriving (Eq, Show)
+
 data Expr
   = Var Id
   | Lit Literal
@@ -32,6 +36,7 @@ data Expr
   | IndexArray Expr Expr
   | ForIn String Expr [Expr]
   | If Expr Expr Expr
+  | Op Op Expr Expr
   deriving (Eq, Show)
 
 newtype MArray = MArray { getMArray :: MutableArray RealWorld Expr }

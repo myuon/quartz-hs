@@ -55,3 +55,13 @@ spec_typecheck = do
         }
       |]
         `runTypeCheck` (ConType (Id ["unit"]) `ArrowType` ConType (Id ["int"]))
+
+      parseE [r|
+        {
+          let f = func<A>(x: A): A { x };
+          let x = 10;
+          f(x) == 20
+        }
+      |] `runTypeCheck` ConType (Id ["bool"])
+
+      parseE [r| if 0 == 1 { "true" } else { "false" } |] `runTypeCheck` ConType (Id ["string"])

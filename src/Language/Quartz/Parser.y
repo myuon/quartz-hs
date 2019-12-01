@@ -28,6 +28,7 @@ import Language.Quartz.AST
     '*' { TStar }
     '=' { TEq }
     '_' { TUnderscore }
+    '=='  { TEq2 }
 
     FUNC { TFunc }
     ENUM { TEnum }
@@ -148,6 +149,7 @@ expr
     | SELF  { Var (Id ["self"]) }
     | '[' array_lit ']'  { ArrayLit $2 }
     | if_expr  { $1 }
+    | expr '==' expr  { Op Eq $1 $3 }
 
 match_branches :: { [(Pattern, Expr)] }
 match_branches
@@ -206,6 +208,13 @@ type
     : '(' ')'  { ConType (Id ["unit"]) }
     | '_'  { NoType }
     | VAR  { ConType (Id [$1]) }
+    | type '<' types_comma '>'  { AppType $1 $3 }
+
+types_comma :: { [Type] }
+types_comma
+    : {- empty -}  { [] }
+    | type  { [$1] }
+    | type ',' types_comma  { $1 : $3 }
 
 var :: { Id }
 var

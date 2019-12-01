@@ -164,6 +164,21 @@ algoW expr = case expr of
     put ctx
     s4 <- lift $ mgu t3 $ ConType (Id ["unit"])
     return (s4 `compose` s3 `compose` s2 `compose` s1, ConType (Id ["unit"]))
+  If b1 e2 e3 -> do
+    (s1, t1) <- algoW b1
+    s2       <- lift $ mgu t1 (ConType (Id ["bool"]))
+    (s3, t3) <- algoW e2
+    (s4, t4) <- algoW e3
+    s5       <- lift $ mgu t3 t4
+    return (foldl1 compose [s5, s4, s3, s2, s1], apply s5 t3)
+  Op op e1 e2 -> do
+    (s1, t1) <- algoW e1
+    (s2, t2) <- algoW e2
+    case op of
+      Eq -> do
+        s3 <- lift $ mgu t1 t2
+        return (s3 `compose` s2 `compose` s1, ConType (Id ["bool"]))
+  _ -> error $ show expr
  where
   appW (e1:e2:[]) = do
     b        <- VarType <$> fresh

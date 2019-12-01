@@ -136,6 +136,13 @@ evalE vm = case vm of
     case cond of
       Lit (BoolLit b) -> if b then evalE e1 else evalE e2
       _               -> lift $ throwE $ Unreachable vm
+  Op op e1 e2 -> do
+    r1 <- evalE e1
+    r2 <- evalE e2
+    case op of
+      Eq ->
+        return $ if r1 == r2 then Lit (BoolLit True) else Lit (BoolLit False)
+  _ -> lift $ throwE $ Unreachable vm
 
 runEvalE :: MonadIO m => Expr -> ExceptT RuntimeExceptions m Expr
 runEvalE m = evalStateT (evalE m) std

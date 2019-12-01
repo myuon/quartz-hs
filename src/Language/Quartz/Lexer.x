@@ -43,6 +43,7 @@ tokens :-
   \-> { \_ -> TArrow }
   \* { \_ -> TStar }
   \= { \_ -> TEq }
+  \== { \_ -> TEq2 }
   \_ { \_ -> TUnderscore }
   $digit+ { TInt . read }
   [$alpha \_] [$alpha $digit \_]* { TVar }
@@ -80,6 +81,7 @@ data Token
   | TArrow
   | TStar
   | TEq
+  | TEq2
   | TUnderscore
   | TInt Int
   | TVar String
