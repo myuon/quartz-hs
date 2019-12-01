@@ -29,6 +29,7 @@ import Language.Quartz.AST
     '=' { TEq }
     '_' { TUnderscore }
     '=='  { TEq2 }
+    '::'  { TColon2 }
 
     FUNC { TFunc }
     ENUM { TEnum }
@@ -60,19 +61,19 @@ decl
     | ENUM VAR '{' enum_fields '}'  { Enum $2 $4 }
     | RECORD VAR '{' record_fields '}'  { Record $2 $4 }
     | INSTANCE type '{' decls '}'  { Instance $2 $4 }
-    | OPEN path ';'  { OpenD $2 }
+    | OPEN path ';'  { OpenD (Id $2) }
 
 decls :: { [Decl] }
 decls
     : decl decls  { $1 : $2 }
     | {- empty -}  { [] }
 
-path :: { String }
+path :: { [String] }
 path
-    : VAR  { $1 }
-    | VAR '.' path  { $1 ++ "." ++ $3 }
-    | '*'  { "*" }
-    | {- empty -}  { "" }
+    : VAR  { [$1] }
+    | VAR '::' path  { $1 : $3 }
+    | '*'  { ["*"] }
+    | {- empty -}  { [] }
 
 enum_fields :: { [EnumField] }
 enum_fields
@@ -150,6 +151,7 @@ expr
     | '[' array_lit ']'  { ArrayLit $2 }
     | if_expr  { $1 }
     | expr '==' expr  { Op Eq $1 $3 }
+    | expr '.' VAR  { Member $1 $3 }
 
 match_branches :: { [(Pattern, Expr)] }
 match_branches
@@ -218,12 +220,7 @@ types_comma
 
 var :: { Id }
 var
-    : var_internal  { Id $1 }
-
-var_internal :: { [String] }
-var_internal
-    : VAR  { [$1] }
-    | VAR '.' var_internal  { $1 : $3 }
+    : VAR  { Id [$1] }
 
 {
 happyError tokens = Left $ "Parse error\n" ++ show tokens

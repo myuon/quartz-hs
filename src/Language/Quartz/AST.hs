@@ -24,7 +24,7 @@ data Expr
   | FnCall Expr [Expr]
   | Let Id Expr
   | ClosureE Closure
-  | OpenE String
+  | OpenE Id
   | Match Expr [(Pattern, Expr)]
   | Procedure [Expr]
   | Unit
@@ -37,6 +37,7 @@ data Expr
   | ForIn String Expr [Expr]
   | If Expr Expr Expr
   | Op Op Expr Expr
+  | Member Expr String
   deriving (Eq, Show)
 
 newtype MArray = MArray { getMArray :: MutableArray RealWorld Expr }
@@ -71,7 +72,7 @@ data Decl
   = Enum String [EnumField]
   | Record String [RecordField]
   | Instance Type [Decl]
-  | OpenD String
+  | OpenD Id
   | Func String Closure
   | Method String Closure
   | ExternalFunc String Scheme

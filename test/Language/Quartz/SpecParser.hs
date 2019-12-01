@@ -26,10 +26,10 @@ spec_parser = do
         (Var (Id ["foo"]))
         [Var (Id ["x"]), Var (Id ["y"]), Var (Id ["z"])]
 
-      parseE "x.foo(y,z)" `shouldBe` FnCall (Var (Id ["x", "foo"]))
+      parseE "x.foo(y,z)" `shouldBe` FnCall (Member (Var (Id ["x"])) "foo")
                                             [Var (Id ["y"]), Var (Id ["z"])]
 
-      parseE "a.b.c" `shouldBe` Var (Id ["a", "b", "c"])
+      parseE "a.b.c" `shouldBe` Member (Member (Var (Id ["a"])) "b") "c"
 
       parseE "[1,2,3,4]" `shouldBe` ArrayLit [Lit (IntLit 1),Lit (IntLit 2),Lit (IntLit 3),Lit (IntLit 4)]
 
@@ -109,7 +109,7 @@ spec_parser = do
         , RecordField "age"     (ConType (Id ["int"]))
         ]
 
-      parseD "open List.Foo.Bar.*;" `shouldBe` OpenD "List.Foo.Bar.*"
+      parseD "open List::Foo::Bar::*;" `shouldBe` OpenD (Id ["List", "Foo", "Bar", "*"])
 
       parseD [r|
         instance Nat {
@@ -170,3 +170,11 @@ spec_parser = do
                         Unit
                       ]
                     ))
+
+      parseD [r|
+        func barOf(foo: Foo): int {
+          foo.bar
+        }
+      |] `shouldBe` Func "barOf" (Closure (Scheme [] $ ArrowType (ConType (Id ["Foo"])) (ConType (Id ["int"]))) ["foo"] (Procedure [
+          Member (Var (Id ["foo"])) "bar"
+        ]))

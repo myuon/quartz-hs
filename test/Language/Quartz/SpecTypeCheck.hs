@@ -15,6 +15,10 @@ runTypeCheck r1 r2 = do
     Right v   -> v `shouldBe` r2
     Left  err -> fail $ show err
 
+check s = do
+  result <- runExceptT $ runTypeCheckModule $ parseDs s
+  either (fail . show) return result
+
 parseE = either error id . parserExpr . alexScanTokens
 parseD = either error id . parser . alexScanTokens
 parseDs = either error id . parserDecls . alexScanTokens
@@ -65,3 +69,13 @@ spec_typecheck = do
       |] `runTypeCheck` ConType (Id ["bool"])
 
       parseE [r| if 0 == 1 { "true" } else { "false" } |] `runTypeCheck` ConType (Id ["string"])
+
+      check [r|
+        record Foo {
+          bar: int,
+        }
+
+        func barOf(foo: Foo): int {
+          foo.bar
+        }
+      |]

@@ -38,6 +38,7 @@ tokens :-
   \] { \_ -> TRBracket }
   \, { \_ -> TComma }
   \: { \_ -> TColon }
+  \:: { \_ -> TColon2 }
   \; { \_ -> TSemiColon }
   \. { \_ -> TDot }
   \-> { \_ -> TArrow }
@@ -76,6 +77,7 @@ data Token
   | TRBracket
   | TComma
   | TColon
+  | TColon2
   | TSemiColon
   | TDot
   | TArrow
