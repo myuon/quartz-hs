@@ -1,10 +1,10 @@
 external func println<A>(s: A);
 external func mod(x: int, y: int): int;
-external func range(n: int): array<int>;
+external func range(s: int, e: int): array<int>;
 external func eq(x: int, y: int): bool;
 
 func main() {
-  for i in range(100) {
+  for i in range(1, 100) {
     if mod(i, 15) == 0 {
       println("FizzBuzz");
     } else if mod(i, 3) == 0 {
