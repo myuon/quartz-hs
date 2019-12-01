@@ -40,6 +40,10 @@ import Language.Quartz.AST
     EXTERNAL { TExternal }
     FOR { TFor }
     IN { TIn }
+    IF { TIf }
+    ELSE { TElse }
+    TRUE { TTrue }
+    FALSE { TFalse }
 
     INT { TInt $$ }
     STRLIT { TStrLit $$ }
@@ -119,23 +123,31 @@ stmts
     | expr  { [$1] }
     | {- empty -}  { [Unit] }
     | FOR VAR IN expr '{' stmts '}' stmts  { ForIn $2 $4 $6 : $8 }
+    | if_expr  { [$1] }
+
+if_expr :: { Expr }
+if_expr
+    : IF expr '{' stmts '}' if_stmts  { If $2 (Procedure $4) $6 }
+
+if_stmts :: { Expr }
+if_stmts
+    : ELSE '{' stmts '}'  { Procedure $3 }
+    | ELSE IF expr '{' stmts '}' if_stmts  { If $3 (Procedure $5) $7 }
+    | {- empty -}  { NoExpr }
 
 expr :: { Expr }
 expr
     : literal  { Lit $1 }
     | MATCH expr '{' match_branches '}'  { Match $2 $4 }
+    | FUNC may_generics '(' arg_types ')' may_return_type '{' stmts '}'  { ClosureE (createClosure $2 $4 $6 (Procedure $8)) }
     | expr args  { FnCall $1 $2 }
     | expr '[' expr ']'  { IndexArray $1 $3 }
-
-    -- ここをmay_genericsでまとめると動かなくなる？
-    | '<' may_generics_internal '>' '(' arg_types ')' may_return_type '->' expr  { ClosureE (createClosure $2 $5 $7 $9) }
-    | '(' arg_types ')' may_return_type '->' expr  { ClosureE (createClosure [] $2 $4 $6) }
-
     | '(' expr ')'  { $2 }
     | '{' stmts '}'  { Procedure $2 }
     | var  { Var $1 }
     | SELF  { Var (Id ["self"]) }
     | '[' array_lit ']'  { ArrayLit $2 }
+    | if_expr  { $1 }
 
 match_branches :: { [(Pattern, Expr)] }
 match_branches
@@ -180,6 +192,8 @@ literal :: { Literal }
 literal
     : INT  { IntLit $1 }
     | STRLIT  { StringLit $1 }
+    | TRUE  { BoolLit True }
+    | FALSE  { BoolLit False }
 
 array_lit :: { [Expr] }
 array_lit

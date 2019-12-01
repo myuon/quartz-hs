@@ -35,22 +35,32 @@ spec_parser = do
 
       parseE "h(f)[g(1)]" `shouldBe` IndexArray (FnCall (Var (Id ["h"])) [Var (Id ["f"])]) (FnCall (Var (Id ["g"])) [Lit (IntLit 1)])
 
-      parseE "(a: string): string -> a" `shouldBe` ClosureE
+      parseE [r|
+        if b1 {
+          e1
+        } else if b2 {
+          e2
+        } else {
+          e3
+        }
+      |] `shouldBe` If (Var (Id ["b1"])) (Procedure [Var (Id ["e1"])]) (If (Var (Id ["b2"])) (Procedure [Var (Id ["e2"])]) (Procedure [Var (Id ["e3"])]))
+
+      parseE "func (a: string): string { a }" `shouldBe` ClosureE
         ( Closure
           (Scheme [] $ ConType (Id ["string"]) `ArrowType` ConType (Id ["string"]))
           ["a"]
-          (Var (Id ["a"]))
+          (Procedure [Var (Id ["a"])])
         )
 
-      parseE "<A>(a: A): A -> a" `shouldBe` ClosureE
+      parseE "func <A>(a: A): A { a }" `shouldBe` ClosureE
         ( Closure
           (Scheme ["A"] (VarType "A" `ArrowType` VarType "A"))
           ["a"]
-          (Var (Id ["a"]))
+          (Procedure [Var (Id ["a"])])
         )
 
 
-      parseE "(a: int, b: int, c: int) -> { let z = sum(a,b,c); z }"
+      parseE "func (a: int, b: int, c: int) { let z = sum(a,b,c); z }"
         `shouldBe` ClosureE
                      ( Closure
                        ( Scheme [] $ ConType (Id ["int"])
@@ -76,10 +86,10 @@ spec_parser = do
 
       parseE [r|
         {
-          let f = (): int -> 10;
+          let f = func (): int { 10 };
           f
         }
-      |] `shouldBe` Procedure [Let (Id ["f"]) (ClosureE (Closure (Scheme [] $ ConType (Id ["unit"]) `ArrowType` ConType (Id ["int"])) ["()"] (Lit (IntLit 10)))), Var (Id ["f"])]
+      |] `shouldBe` Procedure [Let (Id ["f"]) (ClosureE (Closure (Scheme [] $ ConType (Id ["unit"]) `ArrowType` ConType (Id ["int"])) ["()"] (Procedure [Lit (IntLit 10)]))), Var (Id ["f"])]
 
       parseD "func id(x: A): A { let y = x; y }" `shouldBe` Func
         "id"
@@ -101,8 +111,16 @@ spec_parser = do
 
       parseD "open List.Foo.Bar.*;" `shouldBe` OpenD "List.Foo.Bar.*"
 
-      parseD
-          "instance Nat { func is_zero(self): bool { match self { Zero -> true, Succ(_) -> false } } }"
+      parseD [r|
+        instance Nat {
+          func is_zero(self): bool {
+            match self {
+              Zero -> true,
+              Succ(_) -> false,
+            }
+          }
+        }
+      |]
         `shouldBe` Instance
                      "Nat"
                      [ Method
@@ -113,9 +131,9 @@ spec_parser = do
                            ( Procedure
                              [ Match
                                  (Var (Id ["self"]))
-                                 [ (PVar "Zero", Var (Id ["true"]))
+                                 [ (PVar "Zero", Lit (BoolLit True))
                                  , ( PApp (PVar "Succ") [PAny]
-                                   , Var (Id ["false"])
+                                   , Lit (BoolLit False)
                                    )
                                  ]
                              ]

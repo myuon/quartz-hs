@@ -21,6 +21,13 @@ tokens :-
   external { \_ -> TExternal }
   for { \_ -> TFor }
   in { \_ -> TIn }
+  if { \_ -> TIf }
+  else { \_ -> TElse }
+
+  -- 避けられるなら予約語から外したい
+  true { \_ -> TTrue }
+  false { \_ -> TFalse }
+
   \< { \_ -> TLAngle }
   \> { \_ -> TRAngle }
   \( { \_ -> TLParen }
@@ -54,6 +61,10 @@ data Token
   | TExternal
   | TFor
   | TIn
+  | TIf
+  | TElse
+  | TTrue
+  | TFalse
   | TLAngle
   | TRAngle
   | TLParen

@@ -8,6 +8,7 @@ data Literal
   | DoubleLit Double
   | CharLit Char
   | StringLit String
+  | BoolLit Bool
   deriving (Eq, Show)
 
 data Id = Id [String]
@@ -30,6 +31,7 @@ data Expr
   | ArrayLit [Expr]
   | IndexArray Expr Expr
   | ForIn String Expr [Expr]
+  | If Expr Expr Expr
   deriving (Eq, Show)
 
 newtype MArray = MArray { getMArray :: MutableArray RealWorld Expr }
