@@ -70,7 +70,7 @@ data Closure = Closure Scheme [String] Expr
 data Decl
   = Enum String [EnumField]
   | Record String [RecordField]
-  | Instance String [Decl]
+  | Instance Type [Decl]
   | OpenD String
   | Func String Closure
   | Method String Closure

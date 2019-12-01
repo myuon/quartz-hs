@@ -122,7 +122,7 @@ spec_parser = do
         }
       |]
         `shouldBe` Instance
-                     "Nat"
+                     (ConType (Id ["Nat"]))
                      [ Method
                          "is_zero"
                          ( Closure

@@ -59,7 +59,7 @@ decl
     | FUNC VAR may_generics '(' self_arg_types ')' may_return_type '{' stmts '}'  { Method $2 (createClosure $3 $5 $7 (Procedure $9)) }
     | ENUM VAR '{' enum_fields '}'  { Enum $2 $4 }
     | RECORD VAR '{' record_fields '}'  { Record $2 $4 }
-    | INSTANCE VAR '{' decls '}'  { Instance $2 $4 }
+    | INSTANCE type '{' decls '}'  { Instance $2 $4 }
     | OPEN path ';'  { OpenD $2 }
 
 decls :: { [Decl] }
