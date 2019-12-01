@@ -1,0 +1,25 @@
+{
+    "name": "quartz-vscode",
+    "displayName": "quartz-vscode",
+    "description": "",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.40.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "quartz",
+            "aliases": ["Quartz", "quartz"],
+            "extensions": [".qz"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "quartz",
+            "scopeName": "source.qz",
+            "path": "./syntaxes/quartz.tmLanguage.json"
+        }]
+    }
+}

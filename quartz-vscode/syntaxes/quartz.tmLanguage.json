@@ -1,0 +1,79 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Quartz",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#operator"
+    },
+    {
+      "include": "#constant"
+    },
+    {
+      "include": "#type"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.quartz",
+          "match": "\\b(external func|func|else if|if|else|for)\\b"
+        },
+        {
+          "name": "keyword.other.quartz",
+          "match": "\\b(let|in)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.quartz",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.quartz",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "operator": {
+      "patterns": [
+        {
+          "name": "keyword.operator.assignment.quartz",
+          "match": "\\b(=)\\b"
+        },
+        {
+          "name": "keyword.operator.equal.quartz",
+          "match": "(==)"
+        }
+      ]
+    },
+    "constant": {
+      "patterns": [
+        {
+          "name": "constant.numeric.integer.quartz",
+          "match": "\\b[0-9][0-9_]*\\b"
+        },
+        {
+          "name": "constant.language.bool.quartz",
+          "match": "\\b(true|false)\\b"
+        }
+      ]
+    },
+    "type": {
+      "patterns": [
+        {
+          "name": "storage.type.primitive.quartz",
+          "match": "\\b(bool|int|string|char|array)\\b"
+        }
+      ]
+    }
+  },
+  "scopeName": "source.qz"
+}
