@@ -55,9 +55,9 @@ import Language.Quartz.AST
 
 decl :: { Decl }
 decl
-    : EXTERNAL FUNC VAR may_generics '(' arg_types ')' may_return_type ';'  { ExternalFunc $3 (createFunctionType $4 $6 $8) }
-    | FUNC VAR may_generics '(' arg_types ')' may_return_type '{' stmts '}'  { Func $2 (createClosure $3 $5 $7 (Procedure $9)) }
-    | FUNC VAR may_generics '(' self_arg_types ')' may_return_type '{' stmts '}'  { Method $2 (createClosure $3 $5 $7 (Procedure $9)) }
+    : EXTERNAL FUNC VAR may_generics '(' arg_types ')' may_return_type ';'  { ExternalFunc $3 (createArgTypes $4 $6 $8) }
+    | FUNC VAR may_generics '(' arg_types ')' may_return_type '{' stmts '}'  { Func $2 (Closure (createArgTypes $3 $5 $7) (Procedure $9)) }
+    | FUNC VAR may_generics '(' self_arg_types ')' may_return_type '{' stmts '}'  { Method $2 (Closure (createArgTypes $3 $5 $7) (Procedure $9)) }
     | ENUM VAR '{' enum_fields '}'  { Enum $2 $4 }
     | RECORD VAR '{' record_fields '}'  { Record $2 $4 }
     | INSTANCE type '{' decls '}'  { Instance $2 $4 }
@@ -141,7 +141,7 @@ expr :: { Expr }
 expr
     : literal  { Lit $1 }
     | MATCH expr '{' match_branches '}'  { Match $2 $4 }
-    | FUNC may_generics '(' arg_types ')' may_return_type '{' stmts '}'  { ClosureE (createClosure $2 $4 $6 (Procedure $8)) }
+    | FUNC may_generics '(' arg_types ')' may_return_type '{' stmts '}'  { ClosureE (Closure (createArgTypes $2 $4 $6) (Procedure $8)) }
     | expr args  { FnCall $1 $2 }
     | expr '[' expr ']'  { IndexArray $1 $3 }
     | '(' expr ')'  { $2 }
@@ -230,12 +230,8 @@ toVarType vars t = case t of
     ConType (Id [i]) | i `elem` vars -> VarType i
     _ -> t
 
-createFunctionType :: [String] -> [(String, Type)] -> Maybe Type -> Scheme
-createFunctionType vars args ret = 
-  let args' = map (\(s,t) -> (s, toVarType vars t)) args in
+createArgTypes :: [String] -> [(String, Type)] -> Maybe Type -> ArgTypes
+createArgTypes vars args ret = 
   let retType = toVarType vars $ maybe (ConType (Id ["unit"])) id ret in
-  Scheme vars $ foldr ArrowType retType $ map snd args'
-
-createClosure :: [String] -> [(String, Type)] -> Maybe Type -> Expr -> Closure
-createClosure vars args ret body = Closure (createFunctionType vars args ret) (map fst args) body
+  ArgTypes vars (map (\(x,y) -> (x, toVarType vars y)) args) retType
 }

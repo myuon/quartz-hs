@@ -12,11 +12,12 @@ import Data.Unique
 
 data Context = Context {
   schemes :: M.Map Id Scheme,
+  records :: M.Map Id [(String, Type)],
   selfType :: Maybe Type
 }
 
 std :: Context
-std = Context M.empty Nothing
+std = Context {schemes = M.empty, records = M.empty, selfType = Nothing}
 
 data TypeCheckExceptions
   = UnificationFailed Type Type
@@ -24,6 +25,7 @@ data TypeCheckExceptions
   | NotFound Id
   | TypeNotMatch Type Type
   | OccurCheck String Type
+  | CannotInfer Expr
   deriving (Eq, Show)
 
 argumentOf :: Type -> ([Type], Type)
@@ -127,20 +129,17 @@ algoW expr = case expr of
     s4       <- lift $ mgu t3 (ConType (Id ["int"]))
     return (s4 `compose` s3 `compose` s2 `compose` s1, apply s2 (VarType b))
   -- ここでSchemeの引数を無視しているが問題ないか？
-  ClosureE (Closure (Scheme _ t) args body) -> do
-    bs       <- mapM (\_ -> fmap VarType fresh) args
+  ClosureE (Closure (ArgTypes _ args ret) body) -> do
     (s1, t1) <- do
       modify $ \ctx -> ctx
-        { schemes = foldl'
-            (\ctx (a, b) -> M.insert (Id [a]) (Scheme [] b) ctx)
-            (schemes ctx)
-          $ zip args bs
+        { schemes = foldl' (\mp (s, t) -> M.insert (Id [s]) (Scheme [] t) mp)
+                           (schemes ctx)
+                           args
         }
       algoW body
 
-    let t' = foldr' ArrowType t1 bs
-    s2 <- lift $ mgu t t'
-    return (s2 `compose` s1, apply s2 t')
+    s2 <- lift $ mgu ret t1
+    return (s2 `compose` s1, apply s1 $ foldr ArrowType t1 $ map snd args)
   FnCall f []   -> algoW f
   FnCall f es   -> appW $ reverse $ f : es
   Let    x expr -> do
@@ -186,6 +185,15 @@ algoW expr = case expr of
       Eq -> do
         s3 <- lift $ mgu t1 t2
         return (s3 `compose` s2 `compose` s1, ConType (Id ["bool"]))
+  Member e1 v1 -> do
+    (s1, t1) <- algoW e1
+    case t1 of
+      ConType name -> do
+        ctx <- get
+        rc  <- lift $ records ctx M.!? name ?? NotFound name
+        t2  <- lift $ lookup v1 rc ?? NotFound (Id [v1])
+        return (s1, t2)
+      VarType _ -> lift $ throwE $ CannotInfer e1
   _ -> error $ show expr
  where
   appW (e1:e2:[]) = do
@@ -216,14 +224,21 @@ typecheckModule
 typecheckModule ds = mapM_ check ds
  where
   check d = case d of
-    Enum     _ _  -> return ()
-    Record   _ _  -> return ()
+    Enum   _ _   -> return ()
+    Record r rds -> modify $ \ctx -> ctx
+      { records = M.insert (Id [r]) (map (\(RecordField s t) -> (s, t)) rds)
+        $ records ctx
+      }
     Instance _ ds -> typecheckModule ds
     OpenD _       -> return ()
-    Func   _ c    -> typecheckExpr (ClosureE c) >> return ()
-    Method _ c    -> typecheckExpr (ClosureE c) >> return ()
-    ExternalFunc s c ->
-      modify $ \ctx -> ctx { schemes = M.insert (Id [s]) c $ schemes ctx }
+    Func         _    c -> typecheckExpr (ClosureE c) >> return ()
+    Method       _    c -> typecheckExpr (ClosureE c) >> return ()
+    ExternalFunc name (ArgTypes tyvars args ret) -> modify $ \ctx -> ctx
+      { schemes = M.insert
+          (Id [name])
+          (Scheme tyvars $ foldr ArrowType ret $ map snd args)
+        $ schemes ctx
+      }
 
 runTypeCheckExpr :: MonadIO m => Expr -> ExceptT TypeCheckExceptions m Type
 runTypeCheckExpr e = evalStateT (typecheckExpr e) std

@@ -47,15 +47,13 @@ spec_parser = do
 
       parseE "func (a: string): string { a }" `shouldBe` ClosureE
         ( Closure
-          (Scheme [] $ ConType (Id ["string"]) `ArrowType` ConType (Id ["string"]))
-          ["a"]
+          (ArgTypes [] [("a", ConType (Id ["string"]))] (ConType (Id ["string"])))
           (Procedure [Var (Id ["a"])])
         )
 
       parseE "func <A>(a: A): A { a }" `shouldBe` ClosureE
         ( Closure
-          (Scheme ["A"] (VarType "A" `ArrowType` VarType "A"))
-          ["a"]
+          (ArgTypes ["A"] [("a", VarType "A")] (VarType "A"))
           (Procedure [Var (Id ["a"])])
         )
 
@@ -63,15 +61,13 @@ spec_parser = do
       parseE "func (a: int, b: int, c: int) { let z = sum(a,b,c); z }"
         `shouldBe` ClosureE
                      ( Closure
-                       ( Scheme [] $ ConType (Id ["int"])
-                       `ArrowType` (           ConType (Id ["int"])
-                                   `ArrowType` (           ConType (Id ["int"])
-                                               `ArrowType` ConType
-                                                             (Id ["unit"])
-                                               )
-                                   )
-                       )
-                       ["a", "b", "c"]
+                       (ArgTypes []
+                       [
+                         ("a", ConType (Id ["int"])),
+                         ("b", ConType (Id ["int"])),
+                         ("c", ConType (Id ["int"]))
+                       ]
+                       (ConType (Id ["unit"])))
                        ( Procedure
                          [ Let
                            (Id ["z"])
@@ -89,13 +85,14 @@ spec_parser = do
           let f = func (): int { 10 };
           f
         }
-      |] `shouldBe` Procedure [Let (Id ["f"]) (ClosureE (Closure (Scheme [] $ ConType (Id ["unit"]) `ArrowType` ConType (Id ["int"])) ["()"] (Procedure [Lit (IntLit 10)]))), Var (Id ["f"])]
+      |] `shouldBe` Procedure [Let (Id ["f"]) (ClosureE (Closure (ArgTypes [] [("()", ConType (Id ["unit"]))] (ConType (Id ["int"]))) (Procedure [Lit (IntLit 10)]))), Var (Id ["f"])]
 
-      parseD "func id(x: A): A { let y = x; y }" `shouldBe` Func
+      parseD "func id<A>(x: A): A { let y = x; y }" `shouldBe` Func
         "id"
         ( Closure
-          (Scheme [] $ ArrowType (ConType (Id ["A"])) (ConType (Id ["A"])))
-          ["x"]
+          (ArgTypes ["A"]
+          [("x", VarType "A")]
+          (VarType "A"))
           (Procedure [Let (Id ["y"]) (Var (Id ["x"])), Var (Id ["y"])])
         )
 
@@ -126,8 +123,9 @@ spec_parser = do
                      [ Method
                          "is_zero"
                          ( Closure
-                           (Scheme [] $ ArrowType SelfType (ConType (Id ["bool"])))
-                           ["self"]
+                           (ArgTypes []
+                           [("self", SelfType)]
+                           (ConType (Id ["bool"])))
                            ( Procedure
                              [ Match
                                  (Var (Id ["self"]))
@@ -146,14 +144,16 @@ spec_parser = do
           println("Hello, World!");
         }
       |] `shouldBe` Func "main" (Closure
-        (Scheme [] $ ConType (Id ["unit"]) `ArrowType` ConType (Id ["unit"]))
-        ["()"]
+        (ArgTypes
+        []
+        [("()", ConType (Id ["unit"]))]
+        (ConType (Id ["unit"])))
         (Procedure [FnCall (Var (Id ["println"])) [Lit (StringLit "\"Hello, World!\"")], Unit])
         )
 
       parseD [r|
         external func println(x: string);
-      |] `shouldBe` ExternalFunc "println" (Scheme [] $ ArrowType (ConType (Id ["string"])) (ConType (Id ["unit"])))
+      |] `shouldBe` ExternalFunc "println" (ArgTypes [] [("x", ConType (Id ["string"]))] (ConType (Id ["unit"])))
 
       parseD [r|
         func f() {
@@ -161,7 +161,7 @@ spec_parser = do
             put(i);
           }
         }
-      |] `shouldBe` Func "f" (Closure (Scheme [] (ArrowType (ConType (Id ["unit"])) (ConType (Id ["unit"])))) ["()"] (
+      |] `shouldBe` Func "f" (Closure (ArgTypes [] [("()", ConType (Id ["unit"]))] (ConType (Id ["unit"]))) (
                       Procedure [
                         ForIn "i" (Var (Id ["foo"])) [
                           FnCall (Var (Id ["put"])) [Var (Id ["i"])],
@@ -175,6 +175,6 @@ spec_parser = do
         func barOf(foo: Foo): int {
           foo.bar
         }
-      |] `shouldBe` Func "barOf" (Closure (Scheme [] $ ArrowType (ConType (Id ["Foo"])) (ConType (Id ["int"]))) ["foo"] (Procedure [
+      |] `shouldBe` Func "barOf" (Closure (ArgTypes [] [("foo", ConType (Id ["Foo"]))] (ConType (Id ["int"]))) (Procedure [
           Member (Var (Id ["foo"])) "bar"
         ]))

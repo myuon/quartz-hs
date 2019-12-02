@@ -81,12 +81,14 @@ evalE vm = case vm of
 
     case f' of
       _ | null xs' -> return f'
-      ClosureE (Closure _ fargs fbody) ->
-        let fbody' = foldl' (uncurry . subst) fbody $ zip fargs xs'
+      ClosureE (Closure (ArgTypes tyvars fargs ret) fbody) ->
+        let fbody' = foldl' (uncurry . subst) fbody
+              $ zipWith (\(x, _) y -> (x, y)) fargs xs'
         in  evalE $ case () of
               _ | length fargs == length xs' -> fbody'
-              _ | length fargs > length xs'  -> ClosureE
-                $ Closure (Scheme [] NoType) (drop (length xs') fargs) fbody'
+              _ | length fargs > length xs'  -> ClosureE $ Closure
+                (ArgTypes tyvars (drop (length xs') fargs) ret)
+                fbody'
               _ -> FnCall fbody' (drop (length fargs) xs')
       _ -> lift $ throwE $ Unreachable vm
   Let x t -> do
@@ -160,12 +162,15 @@ evalD decl = go [] decl
         ctx { exprs = M.insert (Id [d]) (ClosureE body) (exprs ctx) }
     Method d _ ->
       modify $ \ctx -> ctx { decls = PathTree.insert [d] decl (decls ctx) }
-    ExternalFunc f typ@(Scheme _ c) -> do
-      let (args, _) = argumentOf c
+    ExternalFunc name (ArgTypes tyvars args ret) -> do
       bs <- mapM (\_ -> fresh) args
+      let args' = zipWith (\b (_, t) -> (b, t)) bs args
 
-      evalD
-        $ Func f (Closure typ bs (FFI (Id [f]) (map (\n -> Var (Id [n])) bs)))
+      evalD $ Func
+        name
+        ( Closure (ArgTypes tyvars args' ret)
+                  (FFI (Id [name]) (map (\n -> Var (Id [n])) $ map fst args'))
+        )
 
 std :: Context
 std = Context {ffi = Std.ffi, exprs = M.empty, decls = PathTree.empty}
