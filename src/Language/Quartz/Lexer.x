@@ -42,6 +42,7 @@ tokens :-
   \; { \_ -> TSemiColon }
   \. { \_ -> TDot }
   \-> { \_ -> TArrow }
+  \=> { \_ -> TDArrow }
   \* { \_ -> TStar }
   \= { \_ -> TEq }
   \== { \_ -> TEq2 }
@@ -81,6 +82,7 @@ data Token
   | TSemiColon
   | TDot
   | TArrow
+  | TDArrow
   | TStar
   | TEq
   | TEq2

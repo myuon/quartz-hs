@@ -25,6 +25,7 @@ import Language.Quartz.AST
     ';' { TSemiColon }
     '.' { TDot }
     '->' { TArrow }
+    '=>' { TDArrow }
     '*' { TStar }
     '=' { TEq }
     '_' { TUnderscore }
@@ -157,14 +158,14 @@ record_expr
 match_branches :: { [(Pattern, Expr)] }
 match_branches
     : {- empty -}  { [] }
-    | pattern '->' expr  { [($1, $3)] }
-    | pattern '->' expr ',' match_branches  { ($1, $3) : $5 }
+    | pattern '=>' expr  { [($1, $3)] }
+    | pattern '=>' expr ',' match_branches  { ($1, $3) : $5 }
 
 if_branches :: { [(Expr, Expr)] }
 if_branches
     : {- empty -}  { [] }
-    | expr '->' expr  { [($1,$3)] }
-    | expr '->' expr ',' if_branches  { ($1, $3) : $5 }
+    | expr '=>' expr  { [($1,$3)] }
+    | expr '=>' expr ',' if_branches  { ($1, $3) : $5 }
 
 pattern :: { Pattern }
 pattern

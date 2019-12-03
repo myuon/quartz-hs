@@ -70,8 +70,8 @@ spec_typecheck = do
 
       parseE [r|
         if {
-          0 == 1 -> "true",
-          true -> "false",
+          0 == 1 => "true",
+          true => "false",
         }
       |] `runTypeCheck` ConType (Id ["string"])
 

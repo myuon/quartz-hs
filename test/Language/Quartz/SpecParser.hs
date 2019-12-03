@@ -37,9 +37,9 @@ spec_parser = do
 
       parseE [r|
         if {
-          b1 -> e1,
-          b2 -> e2,
-          true -> e3,
+          b1 => e1,
+          b2 => e2,
+          true => e3,
         }
       |] `shouldBe` If [
         (Var (Id ["b1"]), Var (Id ["e1"])),
@@ -49,8 +49,8 @@ spec_parser = do
 
       parseE [r|
         if {
-          0 == 1 -> "true",
-          true -> "false",
+          0 == 1 => "true",
+          true => "false",
         }
       |] `shouldBe` If [
         (Op Eq (Lit (IntLit 0)) (Lit (IntLit 1)), Lit (StringLit "\"true\"")),
@@ -130,8 +130,8 @@ spec_parser = do
         instance Nat {
           func is_zero(self): bool {
             match self {
-              Zero -> true,
-              Succ(_) -> false,
+              Zero => true,
+              Succ(_) => false,
             }
           }
         }

@@ -51,6 +51,10 @@
         {
           "name": "keyword.operator.equal.quartz",
           "match": "(==)"
+        },
+        {
+          "name": "keyword.operator.match.quartz",
+          "match": "(=>)"
         }
       ]
     },
