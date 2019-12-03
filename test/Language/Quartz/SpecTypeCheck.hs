@@ -33,12 +33,12 @@ spec_typecheck = do
 
       parseE [r| ["aaa","bbb"][0] |] `runTypeCheck` ConType (Id ["string"])
 
-      parseE [r| func (x: int): int { x } |]
+      parseE [r| (x: int): int -> { x } |]
         `runTypeCheck` (ConType (Id ["int"]) `ArrowType` ConType (Id ["int"]))
 
       parseE [r|
         {
-          let f = func (x: int): int { x };
+          let f = (x: int): int -> x;
           f(10)
         }
       |]
@@ -46,7 +46,7 @@ spec_typecheck = do
 
       parseE [r|
         {
-          let f = func (x: int): int { x };
+          let f = (x: int): int -> x;
           f(10);
         }
       |]
@@ -54,7 +54,7 @@ spec_typecheck = do
 
       parseE [r|
         {
-          let f = func (): int { 10 };
+          let f = (): int -> 10;
           f
         }
       |]
@@ -62,7 +62,7 @@ spec_typecheck = do
 
       parseE [r|
         {
-          let f = func<A>(x: A): A { x };
+          let f = <A>(x: A): A -> x;
           let x = 10;
           f(x) == 20
         }

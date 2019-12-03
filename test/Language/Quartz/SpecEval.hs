@@ -34,17 +34,17 @@ spec_evaluate = do
       Lit (IntLit 10) `evaluatedToBe` Lit (IntLit 10)
 
     it "should parse and eval" $ do
-      parseE [r| func (a: string): string { a } |] `evaluatedToBe` parseE [r| func (a: string): string { a } |]
+      parseE [r| (a: string): string -> { a } |] `evaluatedToBe` parseE [r| (a: string): string -> { a } |]
 
-      parseE [r| { let id = func <A>(a: A): A { a }; id(1000) } |] `evaluatedToBe` parseE [r| 1000 |]
+      parseE [r| { let id = <A>(a: A): A -> a; id(1000) } |] `evaluatedToBe` parseE [r| 1000 |]
 
-      parseE [r| { let id = func <A>(a: A): A { a }; id("hello") } |] `evaluatedToBe` parseE [r| "hello" |]
+      parseE [r| { let id = <A>(a: A): A -> a; id("hello") } |] `evaluatedToBe` parseE [r| "hello" |]
 
       parseE [r| { let a = 10; a } |] `evaluatedToBe` parseE [r| 10 |]
 
       parseE [r|
         {
-          let f = func (a: string): string { a };
+          let f = (a: string): string -> { a };
           let z = 10;
           f(z)
         }
@@ -52,7 +52,7 @@ spec_evaluate = do
 
       parseE [r|
         {
-          let f = func (a: int, b: int): int { b };
+          let f = (a: int, b: int): int -> { b };
           let z = 10;
           f(z, 20)
         }

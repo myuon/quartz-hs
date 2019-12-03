@@ -142,12 +142,15 @@ expr_short
 
 expr :: { Expr }
 expr
-    : expr_short  { $1 }
-    | MATCH expr '{' match_branches '}'  { Match $2 $4 }
+    : MATCH expr '{' match_branches '}'  { Match $2 $4 }
     | IF '{' if_branches '}'  { If $3 }
-    | FUNC may_generics '(' arg_types ')' may_return_type '{' stmts '}'  { ClosureE (Closure (createArgTypes $2 $4 $6) (Procedure $8)) }
+
+    | '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (createArgTypes [] $2 $4) $6) }
+    | '<' may_generics_internal '>' '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (createArgTypes $2 $5 $7) $9) }
+
     | expr '==' expr  { Op Eq $1 $3 }
     | VAR '{' record_expr '}'  { RecordOf $1 $3 }
+    | expr_short  { $1 }
 
 record_expr :: { [(String, Expr)] }
 record_expr

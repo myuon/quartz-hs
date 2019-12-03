@@ -57,16 +57,16 @@ spec_parser = do
         (Lit (BoolLit True), Lit (StringLit "\"false\""))
         ]
 
-      parseE "func (a: string): string { a }" `shouldBe` ClosureE
+      parseE "(a: string): string -> { a }" `shouldBe` ClosureE
         ( Closure
           (ArgTypes [] [("a", ConType (Id ["string"]))] (ConType (Id ["string"])))
           (Procedure [Var (Id ["a"])])
         )
 
-      parseE "func <A>(a: A): A { a }" `shouldBe` ClosureE
+      parseE "<A>(a: A): A -> a" `shouldBe` ClosureE
         ( Closure
           (ArgTypes ["A"] [("a", VarType "A")] (VarType "A"))
-          (Procedure [Var (Id ["a"])])
+          (Var (Id ["a"]))
         )
 
       parseE [r|
@@ -76,7 +76,7 @@ spec_parser = do
         }
       |] `shouldBe` RecordOf "Pos" [("x", Lit (IntLit 10)), ("y", Lit (StringLit "\"foo\""))]
 
-      parseE "func (a: int, b: int, c: int) { let z = sum(a,b,c); z }"
+      parseE "(a: int, b: int, c: int) -> { let z = sum(a,b,c); z }"
         `shouldBe` ClosureE
                      ( Closure
                        (ArgTypes []
@@ -100,7 +100,7 @@ spec_parser = do
 
       parseE [r|
         {
-          let f = func (): int { 10 };
+          let f = (): int -> { 10 };
           f
         }
       |] `shouldBe` Procedure [Let (Id ["f"]) (ClosureE (Closure (ArgTypes [] [("()", ConType (Id ["unit"]))] (ConType (Id ["int"]))) (Procedure [Lit (IntLit 10)]))), Var (Id ["f"])]
