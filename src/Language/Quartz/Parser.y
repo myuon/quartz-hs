@@ -145,6 +145,7 @@ expr
     : MATCH expr '{' match_branches '}'  { Match $2 $4 }
     | IF '{' if_branches '}'  { If $3 }
 
+    -- こうしないとちゃんとパースできないので(先読みの問題？)
     | '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (createArgTypes [] $2 $4) $6) }
     | '<' may_generics_internal '>' '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (createArgTypes $2 $5 $7) $9) }
 
