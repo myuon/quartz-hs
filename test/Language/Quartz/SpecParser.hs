@@ -190,6 +190,22 @@ spec_parser = do
                     ))
 
       parseD [r|
+        func f() {
+          for i in foo(y,z) {
+            put(i);
+          }
+        }
+      |] `shouldBe` Func "f" (Closure (ArgTypes [] [("()", ConType (Id ["unit"]))] (ConType (Id ["unit"]))) (
+                      Procedure [
+                        ForIn "i" (FnCall (Var (Id ["foo"])) [Var (Id ["y"]), Var (Id ["z"])]) [
+                          FnCall (Var (Id ["put"])) [Var (Id ["i"])],
+                          Unit
+                        ],
+                        Unit
+                      ]
+                    ))
+
+      parseD [r|
         func barOf(foo: Foo): int {
           foo.bar
         }

@@ -23,7 +23,7 @@
       "patterns": [
         {
           "name": "keyword.control.quartz",
-          "match": "\\b(external func|func|else if|if|else|for)\\b"
+          "match": "\\b(external func|func|if|for)\\b"
         },
         {
           "name": "keyword.other.quartz",

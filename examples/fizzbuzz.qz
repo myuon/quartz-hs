@@ -4,14 +4,19 @@ external func range(s: int, e: int): array<int>;
 
 func main() {
   for i in range(1, 100) {
-    if mod(i, 15) == 0 {
-      println("FizzBuzz");
-    } else if mod(i, 3) == 0 {
-      println("Fizz");
-    } else if mod(i, 5) == 0 {
-      println("Buzz");
-    } else {
-      println(i);
+    if {
+      mod(i, 15) == 0 -> {
+        println("FizzBuzz");
+      },
+      mod(i, 3) == 0 -> {
+        println("Fizz");
+      },
+      mod(i, 5) == 0 -> {
+        println("Buzz");
+      },
+      true -> {
+        println(i);
+      }
     }
   }
 }

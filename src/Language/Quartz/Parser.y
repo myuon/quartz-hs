@@ -124,28 +124,28 @@ stmts
     | LET VAR '=' expr ';' stmts { Let (Id [$2]) $4 : $6 }
     | expr  { [$1] }
     | {- empty -}  { [Unit] }
-    | FOR VAR IN expr2 '{' stmts '}' stmts  { ForIn $2 $4 $6 : $8 }
+    | FOR VAR IN expr_short '{' stmts '}' stmts  { ForIn $2 $4 $6 : $8 }
     | IF '{' if_branches '}' stmts  { If $3 : $5 }
 
-expr2 :: { Expr }
-expr2
+expr_short :: { Expr }
+expr_short
     : literal  { Lit $1 }
-    | MATCH expr '{' match_branches '}'  { Match $2 $4 }
-    | IF '{' if_branches '}'  { If $3 }
-    | FUNC may_generics '(' arg_types ')' may_return_type '{' stmts '}'  { ClosureE (Closure (createArgTypes $2 $4 $6) (Procedure $8)) }
-    | '(' expr ')'  { $2 }
-    | '{' stmts '}'  { Procedure $2 }
     | var  { Var $1 }
     | SELF  { Var (Id ["self"]) }
+    | expr_short args  { FnCall $1 $2 }
+    | expr_short '.' VAR  { Member $1 $3 }
+    | expr_short '[' expr ']'  { IndexArray $1 $3 }
+    | '(' expr ')'  { $2 }
+    | '{' stmts '}'  { Procedure $2 }
     | '[' array_lit ']'  { ArrayLit $2 }
 
 expr :: { Expr }
 expr
-    : expr2  { $1 }
-    | expr args  { FnCall $1 $2 }
-    | expr '[' expr ']'  { IndexArray $1 $3 }
+    : expr_short  { $1 }
+    | MATCH expr '{' match_branches '}'  { Match $2 $4 }
+    | IF '{' if_branches '}'  { If $3 }
+    | FUNC may_generics '(' arg_types ')' may_return_type '{' stmts '}'  { ClosureE (Closure (createArgTypes $2 $4 $6) (Procedure $8)) }
     | expr '==' expr  { Op Eq $1 $3 }
-    | expr '.' VAR  { Member $1 $3 }
     | VAR '{' record_expr '}'  { RecordOf $1 $3 }
 
 record_expr :: { [(String, Expr)] }
