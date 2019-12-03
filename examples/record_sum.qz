@@ -1,0 +1,21 @@
+external func println<A>(s: A);
+external func add(x: int, y: int): int;
+
+record Position {
+  x: int,
+  y: int,
+}
+
+func main() {
+  let p = Position {
+    x: 10,
+    y: 20,
+  };
+  let sum = (p: Position): int -> {
+    add(p.x, p.y)
+  };
+
+  println(p.x);
+  println(p.y);
+  println(sum(p));
+}

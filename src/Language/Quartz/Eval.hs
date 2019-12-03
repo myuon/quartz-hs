@@ -40,12 +40,13 @@ subst expr var term = case expr of
 
 isNormalForm :: Expr -> Bool
 isNormalForm vm = case vm of
-  Lit      _ -> True
-  ClosureE _ -> True
-  OpenE    _ -> True
-  Unit       -> True
-  Array _    -> True
-  _          -> False
+  Lit      _   -> True
+  ClosureE _   -> True
+  OpenE    _   -> True
+  Unit         -> True
+  Array _      -> True
+  RecordOf _ _ -> True
+  _            -> False
 
 
 match
@@ -149,6 +150,11 @@ evalE vm = case vm of
     case op of
       Eq ->
         return $ if r1 == r2 then Lit (BoolLit True) else Lit (BoolLit False)
+  Member e1 v1 -> do
+    r1 <- evalE e1
+    case r1 of
+      RecordOf _ fields -> do
+        return $ (\(Just x) -> x) $ lookup v1 fields
   _ -> lift $ throwE $ Unreachable vm
 
 runEvalE :: MonadIO m => Expr -> ExceptT RuntimeExceptions m Expr

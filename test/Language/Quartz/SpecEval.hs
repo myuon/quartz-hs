@@ -96,3 +96,19 @@ spec_evaluate = do
           true => 1,
         }
       |] `evaluatedToBe` parseE [r| 1 |]
+
+      parseDs [r|
+        record P {
+          x: int,
+          y: int,
+        }
+
+        func main(): nat {
+          let p = P {
+            x: 10,
+            y: 20,
+          };
+
+          p.x
+        }
+      |] `runMainResult` parseE [r| 10 |]

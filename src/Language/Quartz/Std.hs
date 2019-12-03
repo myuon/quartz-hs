@@ -43,4 +43,12 @@ ffi = M.fromList
           return $ Lit (IntLit (x' `mod` y'))
         _ -> throwE $ InvalidExpr d1
     )
+  , ( Id ["add"]
+    , \[d1, d2] -> do
+      x <- (fromDynamic d1 :: Maybe Expr) ?? InvalidExpr d1
+      y <- (fromDynamic d2 :: Maybe Expr) ?? InvalidExpr d2
+      case (x, y) of
+        (Lit (IntLit x'), Lit (IntLit y')) -> return $ Lit (IntLit (x' + y'))
+        _ -> throwE $ InvalidExpr d1
+    )
   ]
