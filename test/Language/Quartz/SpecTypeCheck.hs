@@ -68,7 +68,12 @@ spec_typecheck = do
         }
       |] `runTypeCheck` ConType (Id ["bool"])
 
-      parseE [r| if 0 == 1 { "true" } else { "false" } |] `runTypeCheck` ConType (Id ["string"])
+      parseE [r|
+        if {
+          0 == 1 -> "true",
+          true -> "false",
+        }
+      |] `runTypeCheck` ConType (Id ["string"])
 
       check [r|
         record Foo {
@@ -77,5 +82,29 @@ spec_typecheck = do
 
         func barOf(foo: Foo): int {
           foo.bar
+        }
+      |]
+
+      check [r|
+        record P {
+          x: int,
+          y: int
+        }
+
+        record Foo {
+          bar: int,
+          baz: string,
+          quux: P
+        }
+
+        func hoge(b: string, n: int): Foo {
+          Foo {
+            bar: n,
+            baz: b,
+            quux: P {
+              x: n,
+              y: 20,
+            },
+          }
         }
       |]

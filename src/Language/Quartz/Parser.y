@@ -124,40 +124,47 @@ stmts
     | LET VAR '=' expr ';' stmts { Let (Id [$2]) $4 : $6 }
     | expr  { [$1] }
     | {- empty -}  { [Unit] }
-    | FOR VAR IN expr '{' stmts '}' stmts  { ForIn $2 $4 $6 : $8 }
-    | if_expr  { [$1] }
+    | FOR VAR IN expr2 '{' stmts '}' stmts  { ForIn $2 $4 $6 : $8 }
+    | IF '{' if_branches '}' stmts  { If $3 : $5 }
 
-if_expr :: { Expr }
-if_expr
-    : IF expr '{' stmts '}' if_stmts  { If $2 (Procedure $4) $6 }
-
-if_stmts :: { Expr }
-if_stmts
-    : ELSE '{' stmts '}'  { Procedure $3 }
-    | ELSE IF expr '{' stmts '}' if_stmts  { If $3 (Procedure $5) $7 }
-    | {- empty -}  { NoExpr }
-
-expr :: { Expr }
-expr
+expr2 :: { Expr }
+expr2
     : literal  { Lit $1 }
     | MATCH expr '{' match_branches '}'  { Match $2 $4 }
+    | IF '{' if_branches '}'  { If $3 }
     | FUNC may_generics '(' arg_types ')' may_return_type '{' stmts '}'  { ClosureE (Closure (createArgTypes $2 $4 $6) (Procedure $8)) }
-    | expr args  { FnCall $1 $2 }
-    | expr '[' expr ']'  { IndexArray $1 $3 }
     | '(' expr ')'  { $2 }
     | '{' stmts '}'  { Procedure $2 }
     | var  { Var $1 }
     | SELF  { Var (Id ["self"]) }
     | '[' array_lit ']'  { ArrayLit $2 }
-    | if_expr  { $1 }
+
+expr :: { Expr }
+expr
+    : expr2  { $1 }
+    | expr args  { FnCall $1 $2 }
+    | expr '[' expr ']'  { IndexArray $1 $3 }
     | expr '==' expr  { Op Eq $1 $3 }
     | expr '.' VAR  { Member $1 $3 }
+    | VAR '{' record_expr '}'  { RecordOf $1 $3 }
+
+record_expr :: { [(String, Expr)] }
+record_expr
+    : VAR ':' expr  { [($1, $3)] }
+    | VAR ':' expr ',' record_expr  { ($1,$3) : $5 }
+    | {- empty -}  { [] }
 
 match_branches :: { [(Pattern, Expr)] }
 match_branches
     : {- empty -}  { [] }
     | pattern '->' expr  { [($1, $3)] }
     | pattern '->' expr ',' match_branches  { ($1, $3) : $5 }
+
+if_branches :: { [(Expr, Expr)] }
+if_branches
+    : {- empty -}  { [] }
+    | expr '->' expr  { [($1,$3)] }
+    | expr '->' expr ',' if_branches  { ($1, $3) : $5 }
 
 pattern :: { Pattern }
 pattern

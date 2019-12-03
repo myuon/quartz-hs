@@ -133,11 +133,16 @@ evalE vm = case vm of
     put ctx
 
     return Unit
-  If b e1 e2 -> do
-    cond <- evalE b
-    case cond of
-      Lit (BoolLit b) -> if b then evalE e1 else evalE e2
-      _               -> lift $ throwE $ Unreachable vm
+  If brs -> fix
+    ( \cont brs -> case brs of
+      []                  -> return Unit
+      ((cond, br):others) -> do
+        result <- evalE cond
+        case result of
+          Lit (BoolLit True ) -> evalE br
+          Lit (BoolLit False) -> cont others
+    )
+    brs
   Op op e1 e2 -> do
     r1 <- evalE e1
     r2 <- evalE e2

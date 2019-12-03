@@ -26,6 +26,7 @@ data Expr
   | ClosureE Closure
   | OpenE Id
   | Match Expr [(Pattern, Expr)]
+  | If [(Expr, Expr)]
   | Procedure [Expr]
   | Unit
   | NoExpr
@@ -35,9 +36,9 @@ data Expr
   | ArrayLit [Expr]
   | IndexArray Expr Expr
   | ForIn String Expr [Expr]
-  | If Expr Expr Expr
   | Op Op Expr Expr
   | Member Expr String
+  | RecordOf String [(String, Expr)]
   deriving (Eq, Show)
 
 newtype MArray = MArray { getMArray :: MutableArray RealWorld Expr }

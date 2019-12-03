@@ -110,6 +110,7 @@ algoW expr = case expr of
   Lit      (DoubleLit n) -> return (emptySubst, ConType (Id ["double"]))
   Lit      (CharLit   c) -> return (emptySubst, ConType (Id ["char"]))
   Lit      (StringLit c) -> return (emptySubst, ConType (Id ["string"]))
+  Lit      (BoolLit   c) -> return (emptySubst, ConType (Id ["bool"]))
   ArrayLit es            -> do
     b <- fresh
     fmap (\(s, t) -> (s, AppType (ConType (Id ["array"])) [t])) $ foldlM
@@ -171,13 +172,18 @@ algoW expr = case expr of
     put ctx
     s4 <- lift $ mgu t3 $ ConType (Id ["unit"])
     return (s4 `compose` s3 `compose` s2 `compose` s1, ConType (Id ["unit"]))
-  If b1 e2 e3 -> do
-    (s1, t1) <- algoW b1
-    s2       <- lift $ mgu t1 (ConType (Id ["bool"]))
-    (s3, t3) <- algoW e2
-    (s4, t4) <- algoW e3
-    s5       <- lift $ mgu t3 t4
-    return (foldl1 compose [s5, s4, s3, s2, s1], apply s5 t3)
+  If brs -> do
+    b      <- fresh
+    substs <- forM brs $ \(cond, expr) -> do
+      (s1, t1) <- algoW cond
+      s2       <- lift $ mgu t1 (ConType (Id ["bool"]))
+
+      (s3, t3) <- algoW expr
+      s4       <- lift $ mgu t3 (VarType b)
+      return (s4 `compose` s3 `compose` s2 `compose` s1)
+
+    let s = foldr1 compose substs
+    return (s, apply s (VarType b))
   Op op e1 e2 -> do
     (s1, t1) <- algoW e1
     (s2, t2) <- algoW e2
@@ -194,6 +200,17 @@ algoW expr = case expr of
         t2  <- lift $ lookup v1 rc ?? NotFound (Id [v1])
         return (s1, t2)
       VarType _ -> lift $ throwE $ CannotInfer e1
+  RecordOf name fields -> do
+    ctx    <- get
+    rc     <- lift $ records ctx M.!? (Id [name]) ?? NotFound (Id [name])
+    substs <- forM fields $ \(field, expr) -> do
+      typ      <- lift $ lookup field rc ?? NotFound (Id [field])
+      (s1, t1) <- algoW expr
+      s2       <- lift $ mgu t1 typ
+      return $ s2 `compose` s1
+    let s = foldr1 compose substs
+
+    return (s, ConType (Id [name]))
   _ -> error $ show expr
  where
   appW (e1:e2:[]) = do

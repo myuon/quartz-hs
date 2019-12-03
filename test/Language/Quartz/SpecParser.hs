@@ -36,14 +36,26 @@ spec_parser = do
       parseE "h(f)[g(1)]" `shouldBe` IndexArray (FnCall (Var (Id ["h"])) [Var (Id ["f"])]) (FnCall (Var (Id ["g"])) [Lit (IntLit 1)])
 
       parseE [r|
-        if b1 {
-          e1
-        } else if b2 {
-          e2
-        } else {
-          e3
+        if {
+          b1 -> e1,
+          b2 -> e2,
+          true -> e3,
         }
-      |] `shouldBe` If (Var (Id ["b1"])) (Procedure [Var (Id ["e1"])]) (If (Var (Id ["b2"])) (Procedure [Var (Id ["e2"])]) (Procedure [Var (Id ["e3"])]))
+      |] `shouldBe` If [
+        (Var (Id ["b1"]), Var (Id ["e1"])),
+        (Var (Id ["b2"]), Var (Id ["e2"])),
+        (Lit (BoolLit True), Var (Id ["e3"]))
+        ]
+
+      parseE [r|
+        if {
+          0 == 1 -> "true",
+          true -> "false",
+        }
+      |] `shouldBe` If [
+        (Op Eq (Lit (IntLit 0)) (Lit (IntLit 1)), Lit (StringLit "\"true\"")),
+        (Lit (BoolLit True), Lit (StringLit "\"false\""))
+        ]
 
       parseE "func (a: string): string { a }" `shouldBe` ClosureE
         ( Closure
@@ -57,6 +69,12 @@ spec_parser = do
           (Procedure [Var (Id ["a"])])
         )
 
+      parseE [r|
+        Pos {
+          x: 10,
+          y: "foo"
+        }
+      |] `shouldBe` RecordOf "Pos" [("x", Lit (IntLit 10)), ("y", Lit (StringLit "\"foo\""))]
 
       parseE "func (a: int, b: int, c: int) { let z = sum(a,b,c); z }"
         `shouldBe` ClosureE
