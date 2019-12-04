@@ -212,3 +212,15 @@ spec_parser = do
       |] `shouldBe` Func "barOf" (Closure (ArgTypes [] [("foo", ConType (Id ["Foo"]))] (ConType (Id ["int"]))) (Procedure [
           Member (Var (Id ["foo"])) "bar"
         ]))
+
+      parseE [r|
+        match s {
+          10 => e1,
+          foo => e2,
+          Const(_, y) => y,
+        }
+      |] `shouldBe` Match (Var (Id ["s"])) [
+          (PLit (IntLit 10), Var (Id ["e1"])),
+          (PVar "foo", Var (Id ["e2"])),
+          (PApp (PVar "Const") [PAny, PVar "y"], Var (Id ["y"]))
+        ]

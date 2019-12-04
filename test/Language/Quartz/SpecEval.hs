@@ -112,3 +112,27 @@ spec_evaluate = do
           p.x
         }
       |] `runMainResult` parseE [r| 10 |]
+
+      parseDs [r|
+        enum Color {
+          Red,
+          Blue,
+          Yellow,
+        }
+
+        func red(): Color {
+          Color::Red
+        }
+
+        func color_code(c: Color): string {
+          match c {
+            Red => "#f00",
+            Blue => "#00f",
+            Yellow => "#ff0",
+          }
+        }
+
+        func main(): string {
+          color_code(red())
+        }
+      |] `runMainResult` parseE [r| "#f00" |]

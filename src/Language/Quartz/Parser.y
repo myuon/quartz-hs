@@ -142,7 +142,7 @@ expr_short
 
 expr :: { Expr }
 expr
-    : MATCH expr '{' match_branches '}'  { Match $2 $4 }
+    : MATCH expr_short '{' match_branches '}'  { Match $2 $4 }
     | IF '{' if_branches '}'  { If $3 }
 
     -- こうしないとちゃんとパースできないので(先読みの問題？)

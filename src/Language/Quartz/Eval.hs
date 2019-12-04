@@ -164,8 +164,19 @@ evalD :: MonadIO m => Decl -> StateT Context (ExceptT RuntimeExceptions m) ()
 evalD decl = go [] decl
  where
   go path decl = case decl of
-    Enum d _ ->
-      modify $ \ctx -> ctx { decls = PathTree.insert [d] decl (decls ctx) }
+    Enum name fs -> do
+      forM_ fs $ \(EnumField f typs) -> do
+        bs <- mapM (\_ -> fresh) typs
+        let vars = map (Var . Id . return) bs
+        modify $ \ctx -> ctx
+          { exprs = M.insert
+              (Id [name, f])
+              ( ClosureE
+                (Closure (ArgTypes [] (zip bs typs) NoType) (EnumOf name vars))
+              )
+            $ exprs ctx
+          }
+
     Record d _ ->
       modify $ \ctx -> ctx { decls = PathTree.insert [d] decl (decls ctx) }
     Func d body ->

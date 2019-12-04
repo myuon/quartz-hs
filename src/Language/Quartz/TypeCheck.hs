@@ -26,6 +26,7 @@ data TypeCheckExceptions
   | TypeNotMatch Type Type
   | OccurCheck String Type
   | CannotInfer Expr
+  | PatternNotMatch Pattern Type
   deriving (Eq, Show)
 
 argumentOf :: Type -> ([Type], Type)
@@ -211,6 +212,18 @@ algoW expr = case expr of
     let s = foldr1 compose substs
 
     return (s, ConType (Id [name]))
+  Match e1 brs -> do
+    b        <- fresh
+    (s1, t1) <- algoW e1
+
+    substs   <- forM brs $ \(pat, expr) -> do
+      s2       <- match pat t1
+      (s3, t3) <- algoW expr
+      s4       <- lift $ mgu t3 (VarType b)
+      return $ s4 `compose` s3 `compose` s2
+    let s' = foldl' compose s1 substs
+
+    return (s', apply s' (VarType b))
   _ -> error $ show expr
  where
   appW (e1:e2:[]) = do
@@ -231,6 +244,25 @@ algoW expr = case expr of
     put ctx
     s3 <- lift $ mgu (apply s2 t1) (ArrowType t2 b)
     return (s3 `compose` s2 `compose` s1, apply s3 b)
+
+  match
+    :: MonadIO m
+    => Pattern
+    -> Type
+    -> StateT Context (ExceptT TypeCheckExceptions m) Subst
+  match pat typ = case (pat, typ) of
+    (PVar v, t) -> return $ Subst $ M.singleton v t
+    (PLit (IntLit    _), ConType (Id ["int"])   ) -> return emptySubst
+    (PLit (StringLit _), ConType (Id ["string"])) -> return emptySubst
+    (PLit (CharLit   _), ConType (Id ["char"])  ) -> return emptySubst
+    (PLit (DoubleLit _), ConType (Id ["double"])) -> return emptySubst
+    (PLit (BoolLit   _), ConType (Id ["bool"])  ) -> return emptySubst
+    (PApp p1 ps        , AppType t1 ts          ) -> do
+      s1 <- match p1 t1
+      ss <- zipWithM match ps ts
+      return $ foldl' compose s1 ss
+    (PAny, _) -> return emptySubst
+    _         -> lift $ throwE $ PatternNotMatch pat typ
 
 typecheckExpr
   :: MonadIO m => Expr -> StateT Context (ExceptT TypeCheckExceptions m) Type
