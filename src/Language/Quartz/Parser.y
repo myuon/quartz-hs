@@ -131,7 +131,7 @@ stmts
 expr_short :: { Expr }
 expr_short
     : literal  { Lit $1 }
-    | var  { Var $1 }
+    | var  { Var (Id $1) }
     | SELF  { Var (Id ["self"]) }
     | expr_short args  { FnCall $1 $2 }
     | expr_short '.' VAR  { Member $1 $3 }
@@ -230,9 +230,10 @@ types_comma
     | type  { [$1] }
     | type ',' types_comma  { $1 : $3 }
 
-var :: { Id }
+var :: { [String] }
 var
-    : VAR  { Id [$1] }
+    : VAR  { [$1] }
+    | VAR '::' var  { $1 : $3 }
 
 {
 happyError tokens = Left $ "Parse error\n" ++ show tokens

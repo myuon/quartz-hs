@@ -108,3 +108,23 @@ spec_typecheck = do
           }
         }
       |]
+
+      check [r|
+        enum Color {
+          Red,
+          Blue,
+          Yellow,
+        }
+
+        func red(): Color {
+          Color::Red
+        }
+
+        func color_code(c: Color): string {
+          match c {
+            Red => "#f00",
+            Blue => "#00f",
+            Yellow => "#ff0",
+          }
+        }
+      |]

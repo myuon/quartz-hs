@@ -241,7 +241,16 @@ typecheckModule
 typecheckModule ds = mapM_ check ds
  where
   check d = case d of
-    Enum   _ _   -> return ()
+    Enum name fs -> modify $ \ctx -> ctx
+      { schemes = foldl'
+        ( \mp (EnumField f typs) ->
+          M.insert (Id [name, f])
+                   (Scheme [] $ foldr ArrowType (ConType (Id [name])) typs)
+            $ mp
+        )
+        (schemes ctx)
+        fs
+      }
     Record r rds -> modify $ \ctx -> ctx
       { records = M.insert (Id [r]) (map (\(RecordField s t) -> (s, t)) rds)
         $ records ctx
