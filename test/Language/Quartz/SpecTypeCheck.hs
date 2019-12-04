@@ -128,3 +128,25 @@ spec_typecheck = do
           }
         }
       |]
+
+      check [r|
+        enum Nat {
+          Zero,
+          Succ(Nat),
+        }
+
+        func zero(): Nat {
+          Nat::Zero
+        }
+
+        func two(): Nat {
+          Nat::Succ(Nat::Succ(Nat::Zero))
+        }
+
+        func pred(n: Nat): Nat {
+          match n {
+            Nat::Succ(m) => m,
+            _ => n,
+          }
+        }
+      |]

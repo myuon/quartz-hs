@@ -61,7 +61,7 @@ data Scheme = Scheme [String] Type
   deriving (Eq, Show)
 
 data Pattern
-  = PVar String
+  = PVar Id
   | PLit Literal
   | PApp Pattern [Pattern]
   | PAny

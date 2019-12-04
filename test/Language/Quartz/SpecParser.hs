@@ -147,8 +147,8 @@ spec_parser = do
                            ( Procedure
                              [ Match
                                  (Var (Id ["self"]))
-                                 [ (PVar "Zero", Lit (BoolLit True))
-                                 , ( PApp (PVar "Succ") [PAny]
+                                 [ (PVar (Id ["Zero"]), Lit (BoolLit True))
+                                 , ( PApp (PVar (Id ["Succ"])) [PAny]
                                    , Lit (BoolLit False)
                                    )
                                  ]
@@ -221,6 +221,6 @@ spec_parser = do
         }
       |] `shouldBe` Match (Var (Id ["s"])) [
           (PLit (IntLit 10), Var (Id ["e1"])),
-          (PVar "foo", Var (Id ["e2"])),
-          (PApp (PVar "Const") [PAny, PVar "y"], Var (Id ["y"]))
+          (PVar (Id ["foo"]), Var (Id ["e2"])),
+          (PApp (PVar (Id ["Const"])) [PAny, PVar (Id ["y"])], Var (Id ["y"]))
         ]

@@ -55,8 +55,8 @@ match
   -> Expr
   -> StateT Context (ExceptT RuntimeExceptions m) ()
 match pat term = evalE term >>= \t' -> case (pat, t') of
-  (PVar p, t) ->
-    modify $ \ctx -> ctx { exprs = M.insert (Id [p]) t (exprs ctx) }
+  (PVar (Id [v]), t) ->
+    modify $ \ctx -> ctx { exprs = M.insert (Id [v]) t (exprs ctx) }
   (PLit lit, Lit lit') ->
     lift $ assertMay (lit == lit') ?? PatternNotMatch (PLit lit) term
   (PApp pf pxs, FnCall f xs) ->

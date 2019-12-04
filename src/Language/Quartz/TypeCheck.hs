@@ -251,13 +251,13 @@ algoW expr = case expr of
     -> Type
     -> StateT Context (ExceptT TypeCheckExceptions m) Subst
   match pat typ = case (pat, typ) of
-    (PVar v, t) -> return $ Subst $ M.singleton v t
-    (PLit (IntLit    _), ConType (Id ["int"])   ) -> return emptySubst
-    (PLit (StringLit _), ConType (Id ["string"])) -> return emptySubst
-    (PLit (CharLit   _), ConType (Id ["char"])  ) -> return emptySubst
-    (PLit (DoubleLit _), ConType (Id ["double"])) -> return emptySubst
-    (PLit (BoolLit   _), ConType (Id ["bool"])  ) -> return emptySubst
-    (PApp p1 ps        , AppType t1 ts          ) -> do
+    (PVar (Id [v]), t) -> return $ Subst $ M.singleton v t
+    (PLit (IntLit    _  ), ConType (Id ["int"])   ) -> return emptySubst
+    (PLit (StringLit _  ), ConType (Id ["string"])) -> return emptySubst
+    (PLit (CharLit   _  ), ConType (Id ["char"])  ) -> return emptySubst
+    (PLit (DoubleLit _  ), ConType (Id ["double"])) -> return emptySubst
+    (PLit (BoolLit   _  ), ConType (Id ["bool"])  ) -> return emptySubst
+    (PApp p1 ps          , AppType t1 ts          ) -> do
       s1 <- match p1 t1
       ss <- zipWithM match ps ts
       return $ foldl' compose s1 ss

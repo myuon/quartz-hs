@@ -175,7 +175,7 @@ pattern :: { Pattern }
 pattern
     : '_'  { PAny }
     | pattern '(' patterns ')'  { PApp $1 $3 }
-    | VAR  { PVar $1 }
+    | var  { PVar (Id $1) }
     | literal  { PLit $1 }
 
 patterns :: { [Pattern] }
