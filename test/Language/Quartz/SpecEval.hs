@@ -136,3 +136,29 @@ spec_evaluate = do
           color_code(red())
         }
       |] `runMainResult` parseE [r| "#f00" |]
+
+      parseDs [r|
+        enum Nat {
+          Zero,
+          Succ(Nat),
+        }
+
+        func zero(): Nat {
+          Nat::Zero
+        }
+
+        func two(): Nat {
+          Nat::Succ(Nat::Succ(Nat::Zero))
+        }
+
+        func pred(n: Nat): Nat {
+          match n {
+            Nat::Succ(m) => m,
+            _ => n,
+          }
+        }
+
+        func main(): Nat {
+          pred(two())
+        }
+      |] `runMainResult` parseE [r| Nat::Succ(Nat::Zero) |]

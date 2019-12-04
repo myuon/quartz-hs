@@ -13,11 +13,17 @@ import Data.Unique
 data Context = Context {
   schemes :: M.Map Id Scheme,
   records :: M.Map Id [(String, Type)],
+  enums :: M.Map Id [(String, [Type])],
   selfType :: Maybe Type
 }
 
 std :: Context
-std = Context {schemes = M.empty, records = M.empty, selfType = Nothing}
+std = Context
+  { schemes  = M.empty
+  , records  = M.empty
+  , selfType = Nothing
+  , enums    = M.empty
+  }
 
 data TypeCheckExceptions
   = UnificationFailed Type Type
@@ -251,16 +257,31 @@ algoW expr = case expr of
     -> Type
     -> StateT Context (ExceptT TypeCheckExceptions m) Subst
   match pat typ = case (pat, typ) of
-    (PVar (Id [v]), t) -> return $ Subst $ M.singleton v t
-    (PLit (IntLit    _  ), ConType (Id ["int"])   ) -> return emptySubst
-    (PLit (StringLit _  ), ConType (Id ["string"])) -> return emptySubst
-    (PLit (CharLit   _  ), ConType (Id ["char"])  ) -> return emptySubst
-    (PLit (DoubleLit _  ), ConType (Id ["double"])) -> return emptySubst
-    (PLit (BoolLit   _  ), ConType (Id ["bool"])  ) -> return emptySubst
-    (PApp p1 ps          , AppType t1 ts          ) -> do
+    -- PVarで0引数constructorのとき
+    (PVar v, t) -> do
+      modify $ \ctx -> ctx { schemes = M.insert v (Scheme [] t) $ schemes ctx }
+      return emptySubst
+    (PLit (IntLit    _), ConType (Id ["int"])   ) -> return emptySubst
+    (PLit (StringLit _), ConType (Id ["string"])) -> return emptySubst
+    (PLit (CharLit   _), ConType (Id ["char"])  ) -> return emptySubst
+    (PLit (DoubleLit _), ConType (Id ["double"])) -> return emptySubst
+    (PLit (BoolLit   _), ConType (Id ["bool"])  ) -> return emptySubst
+    (PApp p1 ps        , AppType t1 ts          ) -> do
       s1 <- match p1 t1
       ss <- zipWithM match ps ts
       return $ foldl' compose s1 ss
+    (PApp p1 ps, ConType t) -> do
+      ctx <- get
+      et  <- lift $ enums ctx M.!? t ?? PatternNotMatch pat typ
+      fix
+        ( \cont brs -> case brs of
+          []             -> lift $ throwE $ PatternNotMatch pat typ
+          ((c1, cs):brs) -> case p1 of
+            (PVar (Id [vt, v1])) | (Id [vt]) == t && v1 == c1 ->
+              fmap (foldl1 compose) $ forM (zip ps cs) $ \(p, c) -> match p c
+            _ -> cont brs
+        )
+        et
     (PAny, _) -> return emptySubst
     _         -> lift $ throwE $ PatternNotMatch pat typ
 
@@ -282,6 +303,8 @@ typecheckModule ds = mapM_ check ds
         )
         (schemes ctx)
         fs
+      , enums   = M.insert (Id [name]) (map (\(EnumField f ts) -> (f, ts)) fs)
+        $ enums ctx
       }
     Record r rds -> modify $ \ctx -> ctx
       { records = M.insert (Id [r]) (map (\(RecordField s t) -> (s, t)) rds)
