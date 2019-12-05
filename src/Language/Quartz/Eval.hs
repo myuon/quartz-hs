@@ -58,9 +58,10 @@ match pat term = case (pat, term) of
   (PApp pf pxs, FnCall f xs) ->
     match pf f >> mapM_ (uncurry match) (zip pxs xs)
   (PVar u   , Var v      ) | u == v -> return ()
+  (PVar u   , EnumOf v []) | u == v -> return ()
   (PApp p qs, EnumOf e fs) -> match p (Var e) >> zipWithM_ match qs fs
   (PAny     , _          ) -> return ()
-  _ -> error $ show (pat, term)
+  _ -> lift $ throwE $ PatternNotMatch pat term
 
 data RuntimeExceptions
   = NotFound Id

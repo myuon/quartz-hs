@@ -19,6 +19,7 @@ ffi = M.fromList
       case expr of
         Lit (StringLit s) -> liftIO $ putStrLn s
         Lit (IntLit    n) -> liftIO $ print n
+        EnumOf _ _        -> liftIO $ print expr
         _                 -> throwE $ InvalidExpr d
 
       return Unit

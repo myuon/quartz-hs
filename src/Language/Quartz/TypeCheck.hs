@@ -312,8 +312,15 @@ typecheckModule ds = mapM_ check ds
       }
     Instance _ ds -> typecheckModule ds
     OpenD _       -> return ()
-    Func         _    c -> typecheckExpr (ClosureE c) >> return ()
-    Method       _    c -> typecheckExpr (ClosureE c) >> return ()
+    Func name c   -> do
+      b <- fresh
+      modify $ \ctx -> ctx
+        { schemes = M.insert (Id [name]) (Scheme [] (VarType b)) $ schemes ctx
+        }
+      ty <- typecheckExpr (ClosureE c)
+      modify $ \ctx ->
+        ctx { schemes = M.insert (Id [name]) (Scheme [] ty) $ schemes ctx }
+    Method _ c -> typecheckExpr (ClosureE c) >> return ()
     ExternalFunc name (ArgTypes tyvars args ret) -> modify $ \ctx -> ctx
       { schemes = M.insert
           (Id [name])

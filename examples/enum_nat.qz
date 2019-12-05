@@ -1,0 +1,37 @@
+external func println<A>(s: A);
+
+enum Nat {
+  Zero,
+  Succ(Nat),
+}
+
+func zero(): Nat {
+  Nat::Zero
+}
+
+func one(): Nat {
+  Nat::Succ(Nat::Zero)
+}
+
+func two(): Nat {
+  Nat::Succ(Nat::Succ(Nat::Zero))
+}
+
+func pred(n: Nat): Nat {
+  match n {
+    Nat::Succ(m) => m,
+    _ => Nat::Zero,
+  }
+}
+
+func add(n: Nat, m: Nat): Nat {
+  match n {
+    Nat::Zero => m,
+    Nat::Succ(n2) => Nat::Succ(add(n2,m))
+  }
+}
+
+func main() {
+  println(pred(two()));
+  println(add(two(), one()));
+}

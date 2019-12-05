@@ -23,7 +23,7 @@
       "patterns": [
         {
           "name": "keyword.control.quartz",
-          "match": "\\b(external func|func|if|for|record)\\b"
+          "match": "\\b(external func|func|if|for|record|enum|match)\\b"
         },
         {
           "name": "keyword.other.quartz",
