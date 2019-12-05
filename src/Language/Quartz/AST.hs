@@ -39,7 +39,7 @@ data Expr
   | Op Op Expr Expr
   | Member Expr String
   | RecordOf String [(String, Expr)]
-  | EnumOf String [Expr]
+  | EnumOf Id [Expr]
   deriving (Eq, Show)
 
 newtype MArray = MArray { getMArray :: MutableArray RealWorld Expr }

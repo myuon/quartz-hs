@@ -154,11 +154,11 @@ spec_evaluate = do
         func pred(n: Nat): Nat {
           match n {
             Nat::Succ(m) => m,
-            _ => n,
+            Nat::Zero => Nat::Zero,
           }
         }
 
         func main(): Nat {
           pred(two())
         }
-      |] `runMainResult` parseE [r| Nat::Succ(Nat::Zero) |]
+      |] `runMainResult` EnumOf (Id ["Nat", "Succ"]) [EnumOf (Id ["Nat", "Zero"]) []]

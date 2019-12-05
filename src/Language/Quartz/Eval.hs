@@ -26,17 +26,12 @@ subst expr var term = case expr of
   Var y | y == Id [var] -> term
   FnCall f xs           -> FnCall f (map (\x -> subst x var term) xs)
   Let    x t            -> Let x (subst t var term)
-  Match  e args         -> Match
-    (subst e var term)
-    ( map
-      ( \(pat, br) -> case pat of
-        PVar y -> (pat, subst br var term)
-      )
-      args
-    )
-  Procedure es -> Procedure $ map (\x -> subst x var term) es
-  FFI p es     -> FFI p $ map (\x -> subst x var term) es
-  _            -> expr
+  Match e args -> Match (subst e var term)
+                        (map (\(pat, br) -> (pat, subst br var term)) args)
+  Procedure es  -> Procedure $ map (\x -> subst x var term) es
+  FFI    p   es -> FFI p $ map (\x -> subst x var term) es
+  EnumOf con ts -> EnumOf con (map (\x -> subst x var term) ts)
+  _             -> expr
 
 isNormalForm :: Expr -> Bool
 isNormalForm vm = case vm of
@@ -46,6 +41,7 @@ isNormalForm vm = case vm of
   Unit         -> True
   Array _      -> True
   RecordOf _ _ -> True
+  EnumOf   _ _ -> True
   _            -> False
 
 
@@ -54,14 +50,17 @@ match
   => Pattern
   -> Expr
   -> StateT Context (ExceptT RuntimeExceptions m) ()
-match pat term = evalE term >>= \t' -> case (pat, t') of
+match pat term = case (pat, term) of
   (PVar (Id [v]), t) ->
     modify $ \ctx -> ctx { exprs = M.insert (Id [v]) t (exprs ctx) }
   (PLit lit, Lit lit') ->
     lift $ assertMay (lit == lit') ?? PatternNotMatch (PLit lit) term
   (PApp pf pxs, FnCall f xs) ->
     match pf f >> mapM_ (uncurry match) (zip pxs xs)
-  (PAny, _) -> return ()
+  (PVar u   , Var v      ) | u == v -> return ()
+  (PApp p qs, EnumOf e fs) -> match p (Var e) >> zipWithM_ match qs fs
+  (PAny     , _          ) -> return ()
+  _ -> error $ show (pat, term)
 
 data RuntimeExceptions
   = NotFound Id
@@ -96,17 +95,19 @@ evalE vm = case vm of
     f <- evalE t
     modify $ \ctx -> ctx { exprs = M.insert x f (exprs ctx) }
     return Unit
-  Match t brs -> fix
-    ( \cont brs -> case brs of
-      []            -> lift $ throwE PatternExhausted
-      ((pat, b):bs) -> do
-        ctx0   <- get
-        result <- runExceptT $ execStateT (match pat t) ctx0
-        case result of
-          Left  _    -> cont bs
-          Right ctx' -> put ctx' >> evalE b
-    )
-    brs
+  Match t brs -> do
+    t' <- evalE t
+    fix
+      ( \cont brs -> case brs of
+        []            -> lift $ throwE PatternExhausted
+        ((pat, b):bs) -> do
+          ctx0   <- get
+          result <- runExceptT $ execStateT (match pat t') ctx0
+          case result of
+            Left  _    -> cont bs
+            Right ctx' -> put ctx' >> evalE b
+      )
+      brs
   Procedure es -> foldl' (\m e -> m >> evalE e) (return Unit) es
   FFI p es     -> get >>= \ctx -> do
     pf <- lift $ ffi ctx M.!? p ?? NotFound p
@@ -171,8 +172,12 @@ evalD decl = go [] decl
         modify $ \ctx -> ctx
           { exprs = M.insert
               (Id [name, f])
-              ( ClosureE
-                (Closure (ArgTypes [] (zip bs typs) NoType) (EnumOf name vars))
+              ( if null typs
+                then EnumOf (Id [name, f]) []
+                else ClosureE
+                  ( Closure (ArgTypes [] (zip bs typs) NoType)
+                            (EnumOf (Id [name, f]) vars)
+                  )
               )
             $ exprs ctx
           }
