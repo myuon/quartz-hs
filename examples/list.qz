@@ -19,6 +19,13 @@ func snoc<T>(xs: List<T>, x: T): List<T> {
   }
 }
 
+func append<T>(xs: List<T>, ys: List<T>): List<T> {
+  match ys {
+    List::Nil => xs,
+    List::Cons(z, zs) => append(snoc(xs, z), zs),
+  }
+}
+
 func main() {
   let xnil = List::Nil;
   let x123 = List::Cons(
@@ -35,4 +42,5 @@ func main() {
   println(is_nil(xnil));
   println(is_nil(x123));
   println(snoc(x123, 4));
+  println(append(x123, x123));
 }
