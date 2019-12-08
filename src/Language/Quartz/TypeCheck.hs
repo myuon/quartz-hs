@@ -294,11 +294,11 @@ typecheckModule
 typecheckModule ds = mapM_ check ds
  where
   check d = case d of
-    Enum name fs -> modify $ \ctx -> ctx
+    Enum name tyvars fs -> modify $ \ctx -> ctx
       { schemes = foldl'
         ( \mp (EnumField f typs) ->
           M.insert (Id [name, f])
-                   (Scheme [] $ foldr ArrowType (ConType (Id [name])) typs)
+                   (Scheme tyvars $ foldr ArrowType (ConType (Id [name])) typs)
             $ mp
         )
         (schemes ctx)

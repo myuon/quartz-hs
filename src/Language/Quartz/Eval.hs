@@ -166,7 +166,7 @@ evalD :: MonadIO m => Decl -> StateT Context (ExceptT RuntimeExceptions m) ()
 evalD decl = go [] decl
  where
   go path decl = case decl of
-    Enum name fs -> do
+    Enum name _ fs -> do
       forM_ fs $ \(EnumField f typs) -> do
         bs <- mapM (\_ -> fresh) typs
         let vars = map (Var . Id . return) bs

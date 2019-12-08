@@ -74,7 +74,7 @@ data Closure = Closure ArgTypes Expr
   deriving (Eq, Show)
 
 data Decl
-  = Enum String [EnumField]
+  = Enum String [String] [EnumField]
   | Record String [RecordField]
   | Instance Type [Decl]
   | OpenD Id

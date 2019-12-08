@@ -150,3 +150,14 @@ spec_typecheck = do
           }
         }
       |]
+
+      check [r|
+        enum Tree<T> {
+          Empty,
+          Node(T, int, T),
+        }
+
+        func node<T>(left: T, value: int, right: T): Tree<T> {
+          Tree::Node(left, value, right)
+        }
+      |]

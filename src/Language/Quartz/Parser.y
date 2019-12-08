@@ -59,7 +59,7 @@ decl
     : EXTERNAL FUNC VAR may_generics '(' arg_types ')' may_return_type ';'  { ExternalFunc $3 (createArgTypes $4 $6 $8) }
     | FUNC VAR may_generics '(' arg_types ')' may_return_type '{' stmts '}'  { Func $2 (Closure (createArgTypes $3 $5 $7) (Procedure $9)) }
     | FUNC VAR may_generics '(' self_arg_types ')' may_return_type '{' stmts '}'  { Method $2 (Closure (createArgTypes $3 $5 $7) (Procedure $9)) }
-    | ENUM VAR '{' enum_fields '}'  { Enum $2 $4 }
+    | ENUM VAR may_generics '{' enum_fields '}'  { Enum $2 $3 (map (createEnumField $3) $5) }
     | RECORD VAR '{' record_fields '}'  { Record $2 $4 }
     | INSTANCE type '{' decls '}'  { Instance $2 $4 }
     | OPEN path ';'  { OpenD (Id $2) }
@@ -247,4 +247,7 @@ createArgTypes :: [String] -> [(String, Type)] -> Maybe Type -> ArgTypes
 createArgTypes vars args ret = 
   let retType = toVarType vars $ maybe (ConType (Id ["unit"])) id ret in
   ArgTypes vars (map (\(x,y) -> (x, toVarType vars y)) args) retType
+
+createEnumField :: [String] -> EnumField -> EnumField
+createEnumField tyvars (EnumField f ts) = EnumField f (map (toVarType tyvars) ts)
 }

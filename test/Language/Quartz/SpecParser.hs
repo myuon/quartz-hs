@@ -116,7 +116,13 @@ spec_parser = do
 
       parseD "enum Nat { Zero, Succ(Nat) }" `shouldBe` Enum
         "Nat"
+        []
         [EnumField "Zero" [], EnumField "Succ" [ConType (Id ["Nat"])]]
+
+      parseD "enum Node<T> { Node(T, int, T) }" `shouldBe` Enum
+        "Node"
+        ["T"]
+        [EnumField "Node" [VarType "T", ConType (Id ["int"]), VarType "T"]]
 
       parseD "record User { user_id: string, age: int, }" `shouldBe` Record
         "User"
