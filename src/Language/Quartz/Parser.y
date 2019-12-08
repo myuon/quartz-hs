@@ -50,11 +50,11 @@ import Language.Quartz.AST
 
     INT { Lexeme _ (TInt $$) }
     STRLIT { Lexeme _ (TStrLit $$) }
-    VAR { Lexeme _ (TVar $$) }
+    VAR { Lexeme posn (TVar $$) }
 
 %%
 
-decl :: { Decl }
+decl :: { Decl AlexPosn }
 decl
     : EXTERNAL FUNC VAR may_generics '(' arg_types ')' may_return_type ';'  { ExternalFunc $3 (createArgTypes $4 $6 $8) }
     | FUNC VAR may_generics '(' arg_types ')' may_return_type '{' stmts '}'  { Func $2 (Closure (createArgTypes $3 $5 $7) (Procedure $9)) }
@@ -64,7 +64,7 @@ decl
     | INSTANCE type '{' decls '}'  { Instance $2 $4 }
     | OPEN path ';'  { OpenD (Id $2) }
 
-decls :: { [Decl] }
+decls :: { [Decl AlexPosn] }
 decls
     : decl decls  { $1 : $2 }
     | {- empty -}  { [] }
@@ -119,7 +119,7 @@ may_return_type
     : ':' type  { Just $2 }
     | {- empty -}  { Nothing }
 
-stmts :: { [Expr] }
+stmts :: { [Expr AlexPosn] }
 stmts
     : expr ';' stmts  { $1 : $3 }
     | LET VAR '=' expr ';' stmts { Let (Id [$2]) $4 : $6 }
@@ -128,11 +128,11 @@ stmts
     | FOR VAR IN expr_short '{' stmts '}' stmts  { ForIn $2 $4 $6 : $8 }
     | IF '{' if_branches '}' stmts  { If $3 : $5 }
 
-expr_short :: { Expr }
+expr_short :: { Expr AlexPosn }
 expr_short
     : literal  { Lit $1 }
-    | var  { Var (Id $1) }
-    | SELF  { Var (Id ["self"]) }
+    | var  { Var Nothing (Id $1) }
+    | SELF  { Var Nothing (Id ["self"]) }
     | expr_short args  { FnCall $1 $2 }
     | expr_short '.' VAR  { Member $1 $3 }
     | expr_short '[' expr ']'  { IndexArray $1 $3 }
@@ -140,7 +140,7 @@ expr_short
     | '{' stmts '}'  { Procedure $2 }
     | '[' array_lit ']'  { ArrayLit $2 }
 
-expr :: { Expr }
+expr :: { Expr AlexPosn }
 expr
     : MATCH expr_short '{' match_branches '}'  { Match $2 $4 }
     | IF '{' if_branches '}'  { If $3 }
@@ -153,19 +153,19 @@ expr
     | VAR '{' record_expr '}'  { RecordOf $1 $3 }
     | expr_short  { $1 }
 
-record_expr :: { [(String, Expr)] }
+record_expr :: { [(String, Expr AlexPosn)] }
 record_expr
     : VAR ':' expr  { [($1, $3)] }
     | VAR ':' expr ',' record_expr  { ($1,$3) : $5 }
     | {- empty -}  { [] }
 
-match_branches :: { [(Pattern, Expr)] }
+match_branches :: { [(Pattern, Expr AlexPosn)] }
 match_branches
     : {- empty -}  { [] }
     | pattern '=>' expr  { [($1, $3)] }
     | pattern '=>' expr ',' match_branches  { ($1, $3) : $5 }
 
-if_branches :: { [(Expr, Expr)] }
+if_branches :: { [(Expr AlexPosn, Expr AlexPosn)] }
 if_branches
     : {- empty -}  { [] }
     | expr '=>' expr  { [($1,$3)] }
@@ -183,12 +183,12 @@ patterns
     : pattern  { [$1] }
     | pattern ',' patterns  { $1 : $3 }
 
-args :: { [Expr] }
+args :: { [Expr AlexPosn] }
 args
     : '(' ')'  { [Unit] }
     | '(' exprs_comma ')'  { $2 }
 
-exprs_comma :: { [Expr] }
+exprs_comma :: { [Expr AlexPosn] }
 exprs_comma
     : expr ',' exprs_comma { $1 : $3 }
     | expr { [$1] }
@@ -211,7 +211,7 @@ literal
     | TRUE  { BoolLit True }
     | FALSE  { BoolLit False }
 
-array_lit :: { [Expr] }
+array_lit :: { [Expr AlexPosn] }
 array_lit
     : {- empty -}  { [] }
     | expr  { [$1] }

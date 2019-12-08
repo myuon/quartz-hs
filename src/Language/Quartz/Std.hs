@@ -5,17 +5,18 @@ import Control.Error
 import qualified Data.Map as M
 import Data.Dynamic
 import Language.Quartz.AST
+import Language.Quartz.Lexer (AlexPosn)
 import qualified Data.Primitive.Array as Array
 
 data FFIExceptions
   = InvalidExpr Dynamic
   deriving Show
 
-ffi :: M.Map Id ([Dynamic] -> ExceptT FFIExceptions IO Expr)
+ffi :: M.Map Id ([Dynamic] -> ExceptT FFIExceptions IO (Expr AlexPosn))
 ffi = M.fromList
   [ ( Id ["println"]
     , \[d] -> do
-      expr <- (fromDynamic d :: Maybe Expr) ?? InvalidExpr d
+      expr <- (fromDynamic d :: Maybe (Expr AlexPosn)) ?? InvalidExpr d
       case expr of
         Lit (StringLit s) -> liftIO $ putStrLn s
         Lit (IntLit    n) -> liftIO $ print n
@@ -26,8 +27,8 @@ ffi = M.fromList
     )
   , ( Id ["range"]
     , \[s, e] -> do
-      x <- (fromDynamic s :: Maybe Expr) ?? InvalidExpr s
-      y <- (fromDynamic e :: Maybe Expr) ?? InvalidExpr e
+      x <- (fromDynamic s :: Maybe (Expr AlexPosn)) ?? InvalidExpr s
+      y <- (fromDynamic e :: Maybe (Expr AlexPosn)) ?? InvalidExpr e
       case (x, y) of
         (Lit (IntLit x), Lit (IntLit y)) -> do
           let arr = Array.fromList $ map (Lit . IntLit) [x .. y]
@@ -37,8 +38,8 @@ ffi = M.fromList
     )
   , ( Id ["mod"]
     , \[d1, d2] -> do
-      x <- (fromDynamic d1 :: Maybe Expr) ?? InvalidExpr d1
-      y <- (fromDynamic d2 :: Maybe Expr) ?? InvalidExpr d2
+      x <- (fromDynamic d1 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d1
+      y <- (fromDynamic d2 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d2
       case (x, y) of
         (Lit (IntLit x'), Lit (IntLit y')) ->
           return $ Lit (IntLit (x' `mod` y'))
@@ -46,8 +47,8 @@ ffi = M.fromList
     )
   , ( Id ["add"]
     , \[d1, d2] -> do
-      x <- (fromDynamic d1 :: Maybe Expr) ?? InvalidExpr d1
-      y <- (fromDynamic d2 :: Maybe Expr) ?? InvalidExpr d2
+      x <- (fromDynamic d1 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d1
+      y <- (fromDynamic d2 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d2
       case (x, y) of
         (Lit (IntLit x'), Lit (IntLit y')) -> return $ Lit (IntLit (x' + y'))
         _ -> throwE $ InvalidExpr d1

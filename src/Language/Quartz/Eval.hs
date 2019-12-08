@@ -10,22 +10,23 @@ import qualified Data.Map as M
 import Data.Dynamic
 import Data.Foldable
 import Language.Quartz.AST
+import Language.Quartz.Lexer (AlexPosn)
 import Language.Quartz.TypeCheck (fresh, argumentOf)
 import qualified Language.Quartz.Std as Std
 import qualified Data.PathTree as PathTree
 import qualified Data.Primitive.Array as Array
 
 data Context = Context {
-  decls :: PathTree.PathTree String Decl,
-  exprs :: M.Map Id Expr,
-  ffi :: M.Map Id ([Dynamic] -> ExceptT Std.FFIExceptions IO Expr)
+  decls :: PathTree.PathTree String (Decl AlexPosn),
+  exprs :: M.Map Id (Expr AlexPosn),
+  ffi :: M.Map Id ([Dynamic] -> ExceptT Std.FFIExceptions IO (Expr AlexPosn))
 }
 
-subst :: Expr -> String -> Expr -> Expr
+subst :: Expr AlexPosn -> String -> Expr AlexPosn -> Expr AlexPosn
 subst expr var term = case expr of
-  Var y | y == Id [var] -> term
-  FnCall f xs           -> FnCall f (map (\x -> subst x var term) xs)
-  Let    x t            -> Let x (subst t var term)
+  Var    _ y | y == Id [var] -> term
+  FnCall f xs                -> FnCall f (map (\x -> subst x var term) xs)
+  Let    x t                 -> Let x (subst t var term)
   Match e args -> Match (subst e var term)
                         (map (\(pat, br) -> (pat, subst br var term)) args)
   Procedure es  -> Procedure $ map (\x -> subst x var term) es
@@ -33,7 +34,7 @@ subst expr var term = case expr of
   EnumOf con ts -> EnumOf con (map (\x -> subst x var term) ts)
   _             -> expr
 
-isNormalForm :: Expr -> Bool
+isNormalForm :: Expr AlexPosn -> Bool
 isNormalForm vm = case vm of
   Lit      _   -> True
   ClosureE _   -> True
@@ -48,7 +49,7 @@ isNormalForm vm = case vm of
 match
   :: MonadIO m
   => Pattern
-  -> Expr
+  -> Expr AlexPosn
   -> StateT Context (ExceptT RuntimeExceptions m) ()
 match pat term = case (pat, term) of
   (PVar (Id [v]), t) ->
@@ -57,26 +58,29 @@ match pat term = case (pat, term) of
     lift $ assertMay (lit == lit') ?? PatternNotMatch (PLit lit) term
   (PApp pf pxs, FnCall f xs) ->
     match pf f >> mapM_ (uncurry match) (zip pxs xs)
-  (PVar u   , Var v      ) | u == v -> return ()
+  (PVar u   , Var _ v    ) | u == v -> return ()
   (PVar u   , EnumOf v []) | u == v -> return ()
-  (PApp p qs, EnumOf e fs) -> match p (Var e) >> zipWithM_ match qs fs
+  (PApp p qs, EnumOf e fs) -> match p (Var Nothing e) >> zipWithM_ match qs fs
   (PAny     , _          ) -> return ()
   _ -> lift $ throwE $ PatternNotMatch pat term
 
 data RuntimeExceptions
-  = NotFound Id
-  | PatternNotMatch Pattern Expr
+  = NotFound (Maybe AlexPosn) Id
+  | PatternNotMatch Pattern (Expr AlexPosn)
   | PatternExhausted
   | FFIExceptions Std.FFIExceptions
-  | Unreachable Expr
+  | Unreachable (Expr AlexPosn)
   deriving Show
 
 -- Assume renaming is done
-evalE :: MonadIO m => Expr -> StateT Context (ExceptT RuntimeExceptions m) Expr
+evalE
+  :: MonadIO m
+  => Expr AlexPosn
+  -> StateT Context (ExceptT RuntimeExceptions m) (Expr AlexPosn)
 evalE vm = case vm of
   _ | isNormalForm vm -> return vm
-  Var t               -> get >>= \ctx -> lift $ exprs ctx M.!? t ?? NotFound t
-  FnCall f xs         -> do
+  Var posn t -> get >>= \ctx -> lift $ exprs ctx M.!? t ?? NotFound posn t
+  FnCall f xs -> do
     f'  <- evalE f
     xs' <- mapM evalE xs
 
@@ -111,7 +115,7 @@ evalE vm = case vm of
       brs
   Procedure es -> foldl' (\m e -> m >> evalE e) (return Unit) es
   FFI p es     -> get >>= \ctx -> do
-    pf <- lift $ ffi ctx M.!? p ?? NotFound p
+    pf <- lift $ ffi ctx M.!? p ?? NotFound Nothing p
     lift $ mapExceptT liftIO $ withExceptT FFIExceptions $ pf $ map toDyn es
   ArrayLit es -> do
     let arr = Array.fromList es
@@ -159,17 +163,21 @@ evalE vm = case vm of
         return $ (\(Just x) -> x) $ lookup v1 fields
   _ -> lift $ throwE $ Unreachable vm
 
-runEvalE :: MonadIO m => Expr -> ExceptT RuntimeExceptions m Expr
+runEvalE
+  :: MonadIO m => Expr AlexPosn -> ExceptT RuntimeExceptions m (Expr AlexPosn)
 runEvalE m = evalStateT (evalE m) std
 
-evalD :: MonadIO m => Decl -> StateT Context (ExceptT RuntimeExceptions m) ()
+evalD
+  :: MonadIO m
+  => Decl AlexPosn
+  -> StateT Context (ExceptT RuntimeExceptions m) ()
 evalD decl = go [] decl
  where
   go path decl = case decl of
     Enum name _ fs -> do
       forM_ fs $ \(EnumField f typs) -> do
         bs <- mapM (\_ -> fresh) typs
-        let vars = map (Var . Id . return) bs
+        let vars = map (Var Nothing . Id . return) bs
         modify $ \ctx -> ctx
           { exprs = M.insert
               (Id [name, f])
@@ -196,14 +204,16 @@ evalD decl = go [] decl
 
       evalD $ Func
         name
-        ( Closure (ArgTypes tyvars args' ret)
-                  (FFI (Id [name]) (map (\n -> Var (Id [n])) $ map fst args'))
+        ( Closure
+          (ArgTypes tyvars args' ret)
+          (FFI (Id [name]) (map (\n -> Var Nothing (Id [n])) $ map fst args'))
         )
 
 std :: Context
 std = Context {ffi = Std.ffi, exprs = M.empty, decls = PathTree.empty}
 
-runMain :: MonadIO m => [Decl] -> ExceptT RuntimeExceptions m Expr
+runMain
+  :: MonadIO m => [Decl AlexPosn] -> ExceptT RuntimeExceptions m (Expr AlexPosn)
 runMain decls = flip evalStateT std $ do
   mapM_ evalD decls
-  evalE (FnCall (Var (Id ["main"])) [Unit])
+  evalE (FnCall (Var Nothing (Id ["main"])) [Unit])

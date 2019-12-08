@@ -18,34 +18,34 @@ data Op
   = Eq
   deriving (Eq, Show)
 
-data Expr
-  = Var Id
+data Expr posn
+  = Var (Maybe posn) Id
   | Lit Literal
-  | FnCall Expr [Expr]
-  | Let Id Expr
-  | ClosureE Closure
+  | FnCall (Expr posn) [Expr posn]
+  | Let Id (Expr posn)
+  | ClosureE (Closure posn)
   | OpenE Id
-  | Match Expr [(Pattern, Expr)]
-  | If [(Expr, Expr)]
-  | Procedure [Expr]
+  | Match (Expr posn) [(Pattern, Expr posn)]
+  | If [(Expr posn, Expr posn)]
+  | Procedure [Expr posn]
   | Unit
   | NoExpr
-  | FFI Id [Expr]
+  | FFI Id [Expr posn]
   -- primitiveのときはMutableByteArrayにしたい
-  | Array MArray
-  | ArrayLit [Expr]
-  | IndexArray Expr Expr
-  | ForIn String Expr [Expr]
-  | Op Op Expr Expr
-  | Member Expr String
-  | RecordOf String [(String, Expr)]
-  | EnumOf Id [Expr]
+  | Array (MArray posn)
+  | ArrayLit [Expr posn]
+  | IndexArray (Expr posn) (Expr posn)
+  | ForIn String (Expr posn) [Expr posn]
+  | Op Op (Expr posn) (Expr posn)
+  | Member (Expr posn) String
+  | RecordOf String [(String, Expr posn)]
+  | EnumOf Id [Expr posn]
   deriving (Eq, Show)
 
-newtype MArray = MArray { getMArray :: MutableArray RealWorld Expr }
+newtype MArray posn = MArray { getMArray :: MutableArray RealWorld (Expr posn) }
   deriving Eq
 
-instance Show MArray where
+instance Show (MArray posn) where
   show _ = "<<array>>"
 
 data Type
@@ -70,16 +70,16 @@ data Pattern
 data ArgTypes = ArgTypes [String] [(String, Type)] Type
   deriving (Eq, Show)
 
-data Closure = Closure ArgTypes Expr
+data Closure posn = Closure ArgTypes (Expr posn)
   deriving (Eq, Show)
 
-data Decl
+data Decl posn
   = Enum String [String] [EnumField]
   | Record String [RecordField]
-  | Instance Type [Decl]
+  | Instance Type [Decl posn]
   | OpenD Id
-  | Func String Closure
-  | Method String Closure
+  | Func String (Closure posn)
+  | Method String (Closure posn)
   | ExternalFunc String ArgTypes
   deriving (Eq, Show)
 

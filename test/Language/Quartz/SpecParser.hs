@@ -15,7 +15,7 @@ spec_parser :: Spec
 spec_parser = do
   describe "parser" $ do
     it "should parse" $ do
-      parseE "xxx" `shouldBe` Var (Id ["xxx"])
+      parseE "xxx" `shouldBe` Var Nothing (Id ["xxx"])
 
       parseE "10" `shouldBe` Lit (IntLit 10)
 
@@ -23,17 +23,17 @@ spec_parser = do
       parseE [r| "あああ" |] `shouldBe` Lit (StringLit "\"あああ\"")
 
       parseE "foo(x,y,z)" `shouldBe` FnCall
-        (Var (Id ["foo"]))
-        [Var (Id ["x"]), Var (Id ["y"]), Var (Id ["z"])]
+        (Var Nothing (Id ["foo"]))
+        [Var Nothing (Id ["x"]), Var Nothing (Id ["y"]), Var Nothing (Id ["z"])]
 
-      parseE "x.foo(y,z)" `shouldBe` FnCall (Member (Var (Id ["x"])) "foo")
-                                            [Var (Id ["y"]), Var (Id ["z"])]
+      parseE "x.foo(y,z)" `shouldBe` FnCall (Member (Var Nothing (Id ["x"])) "foo")
+                                            [Var Nothing (Id ["y"]), Var Nothing (Id ["z"])]
 
-      parseE "a.b.c" `shouldBe` Member (Member (Var (Id ["a"])) "b") "c"
+      parseE "a.b.c" `shouldBe` Member (Member (Var Nothing (Id ["a"])) "b") "c"
 
       parseE "[1,2,3,4]" `shouldBe` ArrayLit [Lit (IntLit 1),Lit (IntLit 2),Lit (IntLit 3),Lit (IntLit 4)]
 
-      parseE "h(f)[g(1)]" `shouldBe` IndexArray (FnCall (Var (Id ["h"])) [Var (Id ["f"])]) (FnCall (Var (Id ["g"])) [Lit (IntLit 1)])
+      parseE "h(f)[g(1)]" `shouldBe` IndexArray (FnCall (Var Nothing (Id ["h"])) [Var Nothing (Id ["f"])]) (FnCall (Var Nothing (Id ["g"])) [Lit (IntLit 1)])
 
       parseE [r|
         if {
@@ -42,9 +42,9 @@ spec_parser = do
           true => e3,
         }
       |] `shouldBe` If [
-        (Var (Id ["b1"]), Var (Id ["e1"])),
-        (Var (Id ["b2"]), Var (Id ["e2"])),
-        (Lit (BoolLit True), Var (Id ["e3"]))
+        (Var Nothing (Id ["b1"]), Var Nothing (Id ["e1"])),
+        (Var Nothing (Id ["b2"]), Var Nothing (Id ["e2"])),
+        (Lit (BoolLit True), Var Nothing (Id ["e3"]))
         ]
 
       parseE [r|
@@ -60,13 +60,13 @@ spec_parser = do
       parseE "(a: string): string -> { a }" `shouldBe` ClosureE
         ( Closure
           (ArgTypes [] [("a", ConType (Id ["string"]))] (ConType (Id ["string"])))
-          (Procedure [Var (Id ["a"])])
+          (Procedure [Var Nothing (Id ["a"])])
         )
 
       parseE "<A>(a: A): A -> a" `shouldBe` ClosureE
         ( Closure
           (ArgTypes ["A"] [("a", VarType "A")] (VarType "A"))
-          (Var (Id ["a"]))
+          (Var Nothing (Id ["a"]))
         )
 
       parseE [r|
@@ -90,10 +90,10 @@ spec_parser = do
                          [ Let
                            (Id ["z"])
                            ( FnCall
-                             (Var (Id ["sum"]))
-                             [Var (Id ["a"]), Var (Id ["b"]), Var (Id ["c"])]
+                             (Var Nothing (Id ["sum"]))
+                             [Var Nothing (Id ["a"]), Var Nothing (Id ["b"]), Var Nothing (Id ["c"])]
                            )
-                         , Var (Id ["z"])
+                         , Var Nothing (Id ["z"])
                          ]
                        )
                      )
@@ -103,7 +103,10 @@ spec_parser = do
           let f = (): int -> { 10 };
           f
         }
-      |] `shouldBe` Procedure [Let (Id ["f"]) (ClosureE (Closure (ArgTypes [] [("()", ConType (Id ["unit"]))] (ConType (Id ["int"]))) (Procedure [Lit (IntLit 10)]))), Var (Id ["f"])]
+      |] `shouldBe` Procedure [
+          Let (Id ["f"]) (ClosureE (Closure (ArgTypes [] [("()", ConType (Id ["unit"]))] (ConType (Id ["int"]))) (Procedure [Lit (IntLit 10)])))
+          , Var Nothing (Id ["f"])
+          ]
 
       parseD "func id<A>(x: A): A { let y = x; y }" `shouldBe` Func
         "id"
@@ -111,7 +114,7 @@ spec_parser = do
           (ArgTypes ["A"]
           [("x", VarType "A")]
           (VarType "A"))
-          (Procedure [Let (Id ["y"]) (Var (Id ["x"])), Var (Id ["y"])])
+          (Procedure [Let (Id ["y"]) (Var Nothing (Id ["x"])), Var Nothing (Id ["y"])])
         )
 
       parseD "enum Nat { Zero, Succ(Nat) }" `shouldBe` Enum
@@ -152,7 +155,7 @@ spec_parser = do
                            (ConType (Id ["bool"])))
                            ( Procedure
                              [ Match
-                                 (Var (Id ["self"]))
+                                 (Var Nothing (Id ["self"]))
                                  [ (PVar (Id ["Zero"]), Lit (BoolLit True))
                                  , ( PApp (PVar (Id ["Succ"])) [PAny]
                                    , Lit (BoolLit False)
@@ -172,7 +175,7 @@ spec_parser = do
         []
         [("()", ConType (Id ["unit"]))]
         (ConType (Id ["unit"])))
-        (Procedure [FnCall (Var (Id ["println"])) [Lit (StringLit "\"Hello, World!\"")], Unit])
+        (Procedure [FnCall (Var Nothing (Id ["println"])) [Lit (StringLit "\"Hello, World!\"")], Unit])
         )
 
       parseD [r|
@@ -187,8 +190,8 @@ spec_parser = do
         }
       |] `shouldBe` Func "f" (Closure (ArgTypes [] [("()", ConType (Id ["unit"]))] (ConType (Id ["unit"]))) (
                       Procedure [
-                        ForIn "i" (Var (Id ["foo"])) [
-                          FnCall (Var (Id ["put"])) [Var (Id ["i"])],
+                        ForIn "i" (Var Nothing (Id ["foo"])) [
+                          FnCall (Var Nothing (Id ["put"])) [Var Nothing (Id ["i"])],
                           Unit
                         ],
                         Unit
@@ -203,8 +206,8 @@ spec_parser = do
         }
       |] `shouldBe` Func "f" (Closure (ArgTypes [] [("()", ConType (Id ["unit"]))] (ConType (Id ["unit"]))) (
                       Procedure [
-                        ForIn "i" (FnCall (Var (Id ["foo"])) [Var (Id ["y"]), Var (Id ["z"])]) [
-                          FnCall (Var (Id ["put"])) [Var (Id ["i"])],
+                        ForIn "i" (FnCall (Var Nothing (Id ["foo"])) [Var Nothing (Id ["y"]), Var Nothing (Id ["z"])]) [
+                          FnCall (Var Nothing (Id ["put"])) [Var Nothing (Id ["i"])],
                           Unit
                         ],
                         Unit
@@ -216,7 +219,7 @@ spec_parser = do
           foo.bar
         }
       |] `shouldBe` Func "barOf" (Closure (ArgTypes [] [("foo", ConType (Id ["Foo"]))] (ConType (Id ["int"]))) (Procedure [
-          Member (Var (Id ["foo"])) "bar"
+          Member (Var Nothing (Id ["foo"])) "bar"
         ]))
 
       parseE [r|
@@ -225,8 +228,8 @@ spec_parser = do
           foo => e2,
           Const(_, y) => y,
         }
-      |] `shouldBe` Match (Var (Id ["s"])) [
-          (PLit (IntLit 10), Var (Id ["e1"])),
-          (PVar (Id ["foo"]), Var (Id ["e2"])),
-          (PApp (PVar (Id ["Const"])) [PAny, PVar (Id ["y"])], Var (Id ["y"]))
+      |] `shouldBe` Match (Var Nothing (Id ["s"])) [
+          (PLit (IntLit 10), Var Nothing (Id ["e1"])),
+          (PVar (Id ["foo"]), Var Nothing (Id ["e2"])),
+          (PApp (PVar (Id ["Const"])) [PAny, PVar (Id ["y"])], Var Nothing (Id ["y"]))
         ]

@@ -7,6 +7,7 @@ import qualified Data.PathTree as PathTree
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Language.Quartz.AST
+import Language.Quartz.Lexer (AlexPosn)
 import qualified Language.Quartz.Std as Std
 import Data.Unique
 
@@ -28,10 +29,10 @@ std = Context
 data TypeCheckExceptions
   = UnificationFailed Type Type
   | InfiniteType String Type
-  | NotFound Id
+  | NotFound (Maybe AlexPosn) Id
   | TypeNotMatch Type Type
   | OccurCheck String Type
-  | CannotInfer Expr
+  | CannotInfer (Expr AlexPosn)
   | PatternNotMatch Pattern Type
   deriving (Eq, Show)
 
@@ -105,12 +106,12 @@ instantiate (Scheme vars typ) = do
 
 algoW
   :: MonadIO m
-  => Expr
+  => Expr AlexPosn
   -> StateT Context (ExceptT TypeCheckExceptions m) (Subst, Type)
 algoW expr = case expr of
-  Var v -> do
+  Var posn v -> do
     ctx  <- get
-    v'   <- lift $ schemes ctx M.!? v ?? NotFound v
+    v'   <- lift $ schemes ctx M.!? v ?? NotFound posn v
     inst <- instantiate v'
     return (emptySubst, inst)
   Lit      (IntLit    n) -> return (emptySubst, ConType (Id ["int"]))
@@ -203,15 +204,15 @@ algoW expr = case expr of
     case t1 of
       ConType name -> do
         ctx <- get
-        rc  <- lift $ records ctx M.!? name ?? NotFound name
-        t2  <- lift $ lookup v1 rc ?? NotFound (Id [v1])
+        rc  <- lift $ records ctx M.!? name ?? NotFound Nothing name
+        t2  <- lift $ lookup v1 rc ?? NotFound Nothing (Id [v1])
         return (s1, t2)
       VarType _ -> lift $ throwE $ CannotInfer e1
   RecordOf name fields -> do
-    ctx    <- get
-    rc     <- lift $ records ctx M.!? (Id [name]) ?? NotFound (Id [name])
+    ctx <- get
+    rc <- lift $ records ctx M.!? (Id [name]) ?? NotFound Nothing (Id [name])
     substs <- forM fields $ \(field, expr) -> do
-      typ      <- lift $ lookup field rc ?? NotFound (Id [field])
+      typ      <- lift $ lookup field rc ?? NotFound Nothing (Id [field])
       (s1, t1) <- algoW expr
       s2       <- lift $ mgu t1 typ
       return $ s2 `compose` s1
@@ -286,19 +287,24 @@ algoW expr = case expr of
     _         -> lift $ throwE $ PatternNotMatch pat typ
 
 typecheckExpr
-  :: MonadIO m => Expr -> StateT Context (ExceptT TypeCheckExceptions m) Type
+  :: MonadIO m
+  => Expr AlexPosn
+  -> StateT Context (ExceptT TypeCheckExceptions m) Type
 typecheckExpr e = fmap snd $ algoW e
 
 typecheckModule
-  :: MonadIO m => [Decl] -> StateT Context (ExceptT TypeCheckExceptions m) ()
+  :: MonadIO m
+  => [Decl AlexPosn]
+  -> StateT Context (ExceptT TypeCheckExceptions m) ()
 typecheckModule ds = mapM_ check ds
  where
   check d = case d of
     Enum name tyvars fs -> modify $ \ctx -> ctx
       { schemes = foldl'
         ( \mp (EnumField f typs) ->
-          M.insert (Id [name, f])
-                   (Scheme tyvars $ foldr ArrowType (ConType (Id [name])) typs)
+          M.insert
+              (Id [name, f])
+              (Scheme tyvars $ foldr ArrowType (ConType (Id [name])) typs)
             $ mp
         )
         (schemes ctx)
@@ -328,8 +334,10 @@ typecheckModule ds = mapM_ check ds
         $ schemes ctx
       }
 
-runTypeCheckExpr :: MonadIO m => Expr -> ExceptT TypeCheckExceptions m Type
+runTypeCheckExpr
+  :: MonadIO m => Expr AlexPosn -> ExceptT TypeCheckExceptions m Type
 runTypeCheckExpr e = evalStateT (typecheckExpr e) std
 
-runTypeCheckModule :: MonadIO m => [Decl] -> ExceptT TypeCheckExceptions m ()
+runTypeCheckModule
+  :: MonadIO m => [Decl AlexPosn] -> ExceptT TypeCheckExceptions m ()
 runTypeCheckModule ds = evalStateT (typecheckModule ds) std

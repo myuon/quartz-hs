@@ -21,13 +21,13 @@ import Language.Quartz.Parser
 import Language.Quartz.TypeCheck
 import Language.Quartz.Eval
 
-parseExpr :: String -> Either String Expr
+parseExpr :: String -> Either String (Expr AlexPosn)
 parseExpr = parserExpr . alexScanTokens
 
-parseDecl :: String -> Either String Decl
+parseDecl :: String -> Either String (Decl AlexPosn)
 parseDecl = parser . alexScanTokens
 
-parseModule :: String -> Either String [Decl]
+parseModule :: String -> Either String [Decl AlexPosn]
 parseModule = parserDecls . alexScanTokens
 
 data CompilerError
@@ -36,7 +36,7 @@ data CompilerError
   | EvalError RuntimeExceptions
   deriving Show
 
-runModule :: MonadIO m => String -> m (Either CompilerError Expr)
+runModule :: MonadIO m => String -> m (Either CompilerError (Expr AlexPosn))
 runModule s = runExceptT $ do
   decls <- withExceptT ParseError $ ExceptT $ return $ parseModule s
   withExceptT TypeCheckError $ runTypeCheckModule decls
