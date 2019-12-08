@@ -1,0 +1,38 @@
+external func println<A>(s: A);
+
+enum List<T> {
+  Nil,
+  Cons(T, List<T>)
+}
+
+func is_nil<T>(xs: List<T>): bool {
+  match xs {
+    List::Nil => true,
+    _ => false,
+  }
+}
+
+func snoc<T>(xs: List<T>, x: T): List<T> {
+  match xs {
+    List::Nil => List::Cons(x, List::Nil),
+    List::Cons(y, ys) => List::Cons(y, snoc(ys, x))
+  }
+}
+
+func main() {
+  let xnil = List::Nil;
+  let x123 = List::Cons(
+    1,
+    List::Cons(
+      2,
+      List::Cons(
+        3,
+        List::Nil
+      )
+    )
+  );
+
+  println(is_nil(xnil));
+  println(is_nil(x123));
+  println(snoc(x123, 4));
+}
