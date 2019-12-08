@@ -8,49 +8,49 @@ import Language.Quartz.AST
 %name parser decl
 %name parserDecls decls
 %name parserExpr expr
-%tokentype { Token }
+%tokentype { Lexeme }
 %monad { Either String } { (>>=) } { return }
 
 %token
-    '<' { TLAngle }
-    '>' { TRAngle }
-    '(' { TLParen }
-    ')' { TRParen }
-    '{' { TLBrace }
-    '}' { TRBrace }
-    '[' { TLBracket }
-    ']' { TRBracket }
-    ',' { TComma }
-    ':' { TColon }
-    ';' { TSemiColon }
-    '.' { TDot }
-    '->' { TArrow }
-    '=>' { TDArrow }
-    '*' { TStar }
-    '=' { TEq }
-    '_' { TUnderscore }
-    '=='  { TEq2 }
-    '::'  { TColon2 }
+    '<' { Lexeme _ TLAngle }
+    '>' { Lexeme _ TRAngle }
+    '(' { Lexeme _ TLParen }
+    ')' { Lexeme _ TRParen }
+    '{' { Lexeme _ TLBrace }
+    '}' { Lexeme _ TRBrace }
+    '[' { Lexeme _ TLBracket }
+    ']' { Lexeme _ TRBracket }
+    ',' { Lexeme _ TComma }
+    ':' { Lexeme _ TColon }
+    ';' { Lexeme _ TSemiColon }
+    '.' { Lexeme _ TDot }
+    '->' { Lexeme _ TArrow }
+    '=>' { Lexeme _ TDArrow }
+    '*' { Lexeme _ TStar }
+    '=' { Lexeme _ TEq }
+    '_' { Lexeme _ TUnderscore }
+    '=='  { Lexeme _ TEq2 }
+    '::'  { Lexeme _ TColon2 }
 
-    FUNC { TFunc }
-    ENUM { TEnum }
-    RECORD { TRecord }
-    INSTANCE { TInstance }
-    OPEN { TOpen }
-    LET { TLet }
-    SELF { TSelf }
-    MATCH { TMatch }
-    EXTERNAL { TExternal }
-    FOR { TFor }
-    IN { TIn }
-    IF { TIf }
-    ELSE { TElse }
-    TRUE { TTrue }
-    FALSE { TFalse }
+    FUNC { Lexeme _ TFunc }
+    ENUM { Lexeme _ TEnum }
+    RECORD { Lexeme _ TRecord }
+    INSTANCE { Lexeme _ TInstance }
+    OPEN { Lexeme _ TOpen }
+    LET { Lexeme _ TLet }
+    SELF { Lexeme _ TSelf }
+    MATCH { Lexeme _ TMatch }
+    EXTERNAL { Lexeme _ TExternal }
+    FOR { Lexeme _ TFor }
+    IN { Lexeme _ TIn }
+    IF { Lexeme _ TIf }
+    ELSE { Lexeme _ TElse }
+    TRUE { Lexeme _ TTrue }
+    FALSE { Lexeme _ TFalse }
 
-    INT { TInt $$ }
-    STRLIT { TStrLit $$ }
-    VAR { TVar $$ }
+    INT { Lexeme _ (TInt $$) }
+    STRLIT { Lexeme _ (TStrLit $$) }
+    VAR { Lexeme _ (TVar $$) }
 
 %%
 

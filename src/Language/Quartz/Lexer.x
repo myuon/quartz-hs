@@ -2,7 +2,7 @@
 module Language.Quartz.Lexer where
 }
 
-%wrapper "basic"
+%wrapper "posn"
 
 $digit = [0-9]
 $alpha = [a-zA-Z]
@@ -10,46 +10,46 @@ $alpha = [a-zA-Z]
 
 tokens :-
   $white+ ;
-  func { \_ -> TFunc }
-  enum { \_ -> TEnum }
-  record { \_ -> TRecord }
-  instance { \_ -> TInstance }
-  open { \_ -> TOpen }
-  let { \_ -> TLet }
-  self { \_ -> TSelf }
-  match { \_ -> TMatch }
-  external { \_ -> TExternal }
-  for { \_ -> TFor }
-  in { \_ -> TIn }
-  if { \_ -> TIf }
-  else { \_ -> TElse }
+  func { wrap (\_ -> TFunc) }
+  enum { wrap (\_ -> TEnum) }
+  record { wrap $ \_ -> TRecord }
+  instance { wrap $ \_ -> TInstance }
+  open { wrap $ \_ -> TOpen }
+  let { wrap $ \_ -> TLet }
+  self { wrap $ \_ -> TSelf }
+  match { wrap $ \_ -> TMatch }
+  external { wrap $ \_ -> TExternal }
+  for { wrap $ \_ -> TFor }
+  in { wrap $ \_ -> TIn }
+  if { wrap $ \_ -> TIf }
+  else { wrap $ \_ -> TElse }
 
   -- 避けられるなら予約語から外したい
-  true { \_ -> TTrue }
-  false { \_ -> TFalse }
+  true { wrap $ \_ -> TTrue }
+  false { wrap $ \_ -> TFalse }
 
-  \< { \_ -> TLAngle }
-  \> { \_ -> TRAngle }
-  \( { \_ -> TLParen }
-  \) { \_ -> TRParen }
-  \{ { \_ -> TLBrace }
-  \} { \_ -> TRBrace }
-  \[ { \_ -> TLBracket }
-  \] { \_ -> TRBracket }
-  \, { \_ -> TComma }
-  \: { \_ -> TColon }
-  \:: { \_ -> TColon2 }
-  \; { \_ -> TSemiColon }
-  \. { \_ -> TDot }
-  \-> { \_ -> TArrow }
-  \=> { \_ -> TDArrow }
-  \* { \_ -> TStar }
-  \= { \_ -> TEq }
-  \== { \_ -> TEq2 }
-  \_ { \_ -> TUnderscore }
-  $digit+ { TInt . read }
-  [$alpha \_] [$alpha $digit \_]* { TVar }
-  @string { TStrLit }
+  \< { wrap $ \_ -> TLAngle }
+  \> { wrap $ \_ -> TRAngle }
+  \( { wrap $ \_ -> TLParen }
+  \) { wrap $ \_ -> TRParen }
+  \{ { wrap $ \_ -> TLBrace }
+  \} { wrap $ \_ -> TRBrace }
+  \[ { wrap $ \_ -> TLBracket }
+  \] { wrap $ \_ -> TRBracket }
+  \, { wrap $ \_ -> TComma }
+  \: { wrap $ \_ -> TColon }
+  \:: { wrap $ \_ -> TColon2 }
+  \; { wrap $ \_ -> TSemiColon }
+  \. { wrap $ \_ -> TDot }
+  \-> { wrap $ \_ -> TArrow }
+  \=> { wrap $ \_ -> TDArrow }
+  \* { wrap $ \_ -> TStar }
+  \= { wrap $ \_ -> TEq }
+  \== { wrap $ \_ -> TEq2 }
+  \_ { wrap $ \_ -> TUnderscore }
+  $digit+ { wrap (TInt . read) }
+  [$alpha \_] [$alpha $digit \_]* { wrap TVar }
+  @string { wrap TStrLit }
 
 {
 data Token
@@ -91,4 +91,10 @@ data Token
   | TVar String
   | TStrLit String
   deriving (Eq, Show)
+
+data Lexeme = Lexeme AlexPosn Token
+  deriving (Eq, Show)
+
+wrap :: (String -> Token) -> AlexPosn -> String -> Lexeme
+wrap f p s = Lexeme p (f s)
 }
