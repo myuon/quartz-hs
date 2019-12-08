@@ -16,7 +16,7 @@ data Context = Context {
   records :: M.Map Id [(String, Type)],
   enums :: M.Map Id [(String, [Type])],
   selfType :: Maybe Type
-}
+} deriving (Eq, Show)
 
 std :: Context
 std = Context
@@ -267,22 +267,14 @@ algoW expr = case expr of
     (PLit (CharLit   _), ConType (Id ["char"])  ) -> return emptySubst
     (PLit (DoubleLit _), ConType (Id ["double"])) -> return emptySubst
     (PLit (BoolLit   _), ConType (Id ["bool"])  ) -> return emptySubst
-    (PApp p1 ps        , AppType t1 ts          ) -> do
-      s1 <- match p1 t1
-      ss <- zipWithM match ps ts
-      return $ foldl' compose s1 ss
-    (PApp p1 ps, ConType t) -> do
-      ctx <- get
-      et  <- lift $ enums ctx M.!? t ?? PatternNotMatch pat typ
-      fix
-        ( \cont brs -> case brs of
-          []             -> lift $ throwE $ PatternNotMatch pat typ
-          ((c1, cs):brs) -> case p1 of
-            (PVar (Id [vt, v1])) | (Id [vt]) == t && v1 == c1 ->
-              fmap (foldl1 compose) $ forM (zip ps cs) $ \(p, c) -> match p c
-            _ -> cont brs
-        )
-        et
+
+    -- PAppになるのはenumのときなのでenumの分解を行う
+    (PApp (PVar p1) ps , _                      ) -> do
+      ctx          <- get
+      Scheme _ typ <- lift $ schemes ctx M.!? p1 ?? NotFound Nothing p1
+      let (args, _) = argumentOf typ
+      ss <- zipWithM match ps args
+      return $ foldl' compose emptySubst ss
     (PAny, _) -> return emptySubst
     _         -> lift $ throwE $ PatternNotMatch pat typ
 
@@ -298,14 +290,18 @@ typecheckModule
   -> StateT Context (ExceptT TypeCheckExceptions m) ()
 typecheckModule ds = mapM_ check ds
  where
+  typeApply []   ty = ty
+  typeApply vars ty = AppType ty $ map VarType vars
+
   check d = case d of
     Enum name tyvars fs -> modify $ \ctx -> ctx
       { schemes = foldl'
-        ( \mp (EnumField f typs) ->
-          M.insert
-              (Id [name, f])
-              (Scheme tyvars $ foldr ArrowType (ConType (Id [name])) typs)
-            $ mp
+        ( \mp (EnumField f typs) -> M.insert
+          (Id [name, f])
+          ( Scheme tyvars
+          $ foldr ArrowType (typeApply tyvars $ ConType (Id [name])) typs
+          )
+          mp
         )
         (schemes ctx)
         fs
@@ -318,10 +314,11 @@ typecheckModule ds = mapM_ check ds
       }
     Instance _ ds -> typecheckModule ds
     OpenD _       -> return ()
-    Func name c   -> do
+    Func name c@(Closure (ArgTypes tyvars _ _) _) -> do
       b <- fresh
       modify $ \ctx -> ctx
-        { schemes = M.insert (Id [name]) (Scheme [] (VarType b)) $ schemes ctx
+        { schemes = M.insert (Id [name]) (Scheme tyvars (VarType b))
+          $ schemes ctx
         }
       ty <- typecheckExpr (ClosureE c)
       modify $ \ctx ->

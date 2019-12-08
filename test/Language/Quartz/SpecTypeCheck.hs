@@ -154,10 +154,16 @@ spec_typecheck = do
       check [r|
         enum Tree<T> {
           Empty,
-          Node(T, int, T),
+          Node(Tree<T>, T, Tree<T>),
         }
 
-        func node<T>(left: T, value: int, right: T): Tree<T> {
+        func node<T>(left: Tree<T>, value: T, right: Tree<T>): Tree<T> {
           Tree::Node(left, value, right)
+        }
+
+        func get_value<T>(tree: Tree<T>): T {
+          match tree {
+            Tree::Node(_, v, _) => v
+          }
         }
       |]
