@@ -233,3 +233,16 @@ spec_parser = do
           (PVar (Id ["foo"]), Var Nothing (Id ["e2"])),
           (PApp (PVar (Id ["Const"])) [PAny, PVar (Id ["y"])], Var Nothing (Id ["y"]))
         ]
+
+      parseD [r|
+        func snoc<T>(xs: List<T>, x: T): List<T> {
+        }
+      |] `shouldBe` Func "snoc" (Closure (ArgTypes
+          ["T"]
+          [
+            ("xs", AppType (ConType (Id ["List"])) [VarType "T"]),
+            ("x", VarType "T")
+          ]
+          (AppType (ConType (Id ["List"])) [VarType "T"]))
+          (Procedure [Unit])
+        )

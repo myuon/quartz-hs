@@ -241,6 +241,8 @@ happyError tokens = Left $ "Parse error\n" ++ show tokens
 toVarType :: [String] -> Type -> Type
 toVarType vars t = case t of
     ConType (Id [i]) | i `elem` vars -> VarType i
+    ArrowType x y -> ArrowType (toVarType vars x) (toVarType vars y)
+    AppType x xs -> AppType (toVarType vars x) (map (toVarType vars) xs)
     _ -> t
 
 createArgTypes :: [String] -> [(String, Type)] -> Maybe Type -> ArgTypes
