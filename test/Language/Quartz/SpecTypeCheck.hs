@@ -167,3 +167,17 @@ spec_typecheck = do
           }
         }
       |]
+
+      check [r|
+        record Pair<X,Y> {
+          proj1: X,
+          proj2: Y,
+        }
+
+        func pair<S,T>(x: S, y: T): Pair<S,T> {
+          Pair {
+            proj1: x,
+            proj2: y,
+          }
+        }
+      |]

@@ -13,7 +13,7 @@ import Data.Unique
 
 data Context = Context {
   schemes :: M.Map Id Scheme,
-  records :: M.Map Id [(String, Type)],
+  records :: M.Map Id ([String], [(String, Type)]),
   enums :: M.Map Id [(String, [Type])],
   selfType :: Maybe Type
 } deriving (Eq, Show)
@@ -203,14 +203,16 @@ algoW expr = case expr of
     (s1, t1) <- algoW e1
     case t1 of
       ConType name -> do
-        ctx <- get
-        rc  <- lift $ records ctx M.!? name ?? NotFound Nothing name
-        t2  <- lift $ lookup v1 rc ?? NotFound Nothing (Id [v1])
+        ctx     <- get
+        (_, rc) <- lift $ records ctx M.!? name ?? NotFound Nothing name
+        t2      <- lift $ lookup v1 rc ?? NotFound Nothing (Id [v1])
         return (s1, t2)
       VarType _ -> lift $ throwE $ CannotInfer e1
   RecordOf name fields -> do
-    ctx <- get
-    rc <- lift $ records ctx M.!? (Id [name]) ?? NotFound Nothing (Id [name])
+    ctx          <- get
+    (tyvars, rc) <- lift $ records ctx M.!? (Id [name]) ?? NotFound
+      Nothing
+      (Id [name])
     substs <- forM fields $ \(field, expr) -> do
       typ      <- lift $ lookup field rc ?? NotFound Nothing (Id [field])
       (s1, t1) <- algoW expr
@@ -218,7 +220,13 @@ algoW expr = case expr of
       return $ s2 `compose` s1
     let s = foldr1 compose substs
 
-    return (s, ConType (Id [name]))
+    fvars <- mapM (\_ -> fresh) tyvars
+    return
+      ( s
+      , if null tyvars
+        then ConType (Id [name])
+        else AppType (ConType (Id [name])) (map VarType fvars)
+      )
   Match e1 brs -> do
     b        <- fresh
     (s1, t1) <- algoW e1
@@ -308,8 +316,9 @@ typecheckModule ds = mapM_ check ds
       , enums   = M.insert (Id [name]) (map (\(EnumField f ts) -> (f, ts)) fs)
         $ enums ctx
       }
-    Record r _ rds -> modify $ \ctx -> ctx
-      { records = M.insert (Id [r]) (map (\(RecordField s t) -> (s, t)) rds)
+    Record r tyvars rds -> modify $ \ctx -> ctx
+      { records = M.insert (Id [r])
+                           (tyvars, map (\(RecordField s t) -> (s, t)) rds)
         $ records ctx
       }
     Instance _ ds -> typecheckModule ds

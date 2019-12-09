@@ -1,0 +1,16 @@
+external func println<A>(s: A);
+
+record Vec<T> {
+  inner: array<T>,
+  capacity: T,
+}
+
+func new<T>(): Vec<T> {
+  Vec {
+    inner: [],
+    capacity: 0,
+  }
+}
+
+func main() {
+}
