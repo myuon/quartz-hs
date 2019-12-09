@@ -40,6 +40,7 @@ data Expr posn
   | Member (Expr posn) String
   | RecordOf String [(String, Expr posn)]
   | EnumOf Id [Expr posn]
+  | Assign (Expr posn) (Expr posn)
   deriving (Eq, Show)
 
 newtype MArray posn = MArray { getMArray :: MutableArray RealWorld (Expr posn) }
@@ -88,3 +89,9 @@ data EnumField = EnumField String [Type]
 
 data RecordField = RecordField String Type
   deriving (Eq, Show)
+
+schemeOfArgs :: ArgTypes -> Scheme
+schemeOfArgs at@(ArgTypes vars _ _) = Scheme vars (typeOfArgs at)
+
+typeOfArgs :: ArgTypes -> Type
+typeOfArgs (ArgTypes _ args ret) = foldr ArrowType ret $ map snd args

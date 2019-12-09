@@ -127,6 +127,7 @@ stmts
     | {- empty -}  { [Unit] }
     | FOR VAR IN expr_short '{' stmts '}' stmts  { ForIn $2 $4 $6 : $8 }
     | IF '{' if_branches '}' stmts  { If $3 : $5 }
+    | expr '=' expr ';' stmts  { Assign $1 $3 : $5 }
 
 expr_short :: { Expr AlexPosn }
 expr_short

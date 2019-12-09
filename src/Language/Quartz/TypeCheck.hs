@@ -207,7 +207,12 @@ algoW expr = case expr of
         (_, rc) <- lift $ records ctx M.!? name ?? NotFound Nothing name
         t2      <- lift $ lookup v1 rc ?? NotFound Nothing (Id [v1])
         return (s1, t2)
-      VarType _ -> lift $ throwE $ CannotInfer e1
+      VarType _                -> lift $ throwE $ CannotInfer e1
+      AppType (ConType name) _ -> do
+        ctx     <- get
+        (_, rc) <- lift $ records ctx M.!? name ?? NotFound Nothing name
+        t2      <- lift $ lookup v1 rc ?? NotFound Nothing (Id [v1])
+        return (s1, t2)
   RecordOf name fields -> do
     ctx          <- get
     (tyvars, rc) <- lift $ records ctx M.!? (Id [name]) ?? NotFound
@@ -239,6 +244,11 @@ algoW expr = case expr of
     let s' = foldl' compose s1 substs
 
     return (s', apply s' (VarType b))
+  Assign e1 e2 -> do
+    (s1, t1) <- algoW e1
+    (s2, t2) <- algoW e2
+    s3       <- lift $ mgu t1 t2
+    return (s3 `compose` s2 `compose` s1, apply s3 t1)
   _ -> error $ show expr
  where
   appW (e1:e2:[]) = do
@@ -323,15 +333,18 @@ typecheckModule ds = mapM_ check ds
       }
     Instance _ ds -> typecheckModule ds
     OpenD _       -> return ()
-    Func name c@(Closure (ArgTypes tyvars _ _) _) -> do
+    Func name c@(Closure argtypes@(ArgTypes tyvars _ _) _) -> do
       b <- fresh
       modify $ \ctx -> ctx
         { schemes = M.insert (Id [name]) (Scheme tyvars (VarType b))
           $ schemes ctx
         }
       ty <- typecheckExpr (ClosureE c)
-      modify $ \ctx ->
-        ctx { schemes = M.insert (Id [name]) (Scheme [] ty) $ schemes ctx }
+      s  <- lift $ mgu (typeOfArgs argtypes) ty
+      modify $ \ctx -> ctx
+        { schemes = M.insert (Id [name]) (Scheme tyvars $ apply s ty)
+          $ schemes ctx
+        }
     Method _ c -> typecheckExpr (ClosureE c) >> return ()
     ExternalFunc name (ArgTypes tyvars args ret) -> modify $ \ctx -> ctx
       { schemes = M.insert

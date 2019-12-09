@@ -1,4 +1,6 @@
 external func println<A>(s: A);
+external func length<T>(arr: array<T>): int;
+external func new_array<T>(cap: int): array<T>;
 
 record Vec<T> {
   inner: array<T>,
@@ -9,6 +11,24 @@ func new<T>(): Vec<T> {
   Vec {
     inner: [],
     capacity: 0,
+  }
+}
+
+func get<T>(this: Vec<T>, i: int): T {
+  this.inner[i]
+}
+
+func push<T>(this: Vec<T>, val: T) {
+  if {
+    this.capacity == length(this.inner) => {
+      let narr = new_array(this.capacity * 2);
+      copy(arr, narr);
+      this.inner = narr;
+      this.capacity = this.capacity * 2;
+    },
+    true => {
+      this.inner[length(this.inner)] = val;
+    },
   }
 }
 
