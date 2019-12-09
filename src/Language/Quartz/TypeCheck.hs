@@ -308,7 +308,7 @@ typecheckModule ds = mapM_ check ds
       , enums   = M.insert (Id [name]) (map (\(EnumField f ts) -> (f, ts)) fs)
         $ enums ctx
       }
-    Record r rds -> modify $ \ctx -> ctx
+    Record r _ rds -> modify $ \ctx -> ctx
       { records = M.insert (Id [r]) (map (\(RecordField s t) -> (s, t)) rds)
         $ records ctx
       }

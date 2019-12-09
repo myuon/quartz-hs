@@ -191,7 +191,7 @@ evalD decl = go [] decl
             $ exprs ctx
           }
 
-    Record d _ ->
+    Record d _ _ ->
       modify $ \ctx -> ctx { decls = PathTree.insert [d] decl (decls ctx) }
     Func d body ->
       modify $ \ctx ->

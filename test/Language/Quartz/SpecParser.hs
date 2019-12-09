@@ -129,8 +129,16 @@ spec_parser = do
 
       parseD "record User { user_id: string, age: int, }" `shouldBe` Record
         "User"
+        []
         [ RecordField "user_id" (ConType (Id ["string"]))
         , RecordField "age"     (ConType (Id ["int"]))
+        ]
+
+      parseD "record Pair<X,Y> { proj1: X, proj2: Y, }" `shouldBe` Record
+        "Pair"
+        ["X", "Y"]
+        [ RecordField "proj1" (VarType "X")
+        , RecordField "proj2" (VarType "Y")
         ]
 
       parseD "open List::Foo::Bar::*;" `shouldBe` OpenD (Id ["List", "Foo", "Bar", "*"])

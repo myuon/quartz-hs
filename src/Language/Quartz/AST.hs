@@ -75,7 +75,7 @@ data Closure posn = Closure ArgTypes (Expr posn)
 
 data Decl posn
   = Enum String [String] [EnumField]
-  | Record String [RecordField]
+  | Record String [String] [RecordField]
   | Instance Type [Decl posn]
   | OpenD Id
   | Func String (Closure posn)

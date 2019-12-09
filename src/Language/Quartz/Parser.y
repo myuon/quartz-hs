@@ -60,7 +60,7 @@ decl
     | FUNC VAR may_generics '(' arg_types ')' may_return_type '{' stmts '}'  { Func $2 (Closure (createArgTypes $3 $5 $7) (Procedure $9)) }
     | FUNC VAR may_generics '(' self_arg_types ')' may_return_type '{' stmts '}'  { Method $2 (Closure (createArgTypes $3 $5 $7) (Procedure $9)) }
     | ENUM VAR may_generics '{' enum_fields '}'  { Enum $2 $3 (map (createEnumField $3) $5) }
-    | RECORD VAR '{' record_fields '}'  { Record $2 $4 }
+    | RECORD VAR may_generics '{' record_fields '}'  { Record $2 $3 (map (createRecordField $3) $5) }
     | INSTANCE type '{' decls '}'  { Instance $2 $4 }
     | OPEN path ';'  { OpenD (Id $2) }
 
@@ -112,7 +112,7 @@ may_generics_internal :: { [String] }
 may_generics_internal
     : {- empty -}  { [] }
     | VAR  { [$1] }
-    | VAR ',' may_generics  { $1 : $3 }
+    | VAR ',' may_generics_internal  { $1 : $3 }
 
 may_return_type :: { Maybe Type }
 may_return_type
@@ -252,4 +252,7 @@ createArgTypes vars args ret =
 
 createEnumField :: [String] -> EnumField -> EnumField
 createEnumField tyvars (EnumField f ts) = EnumField f (map (toVarType tyvars) ts)
+
+createRecordField :: [String] -> RecordField -> RecordField
+createRecordField tyvars (RecordField f t) = RecordField f (toVarType tyvars t)
 }
