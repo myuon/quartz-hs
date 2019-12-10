@@ -74,14 +74,18 @@ data ArgTypes = ArgTypes [String] [(String, Type)] Type
 data Closure posn = Closure ArgTypes (Expr posn)
   deriving (Eq, Show)
 
+data FuncType = FuncType String ArgTypes
+  deriving (Eq, Show)
+
 data Decl posn
   = Enum String [String] [EnumField]
   | Record String [String] [RecordField]
-  | Instance Type [Decl posn]
   | OpenD Id
   | Func String (Closure posn)
   | Method String (Closure posn)
   | ExternalFunc String ArgTypes
+  | Trait String [FuncType]
+  | Instance Type (Maybe Type) [Decl posn]
   deriving (Eq, Show)
 
 data EnumField = EnumField String [Type]

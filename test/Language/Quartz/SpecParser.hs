@@ -155,7 +155,8 @@ spec_parser = do
       |]
         `shouldBe` Instance
                      (ConType (Id ["Nat"]))
-                     [ Method
+                     Nothing
+                     [ Func
                          "is_zero"
                          ( Closure
                            (ArgTypes []
@@ -254,3 +255,25 @@ spec_parser = do
           (AppType (ConType (Id ["List"])) [VarType "T"]))
           (Procedure [Unit])
         )
+
+      parseD [r|
+        trait IState {
+          func get<T>(self, i: int): T;
+          func put<T>(self, i: int, val: T);
+        }
+      |] `shouldBe` Trait "IState" [
+          FuncType "get" (ArgTypes ["T"] [("self", SelfType), ("i", ConType (Id ["int"]))] (VarType "T")),
+          FuncType "put" (ArgTypes ["T"] [("self", SelfType), ("i", ConType (Id ["int"])), ("val", VarType "T")] (ConType (Id ["unit"])))
+        ]
+
+      parseD [r|
+        instance IState for array<int> {
+          func get<T>(self, i: int): T {
+            self[i]
+          }
+        }
+      |] `shouldBe` Instance (ConType (Id ["IState"])) (Just (AppType (ConType (Id ["array"])) [ConType (Id ["int"])]))
+          [ Func "get" (Closure (ArgTypes ["T"] [("self", SelfType), ("i", ConType (Id ["int"]))] (VarType "T")) (Procedure [
+            IndexArray (Var Nothing (Id ["self"])) (Var Nothing (Id ["i"]))
+          ]))
+          ]

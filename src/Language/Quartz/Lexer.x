@@ -23,6 +23,7 @@ tokens :-
   in { wrap $ \_ -> TIn }
   if { wrap $ \_ -> TIf }
   else { wrap $ \_ -> TElse }
+  trait { wrap $ \_ -> TTrait }
 
   -- 避けられるなら予約語から外したい
   true { wrap $ \_ -> TTrue }
@@ -68,6 +69,7 @@ data Token
   | TElse
   | TTrue
   | TFalse
+  | TTrait
   | TLAngle
   | TRAngle
   | TLParen

@@ -331,8 +331,8 @@ typecheckModule ds = mapM_ check ds
                            (tyvars, map (\(RecordField s t) -> (s, t)) rds)
         $ records ctx
       }
-    Instance _ ds -> typecheckModule ds
-    OpenD _       -> return ()
+    Instance _ _ ds -> typecheckModule ds
+    OpenD _         -> return ()
     Func name c@(Closure argtypes@(ArgTypes tyvars _ _) _) -> do
       b <- fresh
       modify $ \ctx -> ctx

@@ -47,6 +47,7 @@ import Language.Quartz.AST
     ELSE { Lexeme _ TElse }
     TRUE { Lexeme _ TTrue }
     FALSE { Lexeme _ TFalse }
+    TRAIT { Lexeme _ TTrait }
 
     INT { Lexeme _ (TInt $$) }
     STRLIT { Lexeme _ (TStrLit $$) }
@@ -57,17 +58,27 @@ import Language.Quartz.AST
 decl :: { Decl AlexPosn }
 decl
     : EXTERNAL FUNC VAR may_generics '(' arg_types ')' may_return_type ';'  { ExternalFunc $3 (createArgTypes $4 $6 $8) }
-    | FUNC VAR may_generics '(' arg_types ')' may_return_type '{' stmts '}'  { Func $2 (Closure (createArgTypes $3 $5 $7) (Procedure $9)) }
-    | FUNC VAR may_generics '(' self_arg_types ')' may_return_type '{' stmts '}'  { Method $2 (Closure (createArgTypes $3 $5 $7) (Procedure $9)) }
+    | FUNC VAR may_generics '(' self_arg_types ')' may_return_type '{' stmts '}'  { Func $2 (Closure (createArgTypes $3 $5 $7) (Procedure $9)) }
     | ENUM VAR may_generics '{' enum_fields '}'  { Enum $2 $3 (map (createEnumField $3) $5) }
     | RECORD VAR may_generics '{' record_fields '}'  { Record $2 $3 (map (createRecordField $3) $5) }
-    | INSTANCE type '{' decls '}'  { Instance $2 $4 }
     | OPEN path ';'  { OpenD (Id $2) }
+    | TRAIT VAR '{' func_type_decls '}'  { Trait $2 $4 }
+    | INSTANCE type may_for_trait '{' decls '}'  { Instance $2 $3 $5 }
+
+may_for_trait :: { Maybe Type }
+may_for_trait
+    : FOR type  { Just $2 }
+    | {- empty -}  { Nothing }
 
 decls :: { [Decl AlexPosn] }
 decls
     : decl decls  { $1 : $2 }
     | {- empty -}  { [] }
+
+func_type_decls :: { [FuncType] }
+func_type_decls
+    : {- empty -}  { [] }
+    | FUNC VAR may_generics '(' self_arg_types ')' may_return_type ';' func_type_decls  { FuncType $2 (createArgTypes $3 $5 $7) : $9 }
 
 path :: { [String] }
 path
@@ -204,6 +215,7 @@ self_arg_types :: { [(String, Type)] }
 self_arg_types
     : SELF ',' arg_types  { ("self", SelfType) : $3 }
     | SELF  { [("self", SelfType)] }
+    | arg_types  { $1 }
 
 literal :: { Literal }
 literal
