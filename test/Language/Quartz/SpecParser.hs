@@ -154,7 +154,8 @@ spec_parser = do
         }
       |]
         `shouldBe` Instance
-                     (ConType (Id ["Nat"]))
+                     "Nat"
+                     []
                      Nothing
                      [ Func
                          "is_zero"
@@ -272,7 +273,7 @@ spec_parser = do
             self[i]
           }
         }
-      |] `shouldBe` Instance (ConType (Id ["IState"])) (Just (AppType (ConType (Id ["array"])) [ConType (Id ["int"])]))
+      |] `shouldBe` Instance "IState" [] (Just (AppType (ConType (Id ["array"])) [ConType (Id ["int"])]))
           [ Func "get" (Closure (ArgTypes ["T"] [("self", SelfType), ("i", ConType (Id ["int"]))] (VarType "T")) (Procedure [
             IndexArray (Var Nothing (Id ["self"])) (Var Nothing (Id ["i"]))
           ]))

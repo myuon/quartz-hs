@@ -15,7 +15,8 @@ data Context = Context {
   schemes :: M.Map Id Scheme,
   records :: M.Map Id ([String], [(String, Type)]),
   enums :: M.Map Id [(String, [Type])],
-  selfType :: Maybe Type
+  selfType :: Maybe Type,
+  traits :: M.Map String [FuncType]
 } deriving (Eq, Show)
 
 std :: Context
@@ -24,6 +25,7 @@ std = Context
   , records  = M.empty
   , selfType = Nothing
   , enums    = M.empty
+  , traits   = M.empty
   }
 
 data TypeCheckExceptions
@@ -331,8 +333,8 @@ typecheckModule ds = mapM_ check ds
                            (tyvars, map (\(RecordField s t) -> (s, t)) rds)
         $ records ctx
       }
-    Instance _ _ ds -> typecheckModule ds
-    OpenD _         -> return ()
+    Instance _ _ _ ds -> typecheckModule ds
+    OpenD _           -> return ()
     Func name c@(Closure argtypes@(ArgTypes tyvars _ _) _) -> do
       b <- fresh
       modify $ \ctx -> ctx
@@ -352,6 +354,7 @@ typecheckModule ds = mapM_ check ds
           (Scheme tyvars $ foldr ArrowType ret $ map snd args)
         $ schemes ctx
       }
+    Trait s fs -> modify $ \ctx -> ctx { traits = M.insert s fs $ traits ctx }
 
 runTypeCheckExpr
   :: MonadIO m => Expr AlexPosn -> ExceptT TypeCheckExceptions m Type

@@ -85,7 +85,7 @@ data Decl posn
   | Method String (Closure posn)
   | ExternalFunc String ArgTypes
   | Trait String [FuncType]
-  | Instance Type (Maybe Type) [Decl posn]
+  | Instance String [String] (Maybe Type) [Decl posn]
   deriving (Eq, Show)
 
 data EnumField = EnumField String [Type]

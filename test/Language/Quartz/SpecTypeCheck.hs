@@ -181,3 +181,16 @@ spec_typecheck = do
           }
         }
       |]
+
+      check [r|
+        trait T {
+          func doSth(x: T);
+          func get(self): T;
+        }
+
+        instance T for int {
+          func get(self): T {
+            100
+          }
+        }
+      |]
