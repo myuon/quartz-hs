@@ -57,10 +57,10 @@ import Language.Quartz.AST
 
 decl :: { Decl AlexPosn }
 decl
-    : EXTERNAL FUNC VAR may_generics '(' arg_types ')' may_return_type ';'  { ExternalFunc $3 (createArgTypes $4 $6 $8) }
-    | FUNC VAR may_generics '(' self_arg_types ')' may_return_type '{' stmts '}'  { Func $2 (Closure (createArgTypes $3 $5 $7) (Procedure $9)) }
-    | ENUM VAR may_generics '{' enum_fields '}'  { Enum $2 $3 (map (createEnumField $3) $5) }
-    | RECORD VAR may_generics '{' record_fields '}'  { Record $2 $3 (map (createRecordField $3) $5) }
+    : EXTERNAL FUNC VAR may_generics '(' arg_types ')' may_return_type ';'  { ExternalFunc $3 (ArgTypes $4 $6 (maybe unitType id $8)) }
+    | FUNC VAR may_generics '(' self_arg_types ')' may_return_type '{' stmts '}'  { Func $2 (Closure (ArgTypes $3 $5 (maybe unitType id $7)) (Procedure $9)) }
+    | ENUM VAR may_generics '{' enum_fields '}'  { Enum $2 $3 $5 }
+    | RECORD VAR may_generics '{' record_fields '}'  { Record $2 $3 $5 }
     | OPEN path ';'  { OpenD (Id $2) }
     | TRAIT VAR may_generics '{' func_type_decls '}'  { Trait $2 $3 $5 }
     | INSTANCE VAR may_generics may_for_trait '{' decls '}'  { Instance $2 $3 $4 $6 }
@@ -78,7 +78,7 @@ decls
 func_type_decls :: { [FuncType] }
 func_type_decls
     : {- empty -}  { [] }
-    | FUNC VAR may_generics '(' self_arg_types ')' may_return_type ';' func_type_decls  { FuncType $2 (createArgTypes $3 $5 $7) : $9 }
+    | FUNC VAR may_generics '(' self_arg_types ')' may_return_type ';' func_type_decls  { FuncType $2 (ArgTypes $3 $5 (maybe unitType id $7)) : $9 }
 
 path :: { [String] }
 path
@@ -158,8 +158,8 @@ expr
     | IF '{' if_branches '}'  { If $3 }
 
     -- こうしないとちゃんとパースできないので(先読みの問題？)
-    | '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (createArgTypes [] $2 $4) $6) }
-    | '<' may_generics_internal '>' '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (createArgTypes $2 $5 $7) $9) }
+    | '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (ArgTypes [] $2 (maybe unitType id $4)) $6) }
+    | '<' may_generics_internal '>' '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (ArgTypes $2 $5 (maybe unitType id $7)) $9) }
 
     | expr '==' expr  { Op Eq $1 $3 }
     | VAR '{' record_expr '}'  { RecordOf $1 $3 }
@@ -251,21 +251,5 @@ var
 {
 happyError tokens = Left $ "Parse error\n" ++ show tokens
 
-toVarType :: [String] -> Type -> Type
-toVarType vars t = case t of
-    ConType (Id [i]) | i `elem` vars -> VarType i
-    ArrowType x y -> ArrowType (toVarType vars x) (toVarType vars y)
-    AppType x xs -> AppType (toVarType vars x) (map (toVarType vars) xs)
-    _ -> t
-
-createArgTypes :: [String] -> [(String, Type)] -> Maybe Type -> ArgTypes
-createArgTypes vars args ret = 
-  let retType = toVarType vars $ maybe (ConType (Id ["unit"])) id ret in
-  ArgTypes vars (map (\(x,y) -> (x, toVarType vars y)) args) retType
-
-createEnumField :: [String] -> EnumField -> EnumField
-createEnumField tyvars (EnumField f ts) = EnumField f (map (toVarType tyvars) ts)
-
-createRecordField :: [String] -> RecordField -> RecordField
-createRecordField tyvars (RecordField f t) = RecordField f (toVarType tyvars t)
+unitType = ConType (Id ["unit"])
 }

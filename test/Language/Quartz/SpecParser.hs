@@ -1,15 +1,16 @@
 {-# LANGUAGE QuasiQuotes #-}
 module Language.Quartz.SpecParser where
 
-import Language.Quartz.Lexer (alexScanTokens)
+import Language.Quartz.Lexer (alexScanTokens, Lexeme, AlexPosn)
 import Language.Quartz.AST
 import Language.Quartz.Parser
+import Language.Quartz.Renamer
 import Test.Tasty.Hspec hiding (Failure, Success)
 import Text.RawString.QQ
 
-parseE = either error id . parserExpr . alexScanTokens
-parseD = either error id . parser . alexScanTokens
-parseDs = either error id . parserDecls . alexScanTokens
+parseE = either error id . fmap transformVarConTypeE . parserExpr . alexScanTokens
+parseD = either error id . fmap transformVarConTypeD . parser . alexScanTokens
+parseDs = either error id . fmap (map transformVarConTypeD) . parserDecls . alexScanTokens
 
 spec_parser :: Spec
 spec_parser = do
@@ -161,7 +162,7 @@ spec_parser = do
                          "is_zero"
                          ( Closure
                            (ArgTypes []
-                           [("self", SelfType)]
+                           [("self", VarType "?self")]
                            (ConType (Id ["bool"])))
                            ( Procedure
                              [ Match
@@ -263,8 +264,8 @@ spec_parser = do
           func put<T>(self, i: int, val: T);
         }
       |] `shouldBe` Trait "IState" [] [
-          FuncType "get" (ArgTypes ["T"] [("self", SelfType), ("i", ConType (Id ["int"]))] (VarType "T")),
-          FuncType "put" (ArgTypes ["T"] [("self", SelfType), ("i", ConType (Id ["int"])), ("val", VarType "T")] (ConType (Id ["unit"])))
+          FuncType "get" (ArgTypes ["T"] [("self", VarType "?self"), ("i", ConType (Id ["int"]))] (VarType "T")),
+          FuncType "put" (ArgTypes ["T"] [("self", VarType "?self"), ("i", ConType (Id ["int"])), ("val", VarType "T")] (ConType (Id ["unit"])))
         ]
 
       parseD [r|
@@ -274,7 +275,7 @@ spec_parser = do
           }
         }
       |] `shouldBe` Instance "IState" [] (Just (AppType (ConType (Id ["array"])) [ConType (Id ["int"])]))
-          [ Func "get" (Closure (ArgTypes ["T"] [("self", SelfType), ("i", ConType (Id ["int"]))] (VarType "T")) (Procedure [
+          [ Func "get" (Closure (ArgTypes ["T"] [("self", VarType "?self"), ("i", ConType (Id ["int"]))] (VarType "T")) (Procedure [
             IndexArray (Var Nothing (Id ["self"])) (Var Nothing (Id ["i"]))
           ]))
           ]

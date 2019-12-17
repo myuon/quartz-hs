@@ -40,6 +40,6 @@ data CompilerError
 runModule :: MonadIO m => String -> m (Either CompilerError (Expr AlexPosn))
 runModule s = runExceptT $ do
   decls <- withExceptT ParseError $ ExceptT $ return $ parseModule s
-  let decls' = map transformVarConType decls
+  let decls' = map transformVarConTypeD decls
   withExceptT TypeCheckError $ runTypeCheckModule decls'
   withExceptT EvalError $ runMain decls'

@@ -20,9 +20,9 @@ check s = do
   result <- runExceptT $ runTypeCheckModule $ parseDs s
   either (fail . show) return result
 
-parseE = either error id . parserExpr . alexScanTokens
-parseD = either error id . fmap transformVarConType . parser . alexScanTokens
-parseDs = either error id . fmap (fmap transformVarConType) . parserDecls . alexScanTokens
+parseE = either error id . fmap transformVarConTypeE . parserExpr . alexScanTokens
+parseD = either error id . fmap transformVarConTypeD . parser . alexScanTokens
+parseDs = either error id . fmap (fmap transformVarConTypeD) . parserDecls . alexScanTokens
 
 spec_typecheck :: Spec
 spec_typecheck = do
