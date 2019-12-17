@@ -18,6 +18,7 @@ import Data.Bifunctor
 import Language.Quartz.AST
 import Language.Quartz.Lexer
 import Language.Quartz.Parser
+import Language.Quartz.Renamer
 import Language.Quartz.TypeCheck
 import Language.Quartz.Eval
 
@@ -39,5 +40,6 @@ data CompilerError
 runModule :: MonadIO m => String -> m (Either CompilerError (Expr AlexPosn))
 runModule s = runExceptT $ do
   decls <- withExceptT ParseError $ ExceptT $ return $ parseModule s
-  withExceptT TypeCheckError $ runTypeCheckModule decls
-  withExceptT EvalError $ runMain decls
+  let decls' = map transformVarConType decls
+  withExceptT TypeCheckError $ runTypeCheckModule decls'
+  withExceptT EvalError $ runMain decls'

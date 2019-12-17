@@ -62,7 +62,7 @@ decl
     | ENUM VAR may_generics '{' enum_fields '}'  { Enum $2 $3 (map (createEnumField $3) $5) }
     | RECORD VAR may_generics '{' record_fields '}'  { Record $2 $3 (map (createRecordField $3) $5) }
     | OPEN path ';'  { OpenD (Id $2) }
-    | TRAIT VAR '{' func_type_decls '}'  { Trait $2 $4 }
+    | TRAIT VAR may_generics '{' func_type_decls '}'  { Trait $2 $3 $5 }
     | INSTANCE VAR may_generics may_for_trait '{' decls '}'  { Instance $2 $3 $4 $6 }
 
 may_for_trait :: { Maybe Type }

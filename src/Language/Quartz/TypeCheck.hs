@@ -354,7 +354,8 @@ typecheckModule ds = mapM_ check ds
           (Scheme tyvars $ foldr ArrowType ret $ map snd args)
         $ schemes ctx
       }
-    Trait s fs -> modify $ \ctx -> ctx { traits = M.insert s fs $ traits ctx }
+    Trait s _ fs ->
+      modify $ \ctx -> ctx { traits = M.insert s fs $ traits ctx }
 
 runTypeCheckExpr
   :: MonadIO m => Expr AlexPosn -> ExceptT TypeCheckExceptions m Type

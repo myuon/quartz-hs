@@ -84,7 +84,7 @@ data Decl posn
   | Func String (Closure posn)
   | Method String (Closure posn)
   | ExternalFunc String ArgTypes
-  | Trait String [FuncType]
+  | Trait String [String] [FuncType]
   | Instance String [String] (Maybe Type) [Decl posn]
   deriving (Eq, Show)
 

@@ -262,7 +262,7 @@ spec_parser = do
           func get<T>(self, i: int): T;
           func put<T>(self, i: int, val: T);
         }
-      |] `shouldBe` Trait "IState" [
+      |] `shouldBe` Trait "IState" [] [
           FuncType "get" (ArgTypes ["T"] [("self", SelfType), ("i", ConType (Id ["int"]))] (VarType "T")),
           FuncType "put" (ArgTypes ["T"] [("self", SelfType), ("i", ConType (Id ["int"])), ("val", VarType "T")] (ConType (Id ["unit"])))
         ]

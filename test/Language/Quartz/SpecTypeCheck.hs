@@ -5,6 +5,7 @@ import Control.Error
 import Language.Quartz.Lexer (alexScanTokens)
 import Language.Quartz.AST
 import Language.Quartz.Parser
+import Language.Quartz.Renamer
 import Language.Quartz.TypeCheck
 import Test.Tasty.Hspec hiding (Failure, Success)
 import Text.RawString.QQ
@@ -20,8 +21,8 @@ check s = do
   either (fail . show) return result
 
 parseE = either error id . parserExpr . alexScanTokens
-parseD = either error id . parser . alexScanTokens
-parseDs = either error id . parserDecls . alexScanTokens
+parseD = either error id . fmap transformVarConType . parser . alexScanTokens
+parseDs = either error id . fmap (fmap transformVarConType) . parserDecls . alexScanTokens
 
 spec_typecheck :: Spec
 spec_typecheck = do
@@ -183,12 +184,12 @@ spec_typecheck = do
       |]
 
       check [r|
-        trait T {
+        trait Hoge<T> {
           func doSth(x: T);
           func get(self): T;
         }
 
-        instance T for int {
+        instance Hoge<T> for int {
           func get(self): T {
             100
           }
