@@ -109,39 +109,50 @@ instantiate (Scheme vars typ) = do
 algoW
   :: MonadIO m
   => Expr AlexPosn
-  -> StateT Context (ExceptT TypeCheckExceptions m) (Subst, Type)
+  -> StateT
+       Context
+       (ExceptT TypeCheckExceptions m)
+       (Subst, Type, Expr AlexPosn)
 algoW expr = case expr of
   Var posn v -> do
     ctx  <- get
     v'   <- lift $ schemes ctx M.!? v ?? NotFound posn v
     inst <- instantiate v'
-    return (emptySubst, inst)
-  Lit      (IntLit    n) -> return (emptySubst, ConType (Id ["int"]))
-  Lit      (DoubleLit n) -> return (emptySubst, ConType (Id ["double"]))
-  Lit      (CharLit   c) -> return (emptySubst, ConType (Id ["char"]))
-  Lit      (StringLit c) -> return (emptySubst, ConType (Id ["string"]))
-  Lit      (BoolLit   c) -> return (emptySubst, ConType (Id ["bool"]))
+    return (emptySubst, inst, expr)
+  Lit      (IntLit    n) -> return (emptySubst, ConType (Id ["int"]), expr)
+  Lit      (DoubleLit n) -> return (emptySubst, ConType (Id ["double"]), expr)
+  Lit      (CharLit   c) -> return (emptySubst, ConType (Id ["char"]), expr)
+  Lit      (StringLit c) -> return (emptySubst, ConType (Id ["string"]), expr)
+  Lit      (BoolLit   c) -> return (emptySubst, ConType (Id ["bool"]), expr)
   ArrayLit es            -> do
     b <- fresh
-    fmap (\(s, t) -> (s, AppType (ConType (Id ["array"])) [t])) $ foldlM
-      ( \(s1, t1) e -> do
-        (s2, t2) <- algoW e
-        s3       <- lift $ mgu t1 t2
-        return (s3 `compose` s2 `compose` s1, apply s3 t2)
-      )
-      (emptySubst, VarType b)
-      es
+    fmap
+        ( \(s, t, u) ->
+          (s, AppType (ConType (Id ["array"])) [t], ArrayLit $ reverse u)
+        )
+      $ foldlM
+          ( \(s1, t1, e0) e -> do
+            (s2, t2, e') <- algoW e
+            s3           <- lift $ mgu t1 t2
+            return (s3 `compose` s2 `compose` s1, apply s3 t2, e0 ++ [e'])
+          )
+          (emptySubst, VarType b, [])
+          es
   IndexArray arr i -> do
-    (s1, t1) <- algoW arr
-    b        <- fresh
-    s2       <- lift $ mgu t1 (AppType (ConType (Id ["array"])) [VarType b])
+    (s1, t1, arr') <- algoW arr
+    b              <- fresh
+    s2 <- lift $ mgu t1 (AppType (ConType (Id ["array"])) [VarType b])
 
-    (s3, t3) <- algoW i
-    s4       <- lift $ mgu t3 (ConType (Id ["int"]))
-    return (s4 `compose` s3 `compose` s2 `compose` s1, apply s2 (VarType b))
+    (s3, t3, i')   <- algoW i
+    s4             <- lift $ mgu t3 (ConType (Id ["int"]))
+    return
+      ( s4 `compose` s3 `compose` s2 `compose` s1
+      , apply      s2   (VarType b)
+      , IndexArray arr' i'
+      )
   -- ここでSchemeの引数を無視しているが問題ないか？
-  ClosureE (Closure (ArgTypes _ args ret) body) -> do
-    (s1, t1) <- do
+  ClosureE (Closure argtypes@(ArgTypes _ args ret) body) -> do
+    (s1, t1, body') <- do
       modify $ \ctx -> ctx
         { schemes = foldl' (\mp (s, t) -> M.insert (Id [s]) (Scheme [] t) mp)
                            (schemes ctx)
@@ -150,82 +161,92 @@ algoW expr = case expr of
       algoW body
 
     s2 <- lift $ mgu ret t1
-    return (s2 `compose` s1, apply s1 $ foldr ArrowType t1 $ map snd args)
-  FnCall f []   -> algoW f
-  FnCall f es   -> appW $ reverse $ f : es
-  Let    x expr -> do
-    (s1, t1) <- algoW expr
+    return
+      ( s2 `compose` s1
+      , apply s1 $ foldr ArrowType t1 $ map snd args
+      , ClosureE (Closure argtypes body')
+      )
+  FnCall f [] -> algoW f
+  FnCall f es ->
+    fmap (\(x, y, z) -> (x, y, FnCall f z)) $ appW $ reverse $ f : es
+  Let x expr -> do
+    (s1, t1, expr') <- algoW expr
     modify $ \ctx -> apply
       s1
       ( ctx { schemes = M.insert x (generalize (apply s1 ctx) t1) $ schemes ctx
             }
       )
-    return (s1, ConType (Id ["unit"]))
-  Unit         -> return (emptySubst, ConType (Id ["unit"]))
-  Procedure es -> foldlM
-    ( \(s1, _) e -> do
+    return (s1, ConType (Id ["unit"]), Let x expr')
+  Unit         -> return (emptySubst, ConType (Id ["unit"]), expr)
+  Procedure es -> fmap (\(x, y, z) -> (x, y, Procedure $ reverse z)) $ foldlM
+    ( \(s1, _, e0) e -> do
       -- discarding the previous type information
-      (s2, t2) <- algoW e
-      return (s2 `compose` s1, t2)
+      (s2, t2, e') <- algoW e
+      return (s2 `compose` s1, t2, e' : e0)
     )
-    (emptySubst, ConType (Id ["unit"]))
+    (emptySubst, ConType (Id ["unit"]), [])
     es
   ForIn elem arr es -> do
-    b        <- fresh
-    (s1, t1) <- algoW arr
-    s2       <- lift $ mgu t1 (AppType (ConType (Id ["array"])) [VarType b])
-    ctx      <- get
+    b              <- fresh
+    (s1, t1, arr') <- algoW arr
+    s2 <- lift $ mgu t1 (AppType (ConType (Id ["array"])) [VarType b])
+    ctx            <- get
     modify $ \ctx -> ctx
       { schemes = M.insert (Id [elem]) (Scheme [] (VarType b)) $ schemes ctx
       }
-    (s3, t3) <- algoW $ Procedure es
+    (s3, t3, es') <- algoW $ Procedure es
     put ctx
     s4 <- lift $ mgu t3 $ ConType (Id ["unit"])
-    return (s4 `compose` s3 `compose` s2 `compose` s1, ConType (Id ["unit"]))
+    return
+      ( s4 `compose` s3 `compose` s2 `compose` s1
+      , ConType (Id ["unit"])
+      , ForIn elem arr' $ (\(Procedure e) -> e) es'
+      )
   If brs -> do
     b      <- fresh
     substs <- forM brs $ \(cond, expr) -> do
-      (s1, t1) <- algoW cond
-      s2       <- lift $ mgu t1 (ConType (Id ["bool"]))
+      (s1, t1, cond') <- algoW cond
+      s2              <- lift $ mgu t1 (ConType (Id ["bool"]))
 
-      (s3, t3) <- algoW expr
-      s4       <- lift $ mgu t3 (VarType b)
-      return (s4 `compose` s3 `compose` s2 `compose` s1)
+      (s3, t3, expr') <- algoW expr
+      s4              <- lift $ mgu t3 (VarType b)
+      return (s4 `compose` s3 `compose` s2 `compose` s1, (cond', expr'))
 
-    let s = foldr1 compose substs
-    return (s, apply s (VarType b))
+    let s = foldr1 compose $ map fst substs
+    return (s, apply s (VarType b), If $ map snd substs)
   Op op e1 e2 -> do
-    (s1, t1) <- algoW e1
-    (s2, t2) <- algoW e2
+    (s1, t1, e1') <- algoW e1
+    (s2, t2, e2') <- algoW e2
     case op of
       Eq -> do
         s3 <- lift $ mgu t1 t2
-        return (s3 `compose` s2 `compose` s1, ConType (Id ["bool"]))
+        return
+          (s3 `compose` s2 `compose` s1, ConType (Id ["bool"]), Op op e1' e2')
   Member e1 v1 -> do
-    (s1, t1) <- algoW e1
+    (s1, t1, e1') <- algoW e1
     case t1 of
       ConType name -> do
         ctx     <- get
         (_, rc) <- lift $ records ctx M.!? name ?? NotFound Nothing name
         t2      <- lift $ lookup v1 rc ?? NotFound Nothing (Id [v1])
-        return (s1, t2)
+        return (s1, t2, e1')
       VarType _                -> lift $ throwE $ CannotInfer e1
       AppType (ConType name) _ -> do
         ctx     <- get
         (_, rc) <- lift $ records ctx M.!? name ?? NotFound Nothing name
         t2      <- lift $ lookup v1 rc ?? NotFound Nothing (Id [v1])
-        return (s1, t2)
+        return (s1, t2, e1')
   RecordOf name fields -> do
     ctx          <- get
     (tyvars, rc) <- lift $ records ctx M.!? (Id [name]) ?? NotFound
       Nothing
       (Id [name])
     substs <- forM fields $ \(field, expr) -> do
-      typ      <- lift $ lookup field rc ?? NotFound Nothing (Id [field])
-      (s1, t1) <- algoW expr
-      s2       <- lift $ mgu t1 typ
-      return $ s2 `compose` s1
-    let s = foldr1 compose substs
+      typ             <- lift $ lookup field rc ?? NotFound Nothing (Id [field])
+      (s1, t1, expr') <- algoW expr
+      s2              <- lift $ mgu t1 typ
+      return $ (s2 `compose` s1, (field, expr'))
+    let s = foldr1 compose $ map fst substs
 
     fvars <- mapM (\_ -> fresh) tyvars
     return
@@ -233,44 +254,45 @@ algoW expr = case expr of
       , if null tyvars
         then ConType (Id [name])
         else AppType (ConType (Id [name])) (map VarType fvars)
+      , RecordOf name $ map snd substs
       )
   Match e1 brs -> do
-    b        <- fresh
-    (s1, t1) <- algoW e1
+    b             <- fresh
+    (s1, t1, e1') <- algoW e1
 
-    substs   <- forM brs $ \(pat, expr) -> do
-      s2       <- match pat t1
-      (s3, t3) <- algoW expr
-      s4       <- lift $ mgu t3 (VarType b)
-      return $ s4 `compose` s3 `compose` s2
-    let s' = foldl' compose s1 substs
+    substs        <- forM brs $ \(pat, expr) -> do
+      s2              <- match pat t1
+      (s3, t3, expr') <- algoW expr
+      s4              <- lift $ mgu t3 (VarType b)
+      return $ (s4 `compose` s3 `compose` s2, (pat, expr'))
+    let s' = foldl' compose s1 $ map fst substs
 
-    return (s', apply s' (VarType b))
+    return (s', apply s' (VarType b), Match e1' $ map snd substs)
   Assign e1 e2 -> do
-    (s1, t1) <- algoW e1
-    (s2, t2) <- algoW e2
-    s3       <- lift $ mgu t1 t2
-    return (s3 `compose` s2 `compose` s1, apply s3 t1)
+    (s1, t1, e1') <- algoW e1
+    (s2, t2, e2') <- algoW e2
+    s3            <- lift $ mgu t1 t2
+    return (s3 `compose` s2 `compose` s1, apply s3 t1, Assign e1' e2')
   _ -> error $ show expr
  where
   appW (e1:e2:[]) = do
-    b        <- VarType <$> fresh
-    ctx      <- get
-    (s1, t1) <- algoW e2
+    b             <- VarType <$> fresh
+    ctx           <- get
+    (s1, t1, e2') <- algoW e2
     put $ apply s1 ctx
-    (s2, t2) <- algoW e1
+    (s2, t2, e1') <- algoW e1
     put ctx
     s3 <- lift $ mgu (apply s2 t1) (ArrowType t2 b)
-    return (s3 `compose` s2 `compose` s1, apply s3 b)
+    return (s3 `compose` s2 `compose` s1, apply s3 b, [e1', e2'])
   appW (e1:es) = do
-    b        <- VarType <$> fresh
-    ctx      <- get
-    (s1, t1) <- appW es
+    b             <- VarType <$> fresh
+    ctx           <- get
+    (s1, t1, es') <- appW es
     put $ apply s1 ctx
-    (s2, t2) <- algoW e1
+    (s2, t2, e1') <- algoW e1
     put ctx
     s3 <- lift $ mgu (apply s2 t1) (ArrowType t2 b)
-    return (s3 `compose` s2 `compose` s1, apply s3 b)
+    return (s3 `compose` s2 `compose` s1, apply s3 b, e1' : es')
 
   match
     :: MonadIO m
@@ -301,65 +323,80 @@ algoW expr = case expr of
 typecheckExpr
   :: MonadIO m
   => Expr AlexPosn
-  -> StateT Context (ExceptT TypeCheckExceptions m) Type
-typecheckExpr e = fmap snd $ algoW e
+  -> StateT Context (ExceptT TypeCheckExceptions m) (Type, Expr AlexPosn)
+typecheckExpr e = fmap (\(_, y, z) -> (y, z)) $ algoW e
 
 typecheckModule
   :: MonadIO m
   => [Decl AlexPosn]
-  -> StateT Context (ExceptT TypeCheckExceptions m) ()
-typecheckModule ds = mapM_ check ds
+  -> StateT Context (ExceptT TypeCheckExceptions m) [Decl AlexPosn]
+typecheckModule ds = mapM check ds
  where
   typeApply []   ty = ty
   typeApply vars ty = AppType ty $ map VarType vars
 
   check d = case d of
-    Enum name tyvars fs -> modify $ \ctx -> ctx
-      { schemes = foldl'
-        ( \mp (EnumField f typs) -> M.insert
-          (Id [name, f])
-          ( Scheme tyvars
-          $ foldr ArrowType (typeApply tyvars $ ConType (Id [name])) typs
+    Enum name tyvars fs -> do
+      modify $ \ctx -> ctx
+        { schemes = foldl'
+          ( \mp (EnumField f typs) -> M.insert
+            (Id [name, f])
+            ( Scheme tyvars
+            $ foldr ArrowType (typeApply tyvars $ ConType (Id [name])) typs
+            )
+            mp
           )
-          mp
-        )
-        (schemes ctx)
-        fs
-      , enums   = M.insert (Id [name]) (map (\(EnumField f ts) -> (f, ts)) fs)
-        $ enums ctx
-      }
-    Record r tyvars rds -> modify $ \ctx -> ctx
-      { records = M.insert (Id [r])
-                           (tyvars, map (\(RecordField s t) -> (s, t)) rds)
-        $ records ctx
-      }
-    Instance _ _ _ ds -> typecheckModule ds
-    OpenD _           -> return ()
+          (schemes ctx)
+          fs
+        , enums   = M.insert (Id [name]) (map (\(EnumField f ts) -> (f, ts)) fs)
+          $ enums ctx
+        }
+      return d
+    Record r tyvars rds -> do
+      modify $ \ctx -> ctx
+        { records = M.insert (Id [r])
+                             (tyvars, map (\(RecordField s t) -> (s, t)) rds)
+          $ records ctx
+        }
+      return d
+    Instance name x y ds -> do
+      ds' <- typecheckModule ds
+      return $ Instance name x y ds'
+    OpenD _ -> return d
     Func name c@(Closure argtypes@(ArgTypes tyvars _ _) _) -> do
       b <- fresh
       modify $ \ctx -> ctx
         { schemes = M.insert (Id [name]) (Scheme tyvars (VarType b))
           $ schemes ctx
         }
-      ty <- typecheckExpr (ClosureE c)
-      s  <- lift $ mgu (typeOfArgs argtypes) ty
+      (ty, c') <- typecheckExpr (ClosureE c)
+      s        <- lift $ mgu (typeOfArgs argtypes) ty
       modify $ \ctx -> ctx
         { schemes = M.insert (Id [name]) (Scheme tyvars $ apply s ty)
           $ schemes ctx
         }
-    ExternalFunc name (ArgTypes tyvars args ret) -> modify $ \ctx -> ctx
-      { schemes = M.insert
-          (Id [name])
-          (Scheme tyvars $ foldr ArrowType ret $ map snd args)
-        $ schemes ctx
-      }
-    Trait s _ fs ->
+
+      return $ Func name (Closure argtypes c')
+    ExternalFunc name (ArgTypes tyvars args ret) -> do
+      modify $ \ctx -> ctx
+        { schemes = M.insert
+            (Id [name])
+            (Scheme tyvars $ foldr ArrowType ret $ map snd args)
+          $ schemes ctx
+        }
+      return d
+    Trait s _ fs -> do
       modify $ \ctx -> ctx { traits = M.insert s fs $ traits ctx }
+      return d
 
 runTypeCheckExpr
-  :: MonadIO m => Expr AlexPosn -> ExceptT TypeCheckExceptions m Type
+  :: MonadIO m
+  => Expr AlexPosn
+  -> ExceptT TypeCheckExceptions m (Type, Expr AlexPosn)
 runTypeCheckExpr e = evalStateT (typecheckExpr e) std
 
 runTypeCheckModule
-  :: MonadIO m => [Decl AlexPosn] -> ExceptT TypeCheckExceptions m ()
+  :: MonadIO m
+  => [Decl AlexPosn]
+  -> ExceptT TypeCheckExceptions m [Decl AlexPosn]
 runTypeCheckModule ds = evalStateT (typecheckModule ds) std

@@ -41,7 +41,7 @@ data Expr posn
   | RecordOf String [(String, Expr posn)]
   | EnumOf Id [Expr posn]
   | Assign (Expr posn) (Expr posn)
-  | MethodOf String String
+  | MethodOf String String String
   deriving (Eq, Show)
 
 newtype MArray posn = MArray { getMArray :: MutableArray RealWorld (Expr posn) }

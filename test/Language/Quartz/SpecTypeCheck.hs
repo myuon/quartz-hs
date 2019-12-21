@@ -13,7 +13,7 @@ import Text.RawString.QQ
 runTypeCheck r1 r2 = do
   result <- runExceptT $ runTypeCheckExpr r1
   case result of
-    Right v   -> v `shouldBe` r2
+    Right (v, _)   -> v `shouldBe` r2
     Left  err -> fail $ show err
 
 check s = do
@@ -195,3 +195,5 @@ spec_typecheck = do
           }
         }
       |]
+
+      return ()
