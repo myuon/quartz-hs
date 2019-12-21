@@ -168,7 +168,7 @@ algoW expr = case expr of
       )
   FnCall f [] -> algoW f
   FnCall f es ->
-    fmap (\(x, y, z) -> (x, y, FnCall f z)) $ appW $ reverse $ f : es
+    fmap (\(x, y, z) -> (x, y, FnCall f $ reverse z)) $ appW $ reverse $ f : es
   Let x expr -> do
     (s1, t1, expr') <- algoW expr
     modify $ \ctx -> apply
@@ -389,11 +389,12 @@ typecheckModule ds = mapM check ds
       modify $ \ctx -> ctx { traits = M.insert s fs $ traits ctx }
       return d
 
+inferTypeE :: MonadIO m => Expr AlexPosn -> ExceptT TypeCheckExceptions m Type
+inferTypeE e = fmap fst $ evalStateT (typecheckExpr e) std
+
 runTypeCheckExpr
-  :: MonadIO m
-  => Expr AlexPosn
-  -> ExceptT TypeCheckExceptions m (Type, Expr AlexPosn)
-runTypeCheckExpr e = evalStateT (typecheckExpr e) std
+  :: MonadIO m => Expr AlexPosn -> ExceptT TypeCheckExceptions m (Expr AlexPosn)
+runTypeCheckExpr e = fmap snd $ evalStateT (typecheckExpr e) std
 
 runTypeCheckModule
   :: MonadIO m

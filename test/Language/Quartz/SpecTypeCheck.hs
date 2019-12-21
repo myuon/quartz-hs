@@ -11,9 +11,9 @@ import Test.Tasty.Hspec hiding (Failure, Success)
 import Text.RawString.QQ
 
 runTypeCheck r1 r2 = do
-  result <- runExceptT $ runTypeCheckExpr r1
+  result <- runExceptT $ inferTypeE r1
   case result of
-    Right (v, _)   -> v `shouldBe` r2
+    Right v   -> v `shouldBe` r2
     Left  err -> fail $ show err
 
 check s = do
