@@ -41,6 +41,7 @@ data Expr posn
   | RecordOf String [(String, Expr posn)]
   | EnumOf Id [Expr posn]
   | Assign (Expr posn) (Expr posn)
+  | MethodOf String String
   deriving (Eq, Show)
 
 newtype MArray posn = MArray { getMArray :: MutableArray RealWorld (Expr posn) }
@@ -82,7 +83,6 @@ data Decl posn
   | Record String [String] [RecordField]
   | OpenD Id
   | Func String (Closure posn)
-  | Method String (Closure posn)
   | ExternalFunc String ArgTypes
   | Trait String [String] [FuncType]
   | Instance String [String] (Maybe Type) [Decl posn]

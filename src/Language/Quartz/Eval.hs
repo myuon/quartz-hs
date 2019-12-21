@@ -196,8 +196,6 @@ evalD decl = go [] decl
     Func d body ->
       modify $ \ctx ->
         ctx { exprs = M.insert (Id [d]) (ClosureE body) (exprs ctx) }
-    Method d _ ->
-      modify $ \ctx -> ctx { decls = PathTree.insert [d] decl (decls ctx) }
     ExternalFunc name (ArgTypes tyvars args ret) -> do
       bs <- mapM (\_ -> fresh) args
       let args' = zipWith (\b (_, t) -> (b, t)) bs args

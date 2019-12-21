@@ -347,7 +347,6 @@ typecheckModule ds = mapM_ check ds
         { schemes = M.insert (Id [name]) (Scheme tyvars $ apply s ty)
           $ schemes ctx
         }
-    Method _ c -> typecheckExpr (ClosureE c) >> return ()
     ExternalFunc name (ArgTypes tyvars args ret) -> modify $ \ctx -> ctx
       { schemes = M.insert
           (Id [name])
