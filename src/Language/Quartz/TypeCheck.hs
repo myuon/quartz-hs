@@ -134,7 +134,7 @@ algoW expr = case expr of
           ( \(s1, t1, e0) e -> do
             (s2, t2, e') <- algoW e
             s3           <- lift $ mgu t1 t2
-            return (s3 `compose` s2 `compose` s1, apply s3 t2, e0 ++ [e'])
+            return (s3 `compose` s2 `compose` s1, apply s3 t2, e' : e0)
           )
           (emptySubst, VarType b, [])
           es
@@ -168,7 +168,11 @@ algoW expr = case expr of
       )
   FnCall f [] -> algoW f
   FnCall f es ->
-    fmap (\(x, y, z) -> (x, y, FnCall f $ reverse z)) $ appW $ reverse $ f : es
+    fmap (\(x, y, z) -> (x, y, let (f':es') = reverse z in FnCall f' es'))
+      $ appW
+      $ reverse
+      $ f
+      : es
   Let x expr -> do
     (s1, t1, expr') <- algoW expr
     modify $ \ctx -> apply
@@ -229,13 +233,13 @@ algoW expr = case expr of
         ctx     <- get
         (_, rc) <- lift $ records ctx M.!? name ?? NotFound Nothing name
         t2      <- lift $ lookup v1 rc ?? NotFound Nothing (Id [v1])
-        return (s1, t2, e1')
+        return (s1, t2, Member e1' v1)
       VarType _                -> lift $ throwE $ CannotInfer e1
       AppType (ConType name) _ -> do
         ctx     <- get
         (_, rc) <- lift $ records ctx M.!? name ?? NotFound Nothing name
         t2      <- lift $ lookup v1 rc ?? NotFound Nothing (Id [v1])
-        return (s1, t2, e1')
+        return (s1, t2, Member e1' v1)
   RecordOf name fields -> do
     ctx          <- get
     (tyvars, rc) <- lift $ records ctx M.!? (Id [name]) ?? NotFound
@@ -376,7 +380,7 @@ typecheckModule ds = mapM check ds
           $ schemes ctx
         }
 
-      return $ Func name (Closure argtypes c')
+      return $ Func name $ (\(ClosureE f) -> f) c'
     ExternalFunc name (ArgTypes tyvars args ret) -> do
       modify $ \ctx -> ctx
         { schemes = M.insert
