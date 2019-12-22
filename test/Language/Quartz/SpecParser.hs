@@ -145,7 +145,7 @@ spec_parser = do
       parseD "open List::Foo::Bar::*;" `shouldBe` OpenD (Id ["List", "Foo", "Bar", "*"])
 
       parseD [r|
-        instance Nat {
+        derive Nat {
           func is_zero(self): bool {
             match self {
               Zero => true,
@@ -154,7 +154,7 @@ spec_parser = do
           }
         }
       |]
-        `shouldBe` Instance
+        `shouldBe` Derive
                      "Nat"
                      []
                      Nothing
@@ -259,22 +259,22 @@ spec_parser = do
         )
 
       parseD [r|
-        trait IState {
+        interface IState {
           func get<T>(self, i: int): T;
           func put<T>(self, i: int, val: T);
         }
-      |] `shouldBe` Trait "IState" [] [
+      |] `shouldBe` Interface "IState" [] [
           FuncType "get" (ArgTypes ["T"] [("self", SelfType), ("i", ConType (Id ["int"]))] (VarType "T")),
           FuncType "put" (ArgTypes ["T"] [("self", SelfType), ("i", ConType (Id ["int"])), ("val", VarType "T")] (ConType (Id ["unit"])))
         ]
 
       parseD [r|
-        instance IState for array<int> {
+        derive IState for array<int> {
           func get<T>(self, i: int): T {
             self[i]
           }
         }
-      |] `shouldBe` Instance "IState" [] (Just (AppType (ConType (Id ["array"])) [ConType (Id ["int"])]))
+      |] `shouldBe` Derive "IState" [] (Just (AppType (ConType (Id ["array"])) [ConType (Id ["int"])]))
           [ Func "get" (Closure (ArgTypes ["T"] [("self", SelfType), ("i", ConType (Id ["int"]))] (VarType "T")) (Procedure [
             IndexArray (Self SelfType) (Var Nothing (Id ["i"]))
           ]))

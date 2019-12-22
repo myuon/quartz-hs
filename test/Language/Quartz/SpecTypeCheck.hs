@@ -184,12 +184,12 @@ spec_typecheck = do
       |]
 
       check [r|
-        trait Hoge<T> {
+        interface Hoge<T> {
           func doSth(x: T);
           func get(self): T;
         }
 
-        instance Hoge<T> for int {
+        derive Hoge<T> for int {
           func get(self): T {
             100
           }

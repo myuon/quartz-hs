@@ -159,20 +159,25 @@ spec_quartz = do
         Succ(Nat),
       }
 
-      trait Foo {
+      interface Foo {
         func is_zero(self): bool;
+        func identity(self): self;
       }
 
-      instance Foo for Nat {
+      derive Foo for Nat {
         func is_zero(self): bool {
           match self {
             Nat::Zero => true,
             Nat::Succ(_) => false,
           }
         }
+
+        func identity(self): self {
+          self
+        }
       }
 
       func main(): bool {
-        Nat::Zero.is_zero()
+        Nat::Zero.identity().is_zero()
       }
     |] `evalDTo` Lit (BoolLit True)

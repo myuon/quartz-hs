@@ -56,9 +56,10 @@ transformVarConTypeD decl = go [] decl
       (Closure (varToConTypeArgTypes vars' args) (transformVarConTypeE expr))
     ExternalFunc name args ->
       ExternalFunc name (varToConTypeArgTypes vars' args)
-    Trait name vars fs -> Trait name vars (map (goFnType (vars' ++ vars)) fs)
-    Instance name vars implFor ds ->
-      Instance name vars implFor $ map (go (vars' ++ vars)) ds
+    Interface name vars fs ->
+      Interface name vars (map (goFnType (vars' ++ vars)) fs)
+    Derive name vars implFor ds ->
+      Derive name vars implFor $ map (go (vars' ++ vars)) ds
 
   goEnumField vars (EnumField s ts) = EnumField s (map (varToConType vars) ts)
   goRecordField vars (RecordField s t) = RecordField s (varToConType vars t)
@@ -68,8 +69,11 @@ transformVarConTypeD decl = go [] decl
 transformSelfTypeE :: Type -> Expr posn -> Expr posn
 transformSelfTypeE typ expr = go expr
  where
-  apply SelfType = typ
-  apply t        = t
+  apply t typ = case typ of
+    SelfType         -> t
+    FnType  args ret -> FnType (map (apply t) args) (apply t ret)
+    AppType t1   ts  -> AppType (apply t t1) (map (apply t) ts)
+    _                -> typ
 
   go expr = case expr of
     Var _ _                   -> expr
@@ -92,20 +96,22 @@ transformSelfTypeE typ expr = go expr
     RecordOf s  es            -> RecordOf s (map (\(x, y) -> (x, go y)) es)
     EnumOf   s  es            -> EnumOf s (map go es)
     Assign   e1 e2            -> Assign (go e1) (go e2)
-    Self typ                  -> Self (apply typ)
+    Self selfType             -> Self (apply typ selfType)
 
   goArgTypes (ArgTypes vars args ret) =
-    ArgTypes vars (map (\(x, y) -> (x, apply y)) args) (apply ret)
+    ArgTypes vars (map (\(x, y) -> (x, apply typ y)) args) (apply typ ret)
 
 transformSelfTypeD :: Decl posn -> Decl posn
 transformSelfTypeD decl = case decl of
-  Instance name vars (Just t) decls ->
-    Instance name vars (Just t) $ map (go t) decls
+  Derive name vars (Just t) decls ->
+    Derive name vars (Just t) $ map (go t) decls
   _ -> decl
  where
   apply t typ = case typ of
-    SelfType -> t
-    _        -> typ
+    SelfType         -> t
+    FnType  args ret -> FnType (map (apply t) args) (apply t ret)
+    AppType t1   ts  -> AppType (apply t t1) (map (apply t) ts)
+    _                -> typ
 
   goArgTypes t (ArgTypes vars args ret) =
     ArgTypes vars (map (\(x, y) -> (x, apply t y)) args) (apply t ret)

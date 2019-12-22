@@ -13,7 +13,6 @@ tokens :-
   func { wrap (\_ -> TFunc) }
   enum { wrap (\_ -> TEnum) }
   record { wrap $ \_ -> TRecord }
-  instance { wrap $ \_ -> TInstance }
   open { wrap $ \_ -> TOpen }
   let { wrap $ \_ -> TLet }
   self { wrap $ \_ -> TSelf }
@@ -23,7 +22,8 @@ tokens :-
   in { wrap $ \_ -> TIn }
   if { wrap $ \_ -> TIf }
   else { wrap $ \_ -> TElse }
-  trait { wrap $ \_ -> TTrait }
+  interface { wrap $ \_ -> TInterface }
+  derive { wrap $ \_ -> TDerive }
 
   -- 避けられるなら予約語から外したい
   true { wrap $ \_ -> TTrue }
@@ -57,7 +57,6 @@ data Token
   = TFunc
   | TEnum
   | TRecord
-  | TInstance
   | TOpen
   | TLet
   | TSelf
@@ -69,7 +68,8 @@ data Token
   | TElse
   | TTrue
   | TFalse
-  | TTrait
+  | TInterface
+  | TDerive
   | TLAngle
   | TRAngle
   | TLParen

@@ -17,21 +17,37 @@ func two(): Nat {
   Nat::Succ(Nat::Succ(Nat::Zero))
 }
 
-func pred(n: Nat): Nat {
-  match n {
-    Nat::Succ(m) => m,
-    _ => Nat::Zero,
-  }
+interface Numeric {
+  func is_zero(self): bool;
+  func pred(self): self;
+  func add(self, other: self): self;
 }
 
-func add(n: Nat, m: Nat): Nat {
-  match n {
-    Nat::Zero => m,
-    Nat::Succ(n2) => Nat::Succ(add(n2,m))
+derive Numeric for Nat {
+  func is_zero(self): bool {
+    match self {
+      Nat::Zero => true,
+      Nat::Succ(_) => false,
+    }
+  }
+
+  func pred(self): self {
+    match self {
+      Nat::Succ(m) => m,
+      _ => Nat::Zero,
+    }
+  }
+
+  func add(self, other: self): self {
+    match self {
+      Nat::Zero => m,
+      Nat::Succ(n) => Nat::Succ(n.add(other))
+    }
   }
 }
 
 func main() {
-  println(pred(two()));
-  println(add(two(), one()));
+  println(two().is_zero());
+  println(two().pred());
+  println(two().add(one()));
 }

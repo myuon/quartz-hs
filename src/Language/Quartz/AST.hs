@@ -88,8 +88,8 @@ data Decl posn
   | OpenD Id
   | Func String (Closure posn)
   | ExternalFunc String ArgTypes
-  | Trait String [String] [FuncType]
-  | Instance String [String] (Maybe Type) [Decl posn]
+  | Interface String [String] [FuncType]
+  | Derive String [String] (Maybe Type) [Decl posn]
   deriving (Eq, Show)
 
 data EnumField = EnumField String [Type]

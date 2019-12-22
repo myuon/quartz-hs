@@ -23,7 +23,7 @@
       "patterns": [
         {
           "name": "keyword.control.quartz",
-          "match": "\\b(external func|func|if|for|record|enum|match)\\b"
+          "match": "\\b(external func|func|if|for|record|enum|match|derive|interface)\\b"
         },
         {
           "name": "keyword.other.quartz",
@@ -71,6 +71,10 @@
         {
           "name": "constant.language.bool.quartz",
           "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "constant.language.self.quartz",
+          "match": "\\b(self)\\b"
         }
       ]
     },

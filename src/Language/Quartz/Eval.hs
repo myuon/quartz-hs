@@ -213,14 +213,14 @@ evalD decl = go [] decl
           (ArgTypes tyvars args' ret)
           (FFI (Id [name]) (map (\n -> Var Nothing (Id [n])) $ map fst args'))
         )
-    Trait _ _ _                   -> return ()
-    Instance name _ (Just typ) ds -> modify $ \ctx -> ctx
+    Interface _ _ _             -> return ()
+    Derive name _ (Just typ) ds -> modify $ \ctx -> ctx
       { impls = foldl'
         (\mp d@(Func name body) -> M.insert (name, typ) (ClosureE body) mp)
         (impls ctx)
         ds
       }
-    Instance name _ _ _ -> error "not yet implemented"
+    Derive name _ _ _ -> error "not yet implemented"
 
 std :: Context
 std = Context

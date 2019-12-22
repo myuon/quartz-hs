@@ -15,19 +15,17 @@ data Context = Context {
   schemes :: M.Map Id Scheme,
   records :: M.Map Id ([String], [(String, Type)]),
   enums :: M.Map Id [(String, [Type])],
-  selfType :: Maybe Type,
   traits :: M.Map String [FuncType],
   impls :: M.Map String [String]
 } deriving (Eq, Show)
 
 std :: Context
 std = Context
-  { schemes  = M.empty
-  , records  = M.empty
-  , selfType = Nothing
-  , enums    = M.empty
-  , traits   = M.empty
-  , impls    = M.empty
+  { schemes = M.empty
+  , records = M.empty
+  , enums   = M.empty
+  , traits  = M.empty
+  , impls   = M.empty
   }
 
 data TypeCheckExceptions
@@ -285,6 +283,14 @@ algoW expr = case expr of
   Self typ -> return (emptySubst, typ, Var Nothing (Id ["self"]))
   _        -> error $ show expr
  where
+  selfTypeToVar typ b = go typ
+   where
+    go typ = case typ of
+      FnType  xs y  -> FnType (map go xs) (go y)
+      AppType x  ys -> AppType (go x) (map go ys)
+      SelfType      -> VarType b
+      _             -> typ
+
   memberW
     :: MonadIO m
     => Id
@@ -315,7 +321,9 @@ algoW expr = case expr of
           ?? AmbiguousName v1
 
         -- SelfTypeを剥がす
-        let FnType (arr1:args) ret = typeOfArgs ft
+        -- ここで、interfaceの型定義はselfを含むのでこれは型変数に書き換える
+        b <- fresh
+        let FnType (arr1:args) ret = selfTypeToVar (typeOfArgs ft) b
         s2 <- lift $ mgu arr1 t1
 
         return
@@ -409,13 +417,13 @@ typecheckModule ds = mapM check ds
           $ records ctx
         }
       return d
-    Instance name x typ ds -> do
+    Derive name x typ ds -> do
       forM_ typ $ \(ConType (Id [typ'])) -> do
         modify
           $ \ctx -> ctx { impls = M.insertWith (++) typ' [name] $ impls ctx }
 
       ds' <- typecheckModule ds
-      return $ Instance name x typ ds'
+      return $ Derive name x typ ds'
     OpenD _ -> return d
     Func name c@(Closure argtypes@(ArgTypes tyvars _ _) _) -> do
       b <- fresh
@@ -438,7 +446,7 @@ typecheckModule ds = mapM check ds
           $ schemes ctx
         }
       return d
-    Trait s _ fs -> do
+    Interface s _ fs -> do
       modify $ \ctx -> ctx { traits = M.insert s fs $ traits ctx }
       return d
 

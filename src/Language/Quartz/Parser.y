@@ -35,7 +35,6 @@ import Language.Quartz.AST
     FUNC { Lexeme _ TFunc }
     ENUM { Lexeme _ TEnum }
     RECORD { Lexeme _ TRecord }
-    INSTANCE { Lexeme _ TInstance }
     OPEN { Lexeme _ TOpen }
     LET { Lexeme _ TLet }
     SELF { Lexeme _ TSelf }
@@ -47,7 +46,8 @@ import Language.Quartz.AST
     ELSE { Lexeme _ TElse }
     TRUE { Lexeme _ TTrue }
     FALSE { Lexeme _ TFalse }
-    TRAIT { Lexeme _ TTrait }
+    INTERFACE { Lexeme _ TInterface }
+    DERIVE { Lexeme _ TDerive }
 
     INT { Lexeme _ (TInt $$) }
     STRLIT { Lexeme _ (TStrLit $$) }
@@ -62,8 +62,8 @@ decl
     | ENUM VAR may_generics '{' enum_fields '}'  { Enum $2 $3 $5 }
     | RECORD VAR may_generics '{' record_fields '}'  { Record $2 $3 $5 }
     | OPEN path ';'  { OpenD (Id $2) }
-    | TRAIT VAR may_generics '{' func_type_decls '}'  { Trait $2 $3 $5 }
-    | INSTANCE VAR may_generics may_for_trait '{' decls '}'  { Instance $2 $3 $4 $6 }
+    | INTERFACE VAR may_generics '{' func_type_decls '}'  { Interface $2 $3 $5 }
+    | DERIVE VAR may_generics may_for_trait '{' decls '}'  { Derive $2 $3 $4 $6 }
 
 may_for_trait :: { Maybe Type }
 may_for_trait
@@ -234,6 +234,7 @@ type :: { Type }
 type
     : '(' ')'  { ConType (Id ["unit"]) }
     | '_'  { NoType }
+    | SELF { SelfType }
     | VAR  { ConType (Id [$1]) }
     | type '<' types_comma '>'  { AppType $1 $3 }
 
