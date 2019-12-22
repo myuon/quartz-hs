@@ -321,7 +321,7 @@ algoW expr = case expr of
         return
           ( s2 `compose` s1
           , apply s2 $ FnType args ret
-          , FnCall (MethodOf name' methodName) [(Var Nothing (Id ["self"]))]
+          , MethodOf t1 methodName e1'
           )
 
   appW (e1:e2:[]) = do

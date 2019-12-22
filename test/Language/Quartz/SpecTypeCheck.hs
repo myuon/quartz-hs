@@ -59,7 +59,7 @@ spec_typecheck = do
           f
         }
       |]
-        `runTypeCheck` FnType [ConType (Id ["unit"])] (ConType (Id ["int"]))
+        `runTypeCheck` FnType [] (ConType (Id ["int"]))
 
       parseE [r|
         {

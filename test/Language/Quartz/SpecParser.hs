@@ -105,7 +105,7 @@ spec_parser = do
           f
         }
       |] `shouldBe` Procedure [
-          Let (Id ["f"]) (ClosureE (Closure (ArgTypes [] [("()", ConType (Id ["unit"]))] (ConType (Id ["int"]))) (Procedure [Lit (IntLit 10)])))
+          Let (Id ["f"]) (ClosureE (Closure (ArgTypes [] [] (ConType (Id ["int"]))) (Procedure [Lit (IntLit 10)])))
           , Var Nothing (Id ["f"])
           ]
 
@@ -184,7 +184,7 @@ spec_parser = do
       |] `shouldBe` Func "main" (Closure
         (ArgTypes
         []
-        [("()", ConType (Id ["unit"]))]
+        []
         (ConType (Id ["unit"])))
         (Procedure [FnCall (Var Nothing (Id ["println"])) [Lit (StringLit "\"Hello, World!\"")], Unit])
         )
@@ -199,7 +199,7 @@ spec_parser = do
             put(i);
           }
         }
-      |] `shouldBe` Func "f" (Closure (ArgTypes [] [("()", ConType (Id ["unit"]))] (ConType (Id ["unit"]))) (
+      |] `shouldBe` Func "f" (Closure (ArgTypes [] [] (ConType (Id ["unit"]))) (
                       Procedure [
                         ForIn "i" (Var Nothing (Id ["foo"])) [
                           FnCall (Var Nothing (Id ["put"])) [Var Nothing (Id ["i"])],
@@ -215,7 +215,7 @@ spec_parser = do
             put(i);
           }
         }
-      |] `shouldBe` Func "f" (Closure (ArgTypes [] [("()", ConType (Id ["unit"]))] (ConType (Id ["unit"]))) (
+      |] `shouldBe` Func "f" (Closure (ArgTypes [] [] (ConType (Id ["unit"]))) (
                       Procedure [
                         ForIn "i" (FnCall (Var Nothing (Id ["foo"])) [Var Nothing (Id ["y"]), Var Nothing (Id ["z"])]) [
                           FnCall (Var Nothing (Id ["put"])) [Var Nothing (Id ["i"])],

@@ -197,7 +197,7 @@ patterns
 
 args :: { [Expr AlexPosn] }
 args
-    : '(' ')'  { [Unit] }
+    : '(' ')'  { [] }
     | '(' exprs_comma ')'  { $2 }
 
 exprs_comma :: { [Expr AlexPosn] }
@@ -209,7 +209,7 @@ arg_types :: { [(String, Type)] }
 arg_types
     : VAR ':' type ',' arg_types  { ($1, $3) : $5 }
     | VAR ':' type  { [($1, $3)] }
-    | {- empty -}  { [("()", ConType (Id ["unit"]))] }
+    | {- empty -}  { [] }
 
 self_arg_types :: { [(String, Type)] }
 self_arg_types

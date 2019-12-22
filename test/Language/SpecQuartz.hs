@@ -175,4 +175,4 @@ spec_quartz = do
       func main(): bool {
         Nat::Zero.is_zero()
       }
-    |] `evalDTo` EnumOf (Id ["Nat", "Succ"]) [EnumOf (Id ["Nat", "Zero"]) []]
+    |] `evalDTo` Lit (BoolLit True)

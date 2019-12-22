@@ -19,7 +19,8 @@ import qualified Data.Primitive.Array as Array
 data Context = Context {
   decls :: PathTree.PathTree String (Decl AlexPosn),
   exprs :: M.Map Id (Expr AlexPosn),
-  ffi :: M.Map Id ([Dynamic] -> ExceptT Std.FFIExceptions IO (Expr AlexPosn))
+  ffi :: M.Map Id ([Dynamic] -> ExceptT Std.FFIExceptions IO (Expr AlexPosn)),
+  impls :: M.Map (String, Type) (Expr AlexPosn)
 }
 
 subst :: Expr AlexPosn -> String -> Expr AlexPosn -> Expr AlexPosn
@@ -70,6 +71,7 @@ data RuntimeExceptions
   | PatternExhausted
   | FFIExceptions Std.FFIExceptions
   | Unreachable (Expr AlexPosn)
+  | NumberOfArgumentsDoesNotMatch (Expr AlexPosn)
   deriving Show
 
 -- Assume renaming is done
@@ -79,23 +81,28 @@ evalE
   -> StateT Context (ExceptT RuntimeExceptions m) (Expr AlexPosn)
 evalE vm = case vm of
   _ | isNormalForm vm -> return vm
-  Var posn t -> get >>= \ctx -> lift $ exprs ctx M.!? t ?? NotFound posn t
+  Var posn t          -> do
+    ctx <- get
+    lift $ exprs ctx M.!? t ?? NotFound posn t
+
+  -- tricky part!
+  -- トレイとのメソッド呼び出しx.f(y)はT::f(x,y)と解釈し直すが、このsyntaxはFnCallが外側に来てしまっているので
+  -- 1段ネストの深いパターンマッチが必要
+  FnCall (MethodOf typ name e1) es -> do
+    ctx  <- get
+    expr <- lift $ impls ctx M.!? (name, typ) ?? NotFound Nothing (Id [name])
+    evalE $ FnCall expr (e1 : es)
+
   FnCall f xs -> do
     f'  <- evalE f
     xs' <- mapM evalE xs
-
     case f' of
-      _ | null xs' -> return f'
-      ClosureE (Closure (ArgTypes tyvars fargs ret) fbody) ->
+      ClosureE (Closure (ArgTypes tyvars fargs ret) fbody) | length fargs
+        == length xs ->
         let fbody' = foldl' (uncurry . subst) fbody
               $ zipWith (\(x, _) y -> (x, y)) fargs xs'
-        in  evalE $ case () of
-              _ | length fargs == length xs' -> fbody'
-              _ | length fargs > length xs'  -> ClosureE $ Closure
-                (ArgTypes tyvars (drop (length xs') fargs) ret)
-                fbody'
-              _ -> FnCall fbody' (drop (length fargs) xs')
-      _ -> lift $ throwE $ Unreachable vm
+        in  evalE fbody'
+      _ -> lift $ throwE $ NumberOfArgumentsDoesNotMatch vm
   Let x t -> do
     f <- evalE t
     modify $ \ctx -> ctx { exprs = M.insert x f (exprs ctx) }
@@ -206,12 +213,25 @@ evalD decl = go [] decl
           (ArgTypes tyvars args' ret)
           (FFI (Id [name]) (map (\n -> Var Nothing (Id [n])) $ map fst args'))
         )
+    Trait _ _ _                   -> return ()
+    Instance name _ (Just typ) ds -> modify $ \ctx -> ctx
+      { impls = foldl'
+        (\mp d@(Func name body) -> M.insert (name, typ) (ClosureE body) mp)
+        (impls ctx)
+        ds
+      }
+    Instance name _ _ _ -> error "not yet implemented"
 
 std :: Context
-std = Context {ffi = Std.ffi, exprs = M.empty, decls = PathTree.empty}
+std = Context
+  { ffi   = Std.ffi
+  , exprs = M.empty
+  , decls = PathTree.empty
+  , impls = M.empty
+  }
 
 runMain
   :: MonadIO m => [Decl AlexPosn] -> ExceptT RuntimeExceptions m (Expr AlexPosn)
 runMain decls = flip evalStateT std $ do
   mapM_ evalD decls
-  evalE (FnCall (Var Nothing (Id ["main"])) [Unit])
+  evalE (FnCall (Var Nothing (Id ["main"])) [])

@@ -42,7 +42,7 @@ data Expr posn
   | EnumOf Id [Expr posn]
   | Assign (Expr posn) (Expr posn)
   | Self Type
-  | MethodOf String String
+  | MethodOf Type String (Expr posn)
   deriving (Eq, Show)
 
 newtype MArray posn = MArray { getMArray :: MutableArray RealWorld (Expr posn) }
@@ -58,7 +58,7 @@ data Type
   | SelfType
   | NoType
   | FnType [Type] Type
-  deriving (Eq, Show)
+  deriving (Eq, Show, Ord)
 
 data Scheme = Scheme [String] Type
   deriving (Eq, Show)
