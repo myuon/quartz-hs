@@ -40,6 +40,7 @@ transformVarConTypeE expr = go [] expr
     RecordOf s  es   -> RecordOf s (map (\(x, y) -> (x, go vars' y)) es)
     EnumOf   s  es   -> EnumOf s (map (go vars') es)
     Assign   e1 e2   -> Assign (go vars' e1) (go vars' e2)
+    Self s           -> Self s
 
 transformVarConTypeD :: Decl posn -> Decl posn
 transformVarConTypeD decl = go [] decl
@@ -63,6 +64,38 @@ transformVarConTypeD decl = go [] decl
   goFnType vars' (FuncType name args) =
     FuncType name (varToConTypeArgTypes vars' args)
 
+transformSelfTypeE :: Type -> Expr posn -> Expr posn
+transformSelfTypeE typ expr = go expr
+ where
+  apply SelfType = typ
+  apply t        = t
+
+  go expr = case expr of
+    Var _ _                   -> expr
+    Lit _                     -> expr
+    FnCall x ys               -> FnCall x (map go ys)
+    Let    x e                -> Let x (go e)
+    ClosureE (Closure args e) -> ClosureE (Closure (goArgTypes args) (go e))
+    Match e bs                -> Match (go e) (map (\(p, e) -> (p, go e)) bs)
+    If        es              -> If (map (\(x, y) -> (go x, go y)) es)
+    Procedure es              -> Procedure (map go es)
+    Unit                      -> Unit
+    NoExpr                    -> NoExpr
+    FFI x es                  -> FFI x (map go es)
+    Array    _                -> expr
+    ArrayLit es               -> ArrayLit (map go es)
+    IndexArray e1 e2          -> IndexArray (go e1) (go e2)
+    ForIn s  e  es            -> ForIn s (go e) (map go es)
+    Op    op e1 e2            -> Op op (go e1) (go e2)
+    Member   e  r             -> Member (go e) r
+    RecordOf s  es            -> RecordOf s (map (\(x, y) -> (x, go y)) es)
+    EnumOf   s  es            -> EnumOf s (map go es)
+    Assign   e1 e2            -> Assign (go e1) (go e2)
+    Self typ                  -> Self (apply typ)
+
+  goArgTypes (ArgTypes vars args ret) =
+    ArgTypes vars (map (\(x, y) -> (x, apply y)) args) (apply ret)
+
 transformSelfTypeD :: Decl posn -> Decl posn
 transformSelfTypeD decl = case decl of
   Instance name vars (Just t) decls ->
@@ -77,4 +110,4 @@ transformSelfTypeD decl = case decl of
     ArgTypes vars (map (\(x, y) -> (x, apply t y)) args) (apply t ret)
 
   go t (Func name (Closure argtypes body)) =
-    Func name (Closure (goArgTypes t argtypes) body)
+    Func name (Closure (goArgTypes t argtypes) (transformSelfTypeE t body))

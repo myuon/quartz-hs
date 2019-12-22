@@ -68,6 +68,10 @@ mgu x y = case (x, y) of
     u1  <- mgu s1 t1
     u2s <- zipWithM mgu s2 t2
     return $ u1 `compose` foldr' compose emptySubst u2s
+
+  -- SelfTypeはメソッド呼び出し時に解決されているはずなのでここでは無視できる
+  (SelfType, _) -> return emptySubst
+  (_, SelfType) -> return emptySubst
   _ -> throwE $ TypeNotMatch x y
  where
   varBind u t | t == VarType u     = return emptySubst
@@ -232,9 +236,9 @@ algoW expr = case expr of
   Member e1 v1 -> do
     (s1, t1, e1') <- algoW e1
     case t1 of
-      ConType name             -> memberW name v1 s1 e1'
+      ConType name             -> memberW name v1 s1 t1 e1'
       VarType _                -> lift $ throwE $ CannotInfer e1
-      AppType (ConType name) _ -> memberW name v1 s1 e1'
+      AppType (ConType name) _ -> memberW name v1 s1 t1 e1'
   RecordOf name fields -> do
     ctx          <- get
     (tyvars, rc) <- lift $ records ctx M.!? (Id [name]) ?? NotFound
@@ -272,19 +276,21 @@ algoW expr = case expr of
     (s2, t2, e2') <- algoW e2
     s3            <- lift $ mgu t1 t2
     return (s3 `compose` s2 `compose` s1, apply s3 t1, Assign e1' e2')
-  _ -> error $ show expr
+  Self typ -> return (emptySubst, typ, Var Nothing (Id ["self"]))
+  _        -> error $ show expr
  where
   memberW
     :: MonadIO m
     => Id
     -> String
     -> Subst
+    -> Type
     -> Expr AlexPosn
     -> StateT
          Context
          (ExceptT TypeCheckExceptions m)
          (Subst, Type, Expr AlexPosn)
-  memberW name v1 s1 e1' = do
+  memberW name v1 s1 t1 e1' = do
     ctx <- get
 
     case name of
@@ -297,11 +303,20 @@ algoW expr = case expr of
         let functypes = filter (\ft -> nameOfFuncType ft == v1) $ concat $ map
               (traits ctx M.!)
               traitNames
-        FuncType _ ft <-
+        FuncType methodName ft <-
           lift
           $  (\t -> if length t == 1 then Just (head t) else Nothing) functypes
           ?? AmbiguousName v1
-        return (s1, typeOfArgs ft, Member e1' v1)
+
+        -- SelfTypeを剥がす
+        let ArrowType arr1 arr2 = typeOfArgs ft
+        s2 <- lift $ mgu arr1 t1
+
+        return
+          ( s2 `compose` s1
+          , apply  s2                          arr2
+          , FnCall (MethodOf name' methodName) [(Var Nothing (Id ["self"]))]
+          )
 
   appW (e1:e2:[]) = do
     b             <- VarType <$> fresh

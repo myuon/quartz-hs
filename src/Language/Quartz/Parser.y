@@ -144,7 +144,7 @@ expr_short :: { Expr AlexPosn }
 expr_short
     : literal  { Lit $1 }
     | var  { Var Nothing (Id $1) }
-    | SELF  { Var Nothing (Id ["self"]) }
+    | SELF  { Self SelfType }
     | expr_short args  { FnCall $1 $2 }
     | expr_short '.' VAR  { Member $1 $3 }
     | expr_short '[' expr ']'  { IndexArray $1 $3 }
