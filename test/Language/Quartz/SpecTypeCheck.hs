@@ -35,7 +35,7 @@ spec_typecheck = do
       parseE [r| ["aaa","bbb"][0] |] `runTypeCheck` ConType (Id ["string"])
 
       parseE [r| (x: int): int -> { x } |]
-        `runTypeCheck` (ConType (Id ["int"]) `ArrowType` ConType (Id ["int"]))
+        `runTypeCheck` FnType [ConType (Id ["int"])] (ConType (Id ["int"]))
 
       parseE [r|
         {
@@ -59,7 +59,7 @@ spec_typecheck = do
           f
         }
       |]
-        `runTypeCheck` (ConType (Id ["unit"]) `ArrowType` ConType (Id ["int"]))
+        `runTypeCheck` FnType [ConType (Id ["unit"])] (ConType (Id ["int"]))
 
       parseE [r|
         {

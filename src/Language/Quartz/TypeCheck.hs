@@ -42,10 +42,8 @@ data TypeCheckExceptions
   deriving (Eq, Show)
 
 argumentOf :: Type -> ([Type], Type)
-argumentOf ty = go ty []
- where
-  go (ArrowType t1 t2) acc = go t2 (t1 : acc)
-  go t                 acc = (reverse acc, t)
+argumentOf (FnType xs y) = (xs, y)
+argumentOf t             = ([], t)
 
 newtype Subst = Subst { getSubst :: M.Map String Type }
 
@@ -57,8 +55,9 @@ compose s1 s2 = Subst $ fmap (apply s1) (getSubst s2) `M.union` getSubst s1
 
 mgu :: MonadIO m => Type -> Type -> ExceptT TypeCheckExceptions m Subst
 mgu x y = case (x, y) of
-  (ArrowType t1 t2, ArrowType s1 s2) -> do
-    u1 <- mgu t1 s1
+  (FnType t1 t2, FnType s1 s2) -> do
+    u1s <- zipWithM mgu t1 s1
+    let u1 = foldr' compose emptySubst u1s
     u2 <- mgu (apply u1 t2) (apply u1 s2)
     return $ u1 `compose` u2
   (VarType u    , t            )          -> varBind u t
@@ -70,9 +69,9 @@ mgu x y = case (x, y) of
     return $ u1 `compose` foldr' compose emptySubst u2s
 
   -- SelfTypeはメソッド呼び出し時に解決されているはずなのでここでは無視できる
-  (SelfType, _) -> return emptySubst
-  (_, SelfType) -> return emptySubst
-  _ -> throwE $ TypeNotMatch x y
+  (SelfType, _       ) -> return emptySubst
+  (_       , SelfType) -> return emptySubst
+  _                    -> throwE $ TypeNotMatch x y
  where
   varBind u t | t == VarType u     = return emptySubst
               | u `S.member` ftv t = throwE $ OccurCheck u t
@@ -93,10 +92,10 @@ instance Apply Context where
 instance Apply Type where
   apply s typ = case typ of
     VarType n -> maybe typ id $ getSubst s M.!? n
-    ArrowType t1 t2 -> ArrowType (apply s t1) (apply s t2)
+    FnType t1s t2 -> FnType (map (apply s) t1s) (apply s t2)
     t -> t
   ftv (VarType n) = S.singleton n
-  ftv (ArrowType t1 t2) = S.union (ftv t1) (ftv t2)
+  ftv (FnType t1 t2) = S.union (S.unions $ map ftv t1) (ftv t2)
   ftv _ = S.empty
 
 fresh :: MonadIO m => m String
@@ -170,16 +169,23 @@ algoW expr = case expr of
     s2 <- lift $ mgu ret t1
     return
       ( s2 `compose` s1
-      , apply s1 $ foldr ArrowType t1 $ map snd args
+      , apply s2 $ FnType (map snd args) t1
       , ClosureE (Closure argtypes body')
       )
-  FnCall f [] -> algoW f
-  FnCall f es ->
-    fmap (\(x, y, z) -> (x, y, let (f':es') = reverse z in FnCall f' es'))
-      $ appW
-      $ reverse
-      $ f
-      : es
+  FnCall f es -> do
+    (s1, t1, f') <- algoW f
+    case t1 of
+      FnType args ret -> do
+        results <- mapM algoW es
+        -- FIXME: ここの長さがあってないときの処理
+        let s1 = foldr' compose emptySubst (map (\(x, _, _) -> x) results)
+        substs <- lift $ zipWithM mgu args (map (\(_, y, _) -> y) results)
+        let s2 = foldr' compose emptySubst substs
+        return
+          ( s1 `compose` s2
+          , apply s2 $ apply s1 ret
+          , FnCall f' $ map (\(_, _, z) -> z) results
+          )
   Let x expr -> do
     (s1, t1, expr') <- algoW expr
     modify $ \ctx -> apply
@@ -309,12 +315,12 @@ algoW expr = case expr of
           ?? AmbiguousName v1
 
         -- SelfTypeを剥がす
-        let ArrowType arr1 arr2 = typeOfArgs ft
+        let FnType (arr1:args) ret = typeOfArgs ft
         s2 <- lift $ mgu arr1 t1
 
         return
           ( s2 `compose` s1
-          , apply  s2                          arr2
+          , apply s2 $ FnType args ret
           , FnCall (MethodOf name' methodName) [(Var Nothing (Id ["self"]))]
           )
 
@@ -325,7 +331,7 @@ algoW expr = case expr of
     put $ apply s1 ctx
     (s2, t2, e1') <- algoW e1
     put ctx
-    s3 <- lift $ mgu (apply s2 t1) (ArrowType t2 b)
+    s3 <- lift $ mgu (apply s2 t1) (FnType [t2] b)
     return (s3 `compose` s2 `compose` s1, apply s3 b, [e1', e2'])
   appW (e1:es) = do
     b             <- VarType <$> fresh
@@ -334,7 +340,7 @@ algoW expr = case expr of
     put $ apply s1 ctx
     (s2, t2, e1') <- algoW e1
     put ctx
-    s3 <- lift $ mgu (apply s2 t1) (ArrowType t2 b)
+    s3 <- lift $ mgu (apply s2 t1) (FnType [t2] b)
     return (s3 `compose` s2 `compose` s1, apply s3 b, e1' : es')
 
   match
@@ -384,8 +390,9 @@ typecheckModule ds = mapM check ds
         { schemes = foldl'
           ( \mp (EnumField f typs) -> M.insert
             (Id [name, f])
-            ( Scheme tyvars
-            $ foldr ArrowType (typeApply tyvars $ ConType (Id [name])) typs
+            ( Scheme tyvars $ if null typs
+              then (typeApply tyvars $ ConType (Id [name]))
+              else FnType typs (typeApply tyvars $ ConType (Id [name]))
             )
             mp
           )
@@ -426,9 +433,8 @@ typecheckModule ds = mapM check ds
       return $ Func name $ (\(ClosureE f) -> f) c'
     ExternalFunc name (ArgTypes tyvars args ret) -> do
       modify $ \ctx -> ctx
-        { schemes = M.insert
-            (Id [name])
-            (Scheme tyvars $ foldr ArrowType ret $ map snd args)
+        { schemes = M.insert (Id [name])
+                             (Scheme tyvars $ FnType (map snd args) ret)
           $ schemes ctx
         }
       return d

@@ -166,7 +166,7 @@ spec_parser = do
                            (ConType (Id ["bool"])))
                            ( Procedure
                              [ Match
-                                 (Var Nothing (Id ["self"]))
+                                 (Self SelfType)
                                  [ (PVar (Id ["Zero"]), Lit (BoolLit True))
                                  , ( PApp (PVar (Id ["Succ"])) [PAny]
                                    , Lit (BoolLit False)
@@ -276,6 +276,6 @@ spec_parser = do
         }
       |] `shouldBe` Instance "IState" [] (Just (AppType (ConType (Id ["array"])) [ConType (Id ["int"])]))
           [ Func "get" (Closure (ArgTypes ["T"] [("self", SelfType), ("i", ConType (Id ["int"]))] (VarType "T")) (Procedure [
-            IndexArray (Var Nothing (Id ["self"])) (Var Nothing (Id ["i"]))
+            IndexArray (Self SelfType) (Var Nothing (Id ["i"]))
           ]))
           ]

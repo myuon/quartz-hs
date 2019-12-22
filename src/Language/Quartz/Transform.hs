@@ -5,9 +5,9 @@ import Language.Quartz.AST
 varToConType :: [String] -> Type -> Type
 varToConType vars t = case t of
   ConType (Id [i]) | i `elem` vars -> VarType i
-  ArrowType x y  -> ArrowType (varToConType vars x) (varToConType vars y)
-  AppType   x xs -> AppType (varToConType vars x) (map (varToConType vars) xs)
-  _              -> t
+  FnType  xs y  -> FnType (map (varToConType vars) xs) (varToConType vars y)
+  AppType x  ys -> AppType (varToConType vars x) (map (varToConType vars) ys)
+  _             -> t
 
 varToConTypeArgTypes :: [String] -> ArgTypes -> ArgTypes
 varToConTypeArgTypes vars' (ArgTypes vars args ret) = ArgTypes
@@ -50,9 +50,10 @@ transformVarConTypeD decl = go [] decl
       Enum name vars (map (goEnumField (vars' ++ vars)) efs)
     Record name vars rfs ->
       Record name vars (map (goRecordField (vars' ++ vars)) rfs)
-    OpenD s -> OpenD s
-    Func name (Closure args expr) ->
-      Func name (Closure (varToConTypeArgTypes vars' args) expr)
+    OpenD s                       -> OpenD s
+    Func name (Closure args expr) -> Func
+      name
+      (Closure (varToConTypeArgTypes vars' args) (transformVarConTypeE expr))
     ExternalFunc name args ->
       ExternalFunc name (varToConTypeArgTypes vars' args)
     Trait name vars fs -> Trait name vars (map (goFnType (vars' ++ vars)) fs)

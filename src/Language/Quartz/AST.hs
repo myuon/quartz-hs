@@ -52,12 +52,12 @@ instance Show (MArray posn) where
   show _ = "<<array>>"
 
 data Type
-  = ArrowType Type Type
-  | ConType Id
+  = ConType Id
   | VarType String
   | AppType Type [Type]
   | SelfType
   | NoType
+  | FnType [Type] Type
   deriving (Eq, Show)
 
 data Scheme = Scheme [String] Type
@@ -102,4 +102,4 @@ schemeOfArgs :: ArgTypes -> Scheme
 schemeOfArgs at@(ArgTypes vars _ _) = Scheme vars (typeOfArgs at)
 
 typeOfArgs :: ArgTypes -> Type
-typeOfArgs (ArgTypes _ args ret) = foldr ArrowType ret $ map snd args
+typeOfArgs (ArgTypes _ args ret) = FnType (map snd args) ret
