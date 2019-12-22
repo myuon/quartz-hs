@@ -40,7 +40,7 @@ derive Numeric for Nat {
 
   func add(self, other: self): self {
     match self {
-      Nat::Zero => m,
+      Nat::Zero => other,
       Nat::Succ(n) => Nat::Succ(n.add(other))
     }
   }

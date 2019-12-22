@@ -431,8 +431,12 @@ typecheckModule ds = mapM check ds
         { schemes = M.insert (Id [name]) (Scheme tyvars (VarType b))
           $ schemes ctx
         }
+
+      ctx      <- get
       (ty, c') <- typecheckExpr (ClosureE c)
       s        <- lift $ mgu (typeOfArgs argtypes) ty
+      put ctx
+
       modify $ \ctx -> ctx
         { schemes = M.insert (Id [name]) (Scheme tyvars $ apply s ty)
           $ schemes ctx
