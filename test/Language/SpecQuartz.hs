@@ -152,3 +152,27 @@ spec_quartz = do
         pred(two())
       }
     |] `evalDTo` EnumOf (Id ["Nat", "Succ"]) [EnumOf (Id ["Nat", "Zero"]) []]
+
+    specify "trait" $ [r|
+      enum Nat {
+        Zero,
+        Succ(Nat),
+      }
+
+      trait Foo {
+        func is_zero(self): bool;
+      }
+
+      instance Foo for Nat {
+        func is_zero(self): bool {
+          match self {
+            Nat::Zero => true,
+            Nat::Succ(_) => false,
+          }
+        }
+      }
+
+      func main(): bool {
+        Nat::Zero.is_zero()
+      }
+    |] `evalDTo` EnumOf (Id ["Nat", "Succ"]) [EnumOf (Id ["Nat", "Zero"]) []]

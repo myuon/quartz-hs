@@ -229,17 +229,9 @@ algoW expr = case expr of
   Member e1 v1 -> do
     (s1, t1, e1') <- algoW e1
     case t1 of
-      ConType name -> do
-        ctx     <- get
-        (_, rc) <- lift $ records ctx M.!? name ?? NotFound Nothing name
-        t2      <- lift $ lookup v1 rc ?? NotFound Nothing (Id [v1])
-        return (s1, t2, Member e1' v1)
+      ConType name             -> memberW name v1 s1 e1'
       VarType _                -> lift $ throwE $ CannotInfer e1
-      AppType (ConType name) _ -> do
-        ctx     <- get
-        (_, rc) <- lift $ records ctx M.!? name ?? NotFound Nothing name
-        t2      <- lift $ lookup v1 rc ?? NotFound Nothing (Id [v1])
-        return (s1, t2, Member e1' v1)
+      AppType (ConType name) _ -> memberW name v1 s1 e1'
   RecordOf name fields -> do
     ctx          <- get
     (tyvars, rc) <- lift $ records ctx M.!? (Id [name]) ?? NotFound
@@ -279,6 +271,22 @@ algoW expr = case expr of
     return (s3 `compose` s2 `compose` s1, apply s3 t1, Assign e1' e2')
   _ -> error $ show expr
  where
+  memberW
+    :: MonadIO m
+    => Id
+    -> String
+    -> Subst
+    -> Expr AlexPosn
+    -> StateT
+         Context
+         (ExceptT TypeCheckExceptions m)
+         (Subst, Type, Expr AlexPosn)
+  memberW name v1 s1 e1' = do
+    ctx     <- get
+    (_, rc) <- lift $ records ctx M.!? name ?? NotFound Nothing name
+    t2      <- lift $ lookup v1 rc ?? NotFound Nothing (Id [v1])
+    return (s1, t2, Member e1' v1)
+
   appW (e1:e2:[]) = do
     b             <- VarType <$> fresh
     ctx           <- get
@@ -363,9 +371,11 @@ typecheckModule ds = mapM check ds
           $ records ctx
         }
       return d
-    Instance name x y ds -> do
+    Instance name x typ ds -> do
+      --let st' =
+      --      maybe st (\typ' -> Subst $ M.insert "?self" typ' $ getSubst st) typ
       ds' <- typecheckModule ds
-      return $ Instance name x y ds'
+      return $ Instance name x typ ds'
     OpenD _ -> return d
     Func name c@(Closure argtypes@(ArgTypes tyvars _ _) _) -> do
       b <- fresh
