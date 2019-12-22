@@ -78,6 +78,9 @@ data Closure posn = Closure ArgTypes (Expr posn)
 data FuncType = FuncType String ArgTypes
   deriving (Eq, Show)
 
+nameOfFuncType :: FuncType -> String
+nameOfFuncType (FuncType name _) = name
+
 data Decl posn
   = Enum String [String] [EnumField]
   | Record String [String] [RecordField]

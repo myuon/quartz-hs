@@ -16,7 +16,8 @@ data Context = Context {
   records :: M.Map Id ([String], [(String, Type)]),
   enums :: M.Map Id [(String, [Type])],
   selfType :: Maybe Type,
-  traits :: M.Map String [FuncType]
+  traits :: M.Map String [FuncType],
+  impls :: M.Map String [String]
 } deriving (Eq, Show)
 
 std :: Context
@@ -26,6 +27,7 @@ std = Context
   , selfType = Nothing
   , enums    = M.empty
   , traits   = M.empty
+  , impls    = M.empty
   }
 
 data TypeCheckExceptions
@@ -36,6 +38,7 @@ data TypeCheckExceptions
   | OccurCheck String Type
   | CannotInfer (Expr AlexPosn)
   | PatternNotMatch Pattern Type
+  | AmbiguousName String
   deriving (Eq, Show)
 
 argumentOf :: Type -> ([Type], Type)
@@ -282,10 +285,23 @@ algoW expr = case expr of
          (ExceptT TypeCheckExceptions m)
          (Subst, Type, Expr AlexPosn)
   memberW name v1 s1 e1' = do
-    ctx     <- get
-    (_, rc) <- lift $ records ctx M.!? name ?? NotFound Nothing name
-    t2      <- lift $ lookup v1 rc ?? NotFound Nothing (Id [v1])
-    return (s1, t2, Member e1' v1)
+    ctx <- get
+
+    case name of
+      _ | name `M.member` records ctx -> do
+        (_, rc) <- lift $ records ctx M.!? name ?? NotFound Nothing name
+        t2      <- lift $ lookup v1 rc ?? NotFound Nothing (Id [v1])
+        return (s1, t2, Member e1' v1)
+      Id [name'] | name' `M.member` impls ctx -> do
+        traitNames <- lift $ impls ctx M.!? name' ?? NotFound Nothing name
+        let functypes = filter (\ft -> nameOfFuncType ft == v1) $ concat $ map
+              (traits ctx M.!)
+              traitNames
+        FuncType _ ft <-
+          lift
+          $  (\t -> if length t == 1 then Just (head t) else Nothing) functypes
+          ?? AmbiguousName v1
+        return (s1, typeOfArgs ft, Member e1' v1)
 
   appW (e1:e2:[]) = do
     b             <- VarType <$> fresh
@@ -372,8 +388,10 @@ typecheckModule ds = mapM check ds
         }
       return d
     Instance name x typ ds -> do
-      --let st' =
-      --      maybe st (\typ' -> Subst $ M.insert "?self" typ' $ getSubst st) typ
+      forM_ typ $ \(ConType (Id [typ'])) -> do
+        modify
+          $ \ctx -> ctx { impls = M.insertWith (++) typ' [name] $ impls ctx }
+
       ds' <- typecheckModule ds
       return $ Instance name x typ ds'
     OpenD _ -> return d

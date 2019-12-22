@@ -22,7 +22,7 @@ library
     Language.Quartz.AST
     Language.Quartz.Lexer
     Language.Quartz.Parser
-    Language.Quartz.Renamer
+    Language.Quartz.Transform
     Language.Quartz.Std
     Language.Quartz.TypeCheck
     Language.Quartz.Eval

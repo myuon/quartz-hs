@@ -20,7 +20,7 @@ import Data.Bifunctor
 import Language.Quartz.AST
 import Language.Quartz.Lexer
 import Language.Quartz.Parser
-import Language.Quartz.Renamer
+import Language.Quartz.Transform
 import Language.Quartz.TypeCheck
 import Language.Quartz.Eval
 
@@ -53,6 +53,6 @@ runModule s =
   runExceptT
     $   ($ s)
     $   (withExceptT ParseError . ExceptT . return . parseModule)
-    >=> (return . map transformVarConTypeD)
+    >=> (return . map (transformSelfTypeD . transformVarConTypeD))
     >=> (withExceptT TypeCheckError . runTypeCheckModule)
     >=> (withExceptT EvalError . runMain)

@@ -5,7 +5,7 @@ import Control.Error
 import Language.Quartz.Lexer (alexScanTokens)
 import Language.Quartz.AST
 import Language.Quartz.Parser
-import Language.Quartz.Renamer
+import Language.Quartz.Transform
 import Language.Quartz.TypeCheck
 import Test.Tasty.Hspec hiding (Failure, Success)
 import Text.RawString.QQ

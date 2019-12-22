@@ -1,14 +1,13 @@
-module Language.Quartz.Renamer where
+module Language.Quartz.Transform where
 
 import Language.Quartz.AST
 
 varToConType :: [String] -> Type -> Type
 varToConType vars t = case t of
   ConType (Id [i]) | i `elem` vars -> VarType i
-  ArrowType x y -> ArrowType (varToConType vars x) (varToConType vars y)
-  AppType x xs -> AppType (varToConType vars x) (map (varToConType vars) xs)
-  SelfType -> VarType "?self"
-  _ -> t
+  ArrowType x y  -> ArrowType (varToConType vars x) (varToConType vars y)
+  AppType   x xs -> AppType (varToConType vars x) (map (varToConType vars) xs)
+  _              -> t
 
 varToConTypeArgTypes :: [String] -> ArgTypes -> ArgTypes
 varToConTypeArgTypes vars' (ArgTypes vars args ret) = ArgTypes
@@ -63,3 +62,19 @@ transformVarConTypeD decl = go [] decl
   goRecordField vars (RecordField s t) = RecordField s (varToConType vars t)
   goFnType vars' (FuncType name args) =
     FuncType name (varToConTypeArgTypes vars' args)
+
+transformSelfTypeD :: Decl posn -> Decl posn
+transformSelfTypeD decl = case decl of
+  Instance name vars (Just t) decls ->
+    Instance name vars (Just t) $ map (go t) decls
+  _ -> decl
+ where
+  apply t typ = case typ of
+    SelfType -> t
+    _        -> typ
+
+  goArgTypes t (ArgTypes vars args ret) =
+    ArgTypes vars (map (\(x, y) -> (x, apply t y)) args) (apply t ret)
+
+  go t (Func name (Closure argtypes body)) =
+    Func name (Closure (goArgTypes t argtypes) body)
