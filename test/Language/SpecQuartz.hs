@@ -181,3 +181,19 @@ spec_quartz = do
         Nat::Zero.identity().is_zero()
       }
     |] `evalDTo` Lit (BoolLit True)
+
+    specify "factorial" $ [r|
+      external func subtract(n: int, m: int): int;
+      external func mult(n: int, m: int): int;
+
+      func factorial(n: int): int {
+        if {
+          n == 0 => { 1 },
+          true => { mult(n, factorial(subtract(n, 1))) },
+        }
+      }
+
+      func main(): int {
+        factorial(10)
+      }
+    |] `evalDTo` Lit (IntLit 3628800)

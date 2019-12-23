@@ -44,6 +44,7 @@ argumentOf (FnType xs y) = (xs, y)
 argumentOf t             = ([], t)
 
 newtype Subst = Subst { getSubst :: M.Map String Type }
+  deriving (Eq, Show)
 
 emptySubst :: Subst
 emptySubst = Subst M.empty
@@ -184,6 +185,7 @@ algoW expr = case expr of
           , apply s2 $ apply s1 ret
           , FnCall f' $ map (\(_, _, z) -> z) results
           )
+      _ -> error $ show (FnCall f es, t1)
   Let x expr -> do
     (s1, t1, expr') <- algoW expr
     modify $ \ctx -> apply
@@ -426,21 +428,19 @@ typecheckModule ds = mapM check ds
       return $ Derive name x typ ds'
     OpenD _ -> return d
     Func name c@(Closure argtypes@(ArgTypes tyvars _ _) _) -> do
-      b <- fresh
       modify $ \ctx -> ctx
-        { schemes = M.insert (Id [name]) (Scheme tyvars (VarType b))
+        { schemes = M.insert (Id [name]) (Scheme tyvars (typeOfArgs argtypes))
           $ schemes ctx
         }
 
       ctx      <- get
       (ty, c') <- typecheckExpr (ClosureE c)
-      s        <- lift $ mgu (typeOfArgs argtypes) ty
       put ctx
 
-      modify $ \ctx -> ctx
-        { schemes = M.insert (Id [name]) (Scheme tyvars $ apply s ty)
-          $ schemes ctx
-        }
+      modify
+        $ \ctx -> ctx
+            { schemes = M.insert (Id [name]) (Scheme tyvars ty) $ schemes ctx
+            }
 
       return $ Func name $ (\(ClosureE f) -> f) c'
     ExternalFunc name (ArgTypes tyvars args ret) -> do

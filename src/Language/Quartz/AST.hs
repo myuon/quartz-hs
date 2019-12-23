@@ -29,7 +29,6 @@ data Expr posn
   | If [(Expr posn, Expr posn)]
   | Procedure [Expr posn]
   | Unit
-  | NoExpr
   | FFI Id [Expr posn]
   -- primitiveのときはMutableByteArrayにしたい
   | Array (MArray posn)

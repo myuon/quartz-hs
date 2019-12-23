@@ -25,15 +25,33 @@ data Context = Context {
 
 subst :: Expr AlexPosn -> String -> Expr AlexPosn -> Expr AlexPosn
 subst expr var term = case expr of
-  Var    _ y | y == Id [var] -> term
-  FnCall f xs                -> FnCall f (map (\x -> subst x var term) xs)
-  Let    x t                 -> Let x (subst t var term)
-  Match e args -> Match (subst e var term)
-                        (map (\(pat, br) -> (pat, subst br var term)) args)
-  Procedure es  -> Procedure $ map (\x -> subst x var term) es
-  FFI    p   es -> FFI p $ map (\x -> subst x var term) es
-  EnumOf con ts -> EnumOf con (map (\x -> subst x var term) ts)
-  _             -> expr
+  Var _ y | y == Id [var] -> term
+  Var _ _                 -> expr
+  Lit _                   -> expr
+  FnCall f xs             -> FnCall f (map (\x -> subst x var term) xs)
+  Let    x t              -> Let x (subst t var term)
+  -- FIXME: shadowingしてる場合
+  ClosureE (Closure argtypes expr) ->
+    ClosureE (Closure argtypes (subst expr var term))
+  OpenE _ -> expr
+  Match e args ->
+    Match (subst e var term) (map (\(pat, br) -> (pat, subst br var term)) args)
+  If args ->
+    If (map (\(pat, br) -> (subst pat var term, subst br var term)) args)
+  Procedure es     -> Procedure $ map (\x -> subst x var term) es
+  Unit             -> expr
+  FFI p es         -> FFI p $ map (\x -> subst x var term) es
+  Array    _       -> expr
+  ArrayLit xs      -> ArrayLit (map (\x -> subst x var term) xs)
+  IndexArray e1 e2 -> IndexArray (subst e1 var term) (subst e2 var term)
+  ForIn v e es -> ForIn v (subst e var term) (map (\x -> subst x var term) es)
+  Op    op e1 e2   -> Op op (subst e1 var term) (subst e2 var term)
+  Member   e1  s   -> Member (subst e1 var term) s
+  RecordOf s   xs  -> RecordOf s (map (\(x, y) -> (x, subst y var term)) xs)
+  EnumOf   con ts  -> EnumOf con (map (\x -> subst x var term) ts)
+  Assign   e1  e2  -> Assign (subst e1 var term) (subst e2 var term)
+  Self _           -> expr
+  MethodOf t s e   -> MethodOf t s (subst e var term)
 
 isNormalForm :: Expr AlexPosn -> Bool
 isNormalForm vm = case vm of
@@ -98,10 +116,10 @@ evalE vm = case vm of
     xs' <- mapM evalE xs
     case f' of
       ClosureE (Closure (ArgTypes tyvars fargs ret) fbody) | length fargs
-        == length xs ->
+        == length xs                                                      -> do
         let fbody' = foldl' (uncurry . subst) fbody
               $ zipWith (\(x, _) y -> (x, y)) fargs xs'
-        in  evalE fbody'
+        evalE fbody'
       _ -> lift $ throwE $ NumberOfArgumentsDoesNotMatch vm
   Let x t -> do
     f <- evalE t
@@ -155,6 +173,7 @@ evalE vm = case vm of
         case result of
           Lit (BoolLit True ) -> evalE br
           Lit (BoolLit False) -> cont others
+          _                   -> error $ show result
     )
     brs
   Op op e1 e2 -> do

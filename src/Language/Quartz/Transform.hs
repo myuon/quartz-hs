@@ -29,7 +29,6 @@ transformVarConTypeE expr = go [] expr
     If        es     -> If (map (\(x, y) -> (go vars' x, go vars' y)) es)
     Procedure es     -> Procedure (map (go vars') es)
     Unit             -> Unit
-    NoExpr           -> NoExpr
     FFI x es         -> FFI x (map (go vars') es)
     Array    _       -> expr
     ArrayLit es      -> ArrayLit (map (go vars') es)
@@ -85,7 +84,6 @@ transformSelfTypeE typ expr = go expr
     If        es              -> If (map (\(x, y) -> (go x, go y)) es)
     Procedure es              -> Procedure (map go es)
     Unit                      -> Unit
-    NoExpr                    -> NoExpr
     FFI x es                  -> FFI x (map go es)
     Array    _                -> expr
     ArrayLit es               -> ArrayLit (map go es)

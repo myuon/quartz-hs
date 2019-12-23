@@ -53,4 +53,20 @@ ffi = M.fromList
         (Lit (IntLit x'), Lit (IntLit y')) -> return $ Lit (IntLit (x' + y'))
         _ -> throwE $ InvalidExpr d1
     )
+  , ( Id ["subtract"]
+    , \[d1, d2] -> do
+      x <- (fromDynamic d1 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d1
+      y <- (fromDynamic d2 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d2
+      case (x, y) of
+        (Lit (IntLit x'), Lit (IntLit y')) -> return $ Lit (IntLit (x' - y'))
+        _ -> throwE $ InvalidExpr d1
+    )
+  , ( Id ["mult"]
+    , \[d1, d2] -> do
+      x <- (fromDynamic d1 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d1
+      y <- (fromDynamic d2 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d2
+      case (x, y) of
+        (Lit (IntLit x'), Lit (IntLit y')) -> return $ Lit (IntLit (x' * y'))
+        _ -> throwE $ InvalidExpr d1
+    )
   ]
