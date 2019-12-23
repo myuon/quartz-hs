@@ -29,8 +29,9 @@ import Language.Quartz.AST
     '*' { Lexeme _ TStar }
     '=' { Lexeme _ TEq }
     '_' { Lexeme _ TUnderscore }
-    '=='  { Lexeme _ TEq2 }
-    '::'  { Lexeme _ TColon2 }
+    '==' { Lexeme _ TEq2 }
+    '::' { Lexeme _ TColon2 }
+    '<=' { Lexeme _ TLeq }
 
     FUNC { Lexeme _ TFunc }
     ENUM { Lexeme _ TEnum }
@@ -162,6 +163,7 @@ expr
     | '<' may_generics_internal '>' '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (ArgTypes $2 $5 (maybe unitType id $7)) $9) }
 
     | expr '==' expr  { Op Eq $1 $3 }
+    | expr '<=' expr  { Op Leq $1 $3 }
     | VAR '{' record_expr '}'  { RecordOf $1 $3 }
     | expr_short  { $1 }
 

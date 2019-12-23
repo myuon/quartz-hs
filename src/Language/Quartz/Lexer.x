@@ -48,6 +48,7 @@ tokens :-
   \= { wrap $ \_ -> TEq }
   \== { wrap $ \_ -> TEq2 }
   \_ { wrap $ \_ -> TUnderscore }
+  \<= { wrap $ \_ -> TLeq }
   $digit+ { wrap (TInt . read) }
   [$alpha \_] [$alpha $digit \_]* { wrap TVar }
   @string { wrap TStrLit }
@@ -89,6 +90,7 @@ data Token
   | TEq
   | TEq2
   | TUnderscore
+  | TLeq
   | TInt Int
   | TVar String
   | TStrLit String

@@ -179,9 +179,11 @@ evalE vm = case vm of
   Op op e1 e2 -> do
     r1 <- evalE e1
     r2 <- evalE e2
-    case op of
-      Eq ->
+    case (op, r1, r2) of
+      (Eq, _, _) ->
         return $ if r1 == r2 then Lit (BoolLit True) else Lit (BoolLit False)
+      (Leq, Lit (IntLit x), Lit (IntLit y)) ->
+        return $ if x <= y then Lit (BoolLit True) else Lit (BoolLit False)
   Member e1 v1 -> do
     r1 <- evalE e1
     case r1 of

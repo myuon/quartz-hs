@@ -239,6 +239,14 @@ algoW expr = case expr of
         s3 <- lift $ mgu t1 t2
         return
           (s3 `compose` s2 `compose` s1, ConType (Id ["bool"]), Op op e1' e2')
+      Leq -> do
+        s3 <- lift $ mgu t1 (ConType (Id ["int"]))
+        s4 <- lift $ mgu t2 (ConType (Id ["int"]))
+        return
+          ( s4 `compose` s3 `compose` s2 `compose` s1
+          , ConType (Id ["bool"])
+          , Op op e1' e2'
+          )
   Member e1 v1 -> do
     (s1, t1, e1') <- algoW e1
     case t1 of

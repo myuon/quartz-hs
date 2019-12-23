@@ -16,6 +16,7 @@ data Id = Id [String]
 
 data Op
   = Eq
+  | Leq
   deriving (Eq, Show)
 
 data Expr posn

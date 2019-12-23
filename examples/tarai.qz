@@ -1,0 +1,22 @@
+external func println<A>(arg: A);
+external func subtract(n: int, m: int): int;
+external func mult(n: int, m: int): int;
+
+func dec(x: int): int {
+  subtract(x, 1)
+}
+
+func tarai(x: int, y: int, z: int): int {
+  if {
+    (x <= y) => y,
+    true => tarai(
+      tarai(dec(x),y,z),
+      tarai(dec(y),z,x),
+      tarai(dec(z),x,y)
+    ),
+  }
+}
+
+func main() {
+  println(tarai(11,6,0));
+}
