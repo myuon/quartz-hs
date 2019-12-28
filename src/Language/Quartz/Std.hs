@@ -12,7 +12,9 @@ data FFIExceptions
   = InvalidExpr Dynamic
   deriving Show
 
-ffi :: M.Map Id ([Dynamic] -> ExceptT FFIExceptions IO (Expr AlexPosn))
+ffi
+  :: MonadIO m
+  => M.Map Id ([Dynamic] -> ExceptT FFIExceptions m (Expr AlexPosn))
 ffi = M.fromList
   [ ( Id ["println"]
     , \[d] -> do

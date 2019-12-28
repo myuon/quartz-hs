@@ -16,10 +16,10 @@ import qualified Language.Quartz.Std as Std
 import qualified Data.PathTree as PathTree
 import qualified Data.Primitive.Array as Array
 
-data Context = Context {
+data Context m = Context {
   decls :: PathTree.PathTree String (Decl AlexPosn),
   exprs :: M.Map Id (Expr AlexPosn),
-  ffi :: M.Map Id ([Dynamic] -> ExceptT Std.FFIExceptions IO (Expr AlexPosn)),
+  ffi :: M.Map Id ([Dynamic] -> ExceptT Std.FFIExceptions m (Expr AlexPosn)),
   impls :: M.Map (String, Type) (Expr AlexPosn)
 }
 
@@ -70,7 +70,7 @@ match
   :: MonadIO m
   => Pattern
   -> Expr AlexPosn
-  -> StateT Context (ExceptT RuntimeExceptions m) ()
+  -> StateT (Context m) (ExceptT RuntimeExceptions m) ()
 match pat term = case (pat, term) of
   (PVar (Id [v]), t) ->
     modify $ \ctx -> ctx { exprs = M.insert (Id [v]) t (exprs ctx) }
@@ -97,7 +97,7 @@ data RuntimeExceptions
 evalE
   :: MonadIO m
   => Expr AlexPosn
-  -> StateT Context (ExceptT RuntimeExceptions m) (Expr AlexPosn)
+  -> StateT (Context m) (ExceptT RuntimeExceptions m) (Expr AlexPosn)
 evalE vm = case vm of
   _ | isNormalForm vm -> return vm
   Var posn t          -> do
@@ -133,7 +133,7 @@ evalE vm = case vm of
         []            -> lift $ throwE PatternExhausted
         ((pat, b):bs) -> do
           ctx0   <- get
-          result <- runExceptT $ execStateT (match pat t') ctx0
+          result <- lift $ lift $ runExceptT $ execStateT (match pat t') ctx0
           case result of
             Left  _    -> cont bs
             Right ctx' -> put ctx' >> evalE b
@@ -142,7 +142,7 @@ evalE vm = case vm of
   Procedure es -> foldl' (\m e -> m >> evalE e) (return Unit) es
   FFI p es     -> get >>= \ctx -> do
     pf <- lift $ ffi ctx M.!? p ?? NotFound Nothing p
-    lift $ mapExceptT liftIO $ withExceptT FFIExceptions $ pf $ map toDyn es
+    lift $ withExceptT FFIExceptions $ pf $ map toDyn es
   ArrayLit es -> do
     let arr = Array.fromList es
     marr <- liftIO $ Array.thawArray arr 0 (Array.sizeofArray arr)
@@ -194,12 +194,12 @@ evalE vm = case vm of
 
 runEvalE
   :: MonadIO m => Expr AlexPosn -> ExceptT RuntimeExceptions m (Expr AlexPosn)
-runEvalE m = evalStateT (evalE m) std
+runEvalE m = evalStateT (evalE m) (std M.empty)
 
 evalD
   :: MonadIO m
   => Decl AlexPosn
-  -> StateT Context (ExceptT RuntimeExceptions m) ()
+  -> StateT (Context m) (ExceptT RuntimeExceptions m) ()
 evalD decl = go [] decl
  where
   go path decl = case decl of
@@ -244,9 +244,12 @@ evalD decl = go [] decl
       }
     Derive name _ _ _ -> error "not yet implemented"
 
-std :: Context
-std = Context
-  { ffi   = Std.ffi
+std
+  :: MonadIO m
+  => M.Map Id ([Dynamic] -> ExceptT Std.FFIExceptions m (Expr AlexPosn))
+  -> Context m
+std exts = Context
+  { ffi   = M.union Std.ffi exts
   , exprs = M.empty
   , decls = PathTree.empty
   , impls = M.empty
@@ -258,10 +261,9 @@ runMain = runMainWith M.empty
 
 runMainWith
   :: MonadIO m
-  => M.Map Id ([Dynamic] -> ExceptT Std.FFIExceptions IO (Expr AlexPosn))
+  => M.Map Id ([Dynamic] -> ExceptT Std.FFIExceptions m (Expr AlexPosn))
   -> [Decl AlexPosn]
   -> ExceptT RuntimeExceptions m (Expr AlexPosn)
-runMainWith lib decls =
-  flip evalStateT (std { ffi = M.union lib $ ffi std }) $ do
-    mapM_ evalD decls
-    evalE (FnCall (Var Nothing (Id ["main"])) [])
+runMainWith lib decls = flip evalStateT (std lib) $ do
+  mapM_ evalD decls
+  evalE (FnCall (Var Nothing (Id ["main"])) [])

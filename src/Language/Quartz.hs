@@ -57,7 +57,7 @@ runModule = runModuleWith M.empty
 
 runModuleWith
   :: MonadIO m
-  => M.Map Id ([Dynamic] -> ExceptT FFIExceptions IO (Expr AlexPosn))
+  => M.Map Id ([Dynamic] -> ExceptT FFIExceptions m (Expr AlexPosn))
   -> String
   -> m (Either CompilerError (Expr AlexPosn))
 runModuleWith ffi s =
