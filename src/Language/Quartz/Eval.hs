@@ -254,6 +254,14 @@ std = Context
 
 runMain
   :: MonadIO m => [Decl AlexPosn] -> ExceptT RuntimeExceptions m (Expr AlexPosn)
-runMain decls = flip evalStateT std $ do
-  mapM_ evalD decls
-  evalE (FnCall (Var Nothing (Id ["main"])) [])
+runMain = runMainWith M.empty
+
+runMainWith
+  :: MonadIO m
+  => M.Map Id ([Dynamic] -> ExceptT Std.FFIExceptions IO (Expr AlexPosn))
+  -> [Decl AlexPosn]
+  -> ExceptT RuntimeExceptions m (Expr AlexPosn)
+runMainWith lib decls =
+  flip evalStateT (std { ffi = M.union lib $ ffi std }) $ do
+    mapM_ evalD decls
+    evalE (FnCall (Var Nothing (Id ["main"])) [])
