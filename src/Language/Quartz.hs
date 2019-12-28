@@ -11,6 +11,7 @@ module Language.Quartz (
   typecheckModule,
   runExpr,
   runModule,
+  runModuleWith,
 ) where
 
 import Control.Error
