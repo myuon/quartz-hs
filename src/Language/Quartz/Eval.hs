@@ -116,11 +116,11 @@ evalE vm = case vm of
     f'  <- evalE f
     xs' <- mapM evalE xs
     case f' of
-      ClosureE (Closure (ArgTypes tyvars fargs ret) fbody) | length fargs
-        == length xs                                                      -> do
-        let fbody' = foldl' (uncurry . subst) fbody
-              $ zipWith (\(x, _) y -> (x, y)) fargs xs'
-        evalE fbody'
+      ClosureE (Closure (FuncType tyvars fargs ret) fbody)
+        | length (listArgTypes fargs) == length xs -> do
+          let fbody' =
+                foldl' (uncurry . subst) fbody $ zip (listArgNames fargs) xs'
+          evalE fbody'
       _ -> lift $ throwE $ NumberOfArgumentsDoesNotMatch vm
   Let x t -> do
     f <- evalE t
@@ -215,7 +215,7 @@ evalD decl = go [] decl
               ( if null typs
                 then EnumOf (Id [name, f]) []
                 else ClosureE
-                  ( Closure (ArgTypes [] (zip bs typs) NoType)
+                  ( Closure (FuncType [] (ArgType False $ zip bs typs) NoType)
                             (EnumOf (Id [name, f]) vars)
                   )
               )
@@ -227,14 +227,14 @@ evalD decl = go [] decl
     Func d body ->
       modify $ \ctx ->
         ctx { exprs = M.insert (Id [d]) (ClosureE body) (exprs ctx) }
-    ExternalFunc name (ArgTypes tyvars args ret) -> do
-      bs <- mapM (\_ -> fresh) args
-      let args' = zipWith (\b (_, t) -> (b, t)) bs args
+    ExternalFunc name (FuncType tyvars args ret) -> do
+      bs <- mapM (\_ -> fresh) $ (\(ArgType _ xs) -> xs) args
+      let args' = zip bs $ listArgTypes args
 
       evalD $ Func
         name
         ( Closure
-          (ArgTypes tyvars args' ret)
+          (FuncType tyvars (ArgType False args') ret)
           (FFI (Id [name]) (map (\n -> Var Nothing (Id [n])) $ map fst args'))
         )
     Interface _ _ _             -> return ()

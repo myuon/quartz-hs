@@ -15,7 +15,7 @@ data Context = Context {
   schemes :: M.Map Id Scheme,
   records :: M.Map Id ([String], [(String, Type)]),
   enums :: M.Map Id [(String, [Type])],
-  traits :: M.Map String [FuncType],
+  traits :: M.Map String [(String, FuncType)],
   impls :: M.Map String [String]
 } deriving (Eq, Show)
 
@@ -156,7 +156,7 @@ algoW expr = case expr of
       , IndexArray arr' i'
       )
   -- ここでSchemeの引数を無視しているが問題ないか？
-  ClosureE (Closure argtypes@(ArgTypes _ args ret) body) -> do
+  ClosureE (Closure functype@(FuncType _ (ArgType self args) ret) body) -> do
     (s1, t1, body') <- do
       modify $ \ctx -> ctx
         { schemes = foldl' (\mp (s, t) -> M.insert (Id [s]) (Scheme [] t) mp)
@@ -168,8 +168,8 @@ algoW expr = case expr of
     s2 <- lift $ mgu ret t1
     return
       ( s2 `compose` s1
-      , apply s2 $ FnType (map snd args) t1
-      , ClosureE (Closure argtypes body')
+      , apply s2 $ typeOfArgs functype
+      , ClosureE (Closure functype body')
       )
   FnCall f es -> do
     (s1, t1, f') <- algoW f
@@ -327,10 +327,10 @@ algoW expr = case expr of
         return (s1, t2, Member e1' v1)
       Id [name'] | name' `M.member` impls ctx -> do
         traitNames <- lift $ impls ctx M.!? name' ?? NotFound Nothing name
-        let functypes = filter (\ft -> nameOfFuncType ft == v1) $ concat $ map
+        let functypes = filter (\ft -> fst ft == v1) $ concat $ map
               (traits ctx M.!)
               traitNames
-        FuncType methodName ft <-
+        (methodName, ft) <-
           lift
           $  (\t -> if length t == 1 then Just (head t) else Nothing) functypes
           ?? AmbiguousName v1
@@ -440,7 +440,7 @@ typecheckModule ds = mapM check ds
       ds' <- typecheckModule ds
       return $ Derive name x typ ds'
     OpenD _ -> return d
-    Func name c@(Closure argtypes@(ArgTypes tyvars _ _) _) -> do
+    Func name c@(Closure argtypes@(FuncType tyvars _ _) _) -> do
       modify $ \ctx -> ctx
         { schemes = M.insert (Id [name]) (Scheme tyvars (typeOfArgs argtypes))
           $ schemes ctx
@@ -456,10 +456,10 @@ typecheckModule ds = mapM check ds
             }
 
       return $ Func name $ (\(ClosureE f) -> f) c'
-    ExternalFunc name (ArgTypes tyvars args ret) -> do
+    ExternalFunc name (FuncType tyvars arg ret) -> do
       modify $ \ctx -> ctx
         { schemes = M.insert (Id [name])
-                             (Scheme tyvars $ FnType (map snd args) ret)
+                             (Scheme tyvars $ FnType (listArgTypes arg) ret)
           $ schemes ctx
         }
       return d

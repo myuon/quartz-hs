@@ -58,8 +58,8 @@ import Language.Quartz.AST
 
 decl :: { Decl AlexPosn }
 decl
-    : EXTERNAL FUNC VAR may_generics '(' arg_types ')' may_return_type ';'  { ExternalFunc $3 (ArgTypes $4 $6 (maybe unitType id $8)) }
-    | FUNC VAR may_generics '(' self_arg_types ')' may_return_type '{' stmts '}'  { Func $2 (Closure (ArgTypes $3 $5 (maybe unitType id $7)) (Procedure $9)) }
+    : EXTERNAL FUNC VAR may_generics '(' arg_types ')' may_return_type ';'  { ExternalFunc $3 (FuncType $4 (ArgType False $6) (maybe unitType id $8)) }
+    | FUNC VAR may_generics '(' self_arg_types ')' may_return_type '{' stmts '}'  { Func $2 (Closure (FuncType $3 $5 (maybe unitType id $7)) (Procedure $9)) }
     | ENUM VAR may_generics '{' enum_fields '}'  { Enum $2 $3 $5 }
     | RECORD VAR may_generics '{' record_fields '}'  { Record $2 $3 $5 }
     | OPEN path ';'  { OpenD (Id $2) }
@@ -76,10 +76,10 @@ decls
     : decl decls  { $1 : $2 }
     | {- empty -}  { [] }
 
-func_type_decls :: { [FuncType] }
+func_type_decls :: { [(String, FuncType)] }
 func_type_decls
     : {- empty -}  { [] }
-    | FUNC VAR may_generics '(' self_arg_types ')' may_return_type ';' func_type_decls  { FuncType $2 (ArgTypes $3 $5 (maybe unitType id $7)) : $9 }
+    | FUNC VAR may_generics '(' self_arg_types ')' may_return_type ';' func_type_decls  { (,) $2 (FuncType $3 $5 (maybe unitType id $7)) : $9 }
 
 path :: { [String] }
 path
@@ -163,8 +163,8 @@ expr
     | IF '{' if_branches '}'  { If $3 }
 
     -- こうしないとちゃんとパースできないので(先読みの問題？)
-    | '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (ArgTypes [] $2 (maybe unitType id $4)) $6) }
-    | '<' may_generics_internal '>' '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (ArgTypes $2 $5 (maybe unitType id $7)) $9) }
+    | '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (FuncType [] (ArgType False $2) (maybe unitType id $4)) $6) }
+    | '<' may_generics_internal '>' '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (FuncType $2 (ArgType False $5) (maybe unitType id $7)) $9) }
 
     | expr '==' expr  { Op Eq $1 $3 }
     | expr '<=' expr  { Op Leq $1 $3 }
@@ -217,11 +217,11 @@ arg_types
     | VAR ':' type  { [($1, $3)] }
     | {- empty -}  { [] }
 
-self_arg_types :: { [(String, Type)] }
+self_arg_types :: { ArgType }
 self_arg_types
-    : SELF ',' arg_types  { ("self", SelfType) : $3 }
-    | SELF  { [("self", SelfType)] }
-    | arg_types  { $1 }
+    : SELF ',' arg_types  { ArgType True $3 }
+    | SELF  { ArgType True [] }
+    | arg_types  { ArgType False $1 }
 
 literal :: { Literal }
 literal

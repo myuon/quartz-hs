@@ -79,25 +79,29 @@ data Pattern
   | PAny
   deriving (Eq, Show)
 
-data ArgTypes = ArgTypes [String] [(String, Type)] Type
+data ArgType = ArgType Bool [(String, Type)]
   deriving (Eq, Show)
 
-data Closure posn = Closure ArgTypes (Expr posn)
+listArgTypes :: ArgType -> [Type]
+listArgTypes (ArgType self xs) =
+  (if self then (SelfType :) else id) $ map snd xs
+
+listArgNames :: ArgType -> [String]
+listArgNames (ArgType self xs) = (if self then ("self" :) else id) $ map fst xs
+
+data FuncType = FuncType [String] ArgType Type
   deriving (Eq, Show)
 
-data FuncType = FuncType String ArgTypes
+data Closure posn = Closure FuncType (Expr posn)
   deriving (Eq, Show)
-
-nameOfFuncType :: FuncType -> String
-nameOfFuncType (FuncType name _) = name
 
 data Decl posn
   = Enum String [String] [EnumField]
   | Record String [String] [RecordField]
   | OpenD Id
   | Func String (Closure posn)
-  | ExternalFunc String ArgTypes
-  | Interface String [String] [FuncType]
+  | ExternalFunc String FuncType
+  | Interface String [String] [(String, FuncType)]
   | Derive String [String] (Maybe Type) [Decl posn]
   deriving (Eq, Show)
 
@@ -107,8 +111,9 @@ data EnumField = EnumField String [Type]
 data RecordField = RecordField String Type
   deriving (Eq, Show)
 
-schemeOfArgs :: ArgTypes -> Scheme
-schemeOfArgs at@(ArgTypes vars _ _) = Scheme vars (typeOfArgs at)
+schemeOfArgs :: FuncType -> Scheme
+schemeOfArgs at@(FuncType vars _ _) = Scheme vars (typeOfArgs at)
 
-typeOfArgs :: ArgTypes -> Type
-typeOfArgs (ArgTypes _ args ret) = FnType (map snd args) ret
+typeOfArgs :: FuncType -> Type
+typeOfArgs (FuncType _ (ArgType self args) ret) =
+  FnType ((if self then (SelfType :) else id) $ map snd args) ret

@@ -9,10 +9,10 @@ varToConType vars t = case t of
   AppType x  ys -> AppType (varToConType vars x) (map (varToConType vars) ys)
   _             -> t
 
-varToConTypeArgTypes :: [String] -> ArgTypes -> ArgTypes
-varToConTypeArgTypes vars' (ArgTypes vars args ret) = ArgTypes
+varToConTypeArgTypes :: [String] -> FuncType -> FuncType
+varToConTypeArgTypes vars' (FuncType vars (ArgType self args) ret) = FuncType
   vars
-  (map (\(x, y) -> (x, varToConType (vars' ++ vars) y)) args)
+  (ArgType self $ map (\(x, y) -> (x, varToConType (vars' ++ vars) y)) args)
   (varToConType (vars' ++ vars) ret)
 
 transformVarConTypeE :: Expr posn -> Expr posn
@@ -63,8 +63,7 @@ transformVarConTypeD decl = go [] decl
 
   goEnumField vars (EnumField s ts) = EnumField s (map (varToConType vars) ts)
   goRecordField vars (RecordField s t) = RecordField s (varToConType vars t)
-  goFnType vars' (FuncType name args) =
-    FuncType name (varToConTypeArgTypes vars' args)
+  goFnType vars' (name, args) = (name, varToConTypeArgTypes vars' args)
 
 transformSelfTypeE :: Type -> Expr posn -> Expr posn
 transformSelfTypeE typ expr = go expr
@@ -98,8 +97,10 @@ transformSelfTypeE typ expr = go expr
     Self selfType             -> Self (apply typ selfType)
     Stmt e                    -> Stmt $ go e
 
-  goArgTypes (ArgTypes vars args ret) =
-    ArgTypes vars (map (\(x, y) -> (x, apply typ y)) args) (apply typ ret)
+  goArgTypes (FuncType vars (ArgType self args) ret) = FuncType
+    vars
+    (ArgType self $ map (\(x, y) -> (x, apply typ y)) args)
+    (apply typ ret)
 
 transformSelfTypeD :: Decl posn -> Decl posn
 transformSelfTypeD decl = case decl of
@@ -113,8 +114,10 @@ transformSelfTypeD decl = case decl of
     AppType t1   ts  -> AppType (apply t t1) (map (apply t) ts)
     _                -> typ
 
-  goArgTypes t (ArgTypes vars args ret) =
-    ArgTypes vars (map (\(x, y) -> (x, apply t y)) args) (apply t ret)
+  goArgTypes t (FuncType vars (ArgType self args) ret) = FuncType
+    vars
+    (ArgType self $ map (\(x, y) -> (x, apply t y)) args)
+    (apply t ret)
 
   go t (Func name (Closure argtypes body)) =
     Func name (Closure (goArgTypes t argtypes) (transformSelfTypeE t body))

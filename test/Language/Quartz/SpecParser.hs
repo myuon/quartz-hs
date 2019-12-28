@@ -60,13 +60,13 @@ spec_parser = do
 
       parseE "(a: string): string -> { a }" `shouldBe` ClosureE
         ( Closure
-          (ArgTypes [] [("a", ConType (Id ["string"]))] (ConType (Id ["string"])))
+          (FuncType [] (ArgType False [("a", ConType (Id ["string"]))]) (ConType (Id ["string"])))
           (Procedure [Var Nothing (Id ["a"])])
         )
 
       parseE "<A>(a: A): A -> a" `shouldBe` ClosureE
         ( Closure
-          (ArgTypes ["A"] [("a", VarType "A")] (VarType "A"))
+          (FuncType ["A"] (ArgType False [("a", VarType "A")]) (VarType "A"))
           (Var Nothing (Id ["a"]))
         )
 
@@ -80,12 +80,12 @@ spec_parser = do
       parseE "(a: int, b: int, c: int) -> { let z = sum(a,b,c); z }"
         `shouldBe` ClosureE
                      ( Closure
-                       (ArgTypes []
-                       [
+                       (FuncType []
+                       (ArgType False [
                          ("a", ConType (Id ["int"])),
                          ("b", ConType (Id ["int"])),
                          ("c", ConType (Id ["int"]))
-                       ]
+                       ])
                        (ConType (Id ["unit"])))
                        ( Procedure
                          [ Stmt $ Let
@@ -105,15 +105,15 @@ spec_parser = do
           f
         }
       |] `shouldBe` Procedure [
-          Stmt $ Let (Id ["f"]) (ClosureE (Closure (ArgTypes [] [] (ConType (Id ["int"]))) (Procedure [Lit (IntLit 10)])))
+          Stmt $ Let (Id ["f"]) (ClosureE (Closure (FuncType [] (ArgType False []) (ConType (Id ["int"]))) (Procedure [Lit (IntLit 10)])))
           , Var Nothing (Id ["f"])
           ]
 
       parseD "func id<A>(x: A): A { let y = x; y }" `shouldBe` Func
         "id"
         ( Closure
-          (ArgTypes ["A"]
-          [("x", VarType "A")]
+          (FuncType ["A"]
+          (ArgType False [("x", VarType "A")])
           (VarType "A"))
           (Procedure [Stmt $ Let (Id ["y"]) (Var Nothing (Id ["x"])), Var Nothing (Id ["y"])])
         )
@@ -161,8 +161,8 @@ spec_parser = do
                      [ Func
                          "is_zero"
                          ( Closure
-                           (ArgTypes []
-                           [("self", SelfType)]
+                           (FuncType []
+                           (ArgType True [])
                            (ConType (Id ["bool"])))
                            ( Procedure
                              [ Match
@@ -182,16 +182,16 @@ spec_parser = do
           println("Hello, World!");
         }
       |] `shouldBe` Func "main" (Closure
-        (ArgTypes
+        (FuncType
         []
-        []
+        (ArgType False [])
         (ConType (Id ["unit"])))
         (Procedure [Stmt $ FnCall (Var Nothing (Id ["println"])) [Lit (StringLit "Hello, World!")]])
         )
 
       parseD [r|
         external func println(x: string);
-      |] `shouldBe` ExternalFunc "println" (ArgTypes [] [("x", ConType (Id ["string"]))] (ConType (Id ["unit"])))
+      |] `shouldBe` ExternalFunc "println" (FuncType [] (ArgType False [("x", ConType (Id ["string"]))]) (ConType (Id ["unit"])))
 
       parseD [r|
         func f() {
@@ -199,7 +199,7 @@ spec_parser = do
             put(i);
           }
         }
-      |] `shouldBe` Func "f" (Closure (ArgTypes [] [] (ConType (Id ["unit"]))) (
+      |] `shouldBe` Func "f" (Closure (FuncType [] (ArgType False []) (ConType (Id ["unit"]))) (
                       Procedure [
                         Stmt $ ForIn "i" (Var Nothing (Id ["foo"])) [
                           Stmt $ FnCall (Var Nothing (Id ["put"])) [Var Nothing (Id ["i"])]
@@ -213,7 +213,7 @@ spec_parser = do
             put(i);
           }
         }
-      |] `shouldBe` Func "f" (Closure (ArgTypes [] [] (ConType (Id ["unit"]))) (
+      |] `shouldBe` Func "f" (Closure (FuncType [] (ArgType False []) (ConType (Id ["unit"]))) (
                       Procedure [
                         Stmt $ ForIn "i" (FnCall (Var Nothing (Id ["foo"])) [Var Nothing (Id ["y"]), Var Nothing (Id ["z"])]) [
                           Stmt $ FnCall (Var Nothing (Id ["put"])) [Var Nothing (Id ["i"])]
@@ -225,7 +225,7 @@ spec_parser = do
         func barOf(foo: Foo): int {
           foo.bar
         }
-      |] `shouldBe` Func "barOf" (Closure (ArgTypes [] [("foo", ConType (Id ["Foo"]))] (ConType (Id ["int"]))) (Procedure [
+      |] `shouldBe` Func "barOf" (Closure (FuncType [] (ArgType False [("foo", ConType (Id ["Foo"]))]) (ConType (Id ["int"]))) (Procedure [
           Member (Var Nothing (Id ["foo"])) "bar"
         ]))
 
@@ -244,12 +244,12 @@ spec_parser = do
       parseD [r|
         func snoc<T>(xs: List<T>, x: T): List<T> {
         }
-      |] `shouldBe` Func "snoc" (Closure (ArgTypes
+      |] `shouldBe` Func "snoc" (Closure (FuncType
           ["T"]
-          [
+          (ArgType False [
             ("xs", AppType (ConType (Id ["List"])) [VarType "T"]),
             ("x", VarType "T")
-          ]
+          ])
           (AppType (ConType (Id ["List"])) [VarType "T"]))
           (Procedure [])
         )
@@ -260,8 +260,8 @@ spec_parser = do
           func put<T>(self, i: int, val: T);
         }
       |] `shouldBe` Interface "IState" [] [
-          FuncType "get" (ArgTypes ["T"] [("self", SelfType), ("i", ConType (Id ["int"]))] (VarType "T")),
-          FuncType "put" (ArgTypes ["T"] [("self", SelfType), ("i", ConType (Id ["int"])), ("val", VarType "T")] (ConType (Id ["unit"])))
+          (,) "get" (FuncType ["T"] (ArgType True [("i", ConType (Id ["int"]))]) (VarType "T")),
+          (,) "put" (FuncType ["T"] (ArgType True [("i", ConType (Id ["int"])), ("val", VarType "T")]) (ConType (Id ["unit"])))
         ]
 
       parseD [r|
@@ -271,7 +271,7 @@ spec_parser = do
           }
         }
       |] `shouldBe` Derive "IState" [] (Just (AppType (ConType (Id ["array"])) [ConType (Id ["int"])]))
-          [ Func "get" (Closure (ArgTypes ["T"] [("self", SelfType), ("i", ConType (Id ["int"]))] (VarType "T")) (Procedure [
+          [ Func "get" (Closure (FuncType ["T"] (ArgType True [("i", ConType (Id ["int"]))]) (VarType "T")) (Procedure [
             IndexArray (Self SelfType) (Var Nothing (Id ["i"]))
           ]))
           ]
