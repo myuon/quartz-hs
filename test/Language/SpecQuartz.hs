@@ -197,3 +197,10 @@ spec_quartz = do
         factorial(10)
       }
     |] `evalDTo` Lit (IntLit 3628800)
+
+    specify "array_literal" $ [r|
+      {
+        let id = <A>(x: A): A -> x;
+        [id(1)][0]
+      }
+    |] `evalETo` Lit (IntLit 1)

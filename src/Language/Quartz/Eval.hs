@@ -144,7 +144,8 @@ evalE vm = case vm of
     pf <- lift $ ffi ctx M.!? p ?? NotFound Nothing p
     lift $ withExceptT FFIExceptions $ pf $ map toDyn es
   ArrayLit es -> do
-    let arr = Array.fromList es
+    es' <- mapM evalE es
+    let arr = Array.fromList es'
     marr <- liftIO $ Array.thawArray arr 0 (Array.sizeofArray arr)
     return $ Array $ MArray marr
   IndexArray e1 e2 -> do
