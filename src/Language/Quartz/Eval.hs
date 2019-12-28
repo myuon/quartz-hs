@@ -191,7 +191,8 @@ evalE vm = case vm of
     case r1 of
       RecordOf _ fields -> do
         return $ (\(Just x) -> x) $ lookup v1 fields
-  _ -> lift $ throwE $ Unreachable vm
+  Stmt e -> evalE e
+  _      -> lift $ throwE $ Unreachable vm
 
 runEvalE
   :: MonadIO m => Expr AlexPosn -> ExceptT RuntimeExceptions m (Expr AlexPosn)

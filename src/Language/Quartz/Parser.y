@@ -131,15 +131,19 @@ may_return_type
     : ':' type  { Just $2 }
     | {- empty -}  { Nothing }
 
+stmt :: { Expr AlexPosn }
+stmt
+    : FOR VAR IN expr_short '{' stmts '}'  { ForIn $2 $4 $6 }
+    | IF '{' if_branches '}'  { If $3 }
+    | LET VAR '=' expr ';'  { Let (Id [$2]) $4 }
+    | expr '=' expr ';'  { Assign $1 $3 }
+    | expr ';'  { $1 }
+
 stmts :: { [Expr AlexPosn] }
 stmts
-    : expr ';' stmts  { $1 : $3 }
-    | LET VAR '=' expr ';' stmts { Let (Id [$2]) $4 : $6 }
+    : {- empty -}  { [] }
     | expr  { [$1] }
-    | {- empty -}  { [Unit] }
-    | FOR VAR IN expr_short '{' stmts '}' stmts  { ForIn $2 $4 $6 : $8 }
-    | IF '{' if_branches '}' stmts  { If $3 : $5 }
-    | expr '=' expr ';' stmts  { Assign $1 $3 : $5 }
+    | stmt stmts  { Stmt $1 : $2 }
 
 expr_short :: { Expr AlexPosn }
 expr_short

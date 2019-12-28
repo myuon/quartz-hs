@@ -40,6 +40,7 @@ transformVarConTypeE expr = go [] expr
     EnumOf   s  es   -> EnumOf s (map (go vars') es)
     Assign   e1 e2   -> Assign (go vars' e1) (go vars' e2)
     Self s           -> Self s
+    Stmt s           -> Stmt $ go vars' s
 
 transformVarConTypeD :: Decl posn -> Decl posn
 transformVarConTypeD decl = go [] decl
@@ -95,6 +96,7 @@ transformSelfTypeE typ expr = go expr
     EnumOf   s  es            -> EnumOf s (map go es)
     Assign   e1 e2            -> Assign (go e1) (go e2)
     Self selfType             -> Self (apply typ selfType)
+    Stmt e                    -> Stmt $ go e
 
   goArgTypes (ArgTypes vars args ret) =
     ArgTypes vars (map (\(x, y) -> (x, apply typ y)) args) (apply typ ret)

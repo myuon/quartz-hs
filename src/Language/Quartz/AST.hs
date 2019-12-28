@@ -45,6 +45,7 @@ data Expr posn
   | Self Type
   | MethodOf Type String (Expr posn)
   | Any (Dynamic' posn)
+  | Stmt (Expr posn)
   deriving (Eq, Show)
 
 data Dynamic' posn = Dynamic' (Maybe posn) Dynamic

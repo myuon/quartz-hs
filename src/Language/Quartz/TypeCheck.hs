@@ -290,8 +290,13 @@ algoW expr = case expr of
     (s2, t2, e2') <- algoW e2
     s3            <- lift $ mgu t1 t2
     return (s3 `compose` s2 `compose` s1, apply s3 t1, Assign e1' e2')
-  Self typ -> return (emptySubst, typ, Var Nothing (Id ["self"]))
-  _        -> error $ show expr
+  Self typ  -> return (emptySubst, typ, Var Nothing (Id ["self"]))
+  Stmt expr -> do
+    -- ignore t1 here
+    (s1, t1, expr') <- algoW expr
+
+    return (s1, ConType (Id ["unit"]), expr')
+  _ -> error $ show expr
  where
   selfTypeToVar typ b = go typ
    where

@@ -88,7 +88,7 @@ spec_parser = do
                        ]
                        (ConType (Id ["unit"])))
                        ( Procedure
-                         [ Let
+                         [ Stmt $ Let
                            (Id ["z"])
                            ( FnCall
                              (Var Nothing (Id ["sum"]))
@@ -105,7 +105,7 @@ spec_parser = do
           f
         }
       |] `shouldBe` Procedure [
-          Let (Id ["f"]) (ClosureE (Closure (ArgTypes [] [] (ConType (Id ["int"]))) (Procedure [Lit (IntLit 10)])))
+          Stmt $ Let (Id ["f"]) (ClosureE (Closure (ArgTypes [] [] (ConType (Id ["int"]))) (Procedure [Lit (IntLit 10)])))
           , Var Nothing (Id ["f"])
           ]
 
@@ -115,7 +115,7 @@ spec_parser = do
           (ArgTypes ["A"]
           [("x", VarType "A")]
           (VarType "A"))
-          (Procedure [Let (Id ["y"]) (Var Nothing (Id ["x"])), Var Nothing (Id ["y"])])
+          (Procedure [Stmt $ Let (Id ["y"]) (Var Nothing (Id ["x"])), Var Nothing (Id ["y"])])
         )
 
       parseD "enum Nat { Zero, Succ(Nat) }" `shouldBe` Enum
@@ -186,7 +186,7 @@ spec_parser = do
         []
         []
         (ConType (Id ["unit"])))
-        (Procedure [FnCall (Var Nothing (Id ["println"])) [Lit (StringLit "Hello, World!")], Unit])
+        (Procedure [Stmt $ FnCall (Var Nothing (Id ["println"])) [Lit (StringLit "Hello, World!")]])
         )
 
       parseD [r|
@@ -201,11 +201,9 @@ spec_parser = do
         }
       |] `shouldBe` Func "f" (Closure (ArgTypes [] [] (ConType (Id ["unit"]))) (
                       Procedure [
-                        ForIn "i" (Var Nothing (Id ["foo"])) [
-                          FnCall (Var Nothing (Id ["put"])) [Var Nothing (Id ["i"])],
-                          Unit
-                        ],
-                        Unit
+                        Stmt $ ForIn "i" (Var Nothing (Id ["foo"])) [
+                          Stmt $ FnCall (Var Nothing (Id ["put"])) [Var Nothing (Id ["i"])]
+                        ]
                       ]
                     ))
 
@@ -217,11 +215,9 @@ spec_parser = do
         }
       |] `shouldBe` Func "f" (Closure (ArgTypes [] [] (ConType (Id ["unit"]))) (
                       Procedure [
-                        ForIn "i" (FnCall (Var Nothing (Id ["foo"])) [Var Nothing (Id ["y"]), Var Nothing (Id ["z"])]) [
-                          FnCall (Var Nothing (Id ["put"])) [Var Nothing (Id ["i"])],
-                          Unit
-                        ],
-                        Unit
+                        Stmt $ ForIn "i" (FnCall (Var Nothing (Id ["foo"])) [Var Nothing (Id ["y"]), Var Nothing (Id ["z"])]) [
+                          Stmt $ FnCall (Var Nothing (Id ["put"])) [Var Nothing (Id ["i"])]
+                        ]
                       ]
                     ))
 
@@ -255,7 +251,7 @@ spec_parser = do
             ("x", VarType "T")
           ]
           (AppType (ConType (Id ["List"])) [VarType "T"]))
-          (Procedure [Unit])
+          (Procedure [])
         )
 
       parseD [r|
