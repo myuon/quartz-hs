@@ -51,7 +51,7 @@ tokens :-
   \<= { wrap $ \_ -> TLeq }
   $digit+ { wrap (TInt . read) }
   [$alpha \_] [$alpha $digit \_]* { wrap TVar }
-  @string { wrap TStrLit }
+  @string { wrap (\s -> TStrLit $ init $ tail s) }
 
 {
 data Token

@@ -20,8 +20,8 @@ spec_parser = do
 
       parseE "10" `shouldBe` Lit (IntLit 10)
 
-      parseE [r| "aaa" |] `shouldBe` Lit (StringLit "\"aaa\"")
-      parseE [r| "あああ" |] `shouldBe` Lit (StringLit "\"あああ\"")
+      parseE [r| "aaa" |] `shouldBe` Lit (StringLit "aaa")
+      parseE [r| "あああ" |] `shouldBe` Lit (StringLit "あああ")
 
       parseE "foo(x,y,z)" `shouldBe` FnCall
         (Var Nothing (Id ["foo"]))
@@ -54,8 +54,8 @@ spec_parser = do
           true => "false",
         }
       |] `shouldBe` If [
-        (Op Eq (Lit (IntLit 0)) (Lit (IntLit 1)), Lit (StringLit "\"true\"")),
-        (Lit (BoolLit True), Lit (StringLit "\"false\""))
+        (Op Eq (Lit (IntLit 0)) (Lit (IntLit 1)), Lit (StringLit "true")),
+        (Lit (BoolLit True), Lit (StringLit "false"))
         ]
 
       parseE "(a: string): string -> { a }" `shouldBe` ClosureE
@@ -75,7 +75,7 @@ spec_parser = do
           x: 10,
           y: "foo"
         }
-      |] `shouldBe` RecordOf "Pos" [("x", Lit (IntLit 10)), ("y", Lit (StringLit "\"foo\""))]
+      |] `shouldBe` RecordOf "Pos" [("x", Lit (IntLit 10)), ("y", Lit (StringLit "foo"))]
 
       parseE "(a: int, b: int, c: int) -> { let z = sum(a,b,c); z }"
         `shouldBe` ClosureE
@@ -186,7 +186,7 @@ spec_parser = do
         []
         []
         (ConType (Id ["unit"])))
-        (Procedure [FnCall (Var Nothing (Id ["println"])) [Lit (StringLit "\"Hello, World!\"")], Unit])
+        (Procedure [FnCall (Var Nothing (Id ["println"])) [Lit (StringLit "Hello, World!")], Unit])
         )
 
       parseD [r|

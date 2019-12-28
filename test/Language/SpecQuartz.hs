@@ -30,7 +30,7 @@ spec_quartz = do
     specify "let a = 10; a" $
       [r| { let a = 10; a } |] `evalETo` parseE [r| 10 |]
     specify "id(1000)" $ [r| { let id = <A>(a: A): A -> a; id(1000) } |] `evalETo` parseE [r| 1000 |]
-    specify "id(\"hello\")" $ [r| { let id = <A>(a: A): A -> a; id("hello") } |] `evalETo` parseE [r| "hello" |]
+    specify "id(\"hello\")" $ [r| { let id = <A>(a: A): A -> a; id("hello") } |] `evalETo` Lit (StringLit "hello")
     specify "10" $ [r| 10 |] `evalETo` parseE [r| 10 |]
     specify "(a) -> a" $ [r| (a: string): string -> { a } |] `evalETo` parseE [r| (a: string): string -> { a } |]
     specify "(\\a. a)(10)" $ [r|
