@@ -137,13 +137,13 @@ stmt
     | IF '{' if_branches '}'  { If $3 }
     | LET VAR '=' expr ';'  { Let (Id [$2]) $4 }
     | expr '=' expr ';'  { Assign $1 $3 }
-    | expr ';'  { $1 }
+    | expr ';'  { Stmt $1 }
 
 stmts :: { [Expr AlexPosn] }
 stmts
     : {- empty -}  { [] }
     | expr  { [$1] }
-    | stmt stmts  { Stmt $1 : $2 }
+    | stmt stmts  { $1 : $2 }
 
 expr_short :: { Expr AlexPosn }
 expr_short

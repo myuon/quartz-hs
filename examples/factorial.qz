@@ -1,0 +1,20 @@
+external func println<A>(arg: A); 
+
+external func subtract(n: int, m: int): int; 
+
+external func mult(n: int, m: int): int; 
+
+func factorial(n: int): int {
+  if {
+    n == 0 => {
+      1
+    },
+    true => {
+      mult(n, factorial(subtract(n, 1)))
+    },
+  }
+} 
+
+func main() {
+  println(factorial(10));
+} 

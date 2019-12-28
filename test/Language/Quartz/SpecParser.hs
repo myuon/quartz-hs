@@ -88,7 +88,7 @@ spec_parser = do
                        ])
                        (ConType (Id ["unit"])))
                        ( Procedure
-                         [ Stmt $ Let
+                         [ Let
                            (Id ["z"])
                            ( FnCall
                              (Var Nothing (Id ["sum"]))
@@ -105,7 +105,7 @@ spec_parser = do
           f
         }
       |] `shouldBe` Procedure [
-          Stmt $ Let (Id ["f"]) (ClosureE (Closure (FuncType [] (ArgType False []) (ConType (Id ["int"]))) (Procedure [Lit (IntLit 10)])))
+          Let (Id ["f"]) (ClosureE (Closure (FuncType [] (ArgType False []) (ConType (Id ["int"]))) (Procedure [Lit (IntLit 10)])))
           , Var Nothing (Id ["f"])
           ]
 
@@ -115,7 +115,7 @@ spec_parser = do
           (FuncType ["A"]
           (ArgType False [("x", VarType "A")])
           (VarType "A"))
-          (Procedure [Stmt $ Let (Id ["y"]) (Var Nothing (Id ["x"])), Var Nothing (Id ["y"])])
+          (Procedure [Let (Id ["y"]) (Var Nothing (Id ["x"])), Var Nothing (Id ["y"])])
         )
 
       parseD "enum Nat { Zero, Succ(Nat) }" `shouldBe` Enum
@@ -201,7 +201,7 @@ spec_parser = do
         }
       |] `shouldBe` Func "f" (Closure (FuncType [] (ArgType False []) (ConType (Id ["unit"]))) (
                       Procedure [
-                        Stmt $ ForIn "i" (Var Nothing (Id ["foo"])) [
+                        ForIn "i" (Var Nothing (Id ["foo"])) [
                           Stmt $ FnCall (Var Nothing (Id ["put"])) [Var Nothing (Id ["i"])]
                         ]
                       ]
@@ -215,7 +215,7 @@ spec_parser = do
         }
       |] `shouldBe` Func "f" (Closure (FuncType [] (ArgType False []) (ConType (Id ["unit"]))) (
                       Procedure [
-                        Stmt $ ForIn "i" (FnCall (Var Nothing (Id ["foo"])) [Var Nothing (Id ["y"]), Var Nothing (Id ["z"])]) [
+                        ForIn "i" (FnCall (Var Nothing (Id ["foo"])) [Var Nothing (Id ["y"]), Var Nothing (Id ["z"])]) [
                           Stmt $ FnCall (Var Nothing (Id ["put"])) [Var Nothing (Id ["i"])]
                         ]
                       ]

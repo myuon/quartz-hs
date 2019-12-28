@@ -1,5 +1,7 @@
 external func println<A>(s: A);
+
 external func mod(x: int, y: int): int;
+
 external func range(s: int, e: int): array<int>;
 
 func main() {
@@ -16,7 +18,7 @@ func main() {
       },
       true => {
         println(i);
-      }
+      },
     }
   }
 }
