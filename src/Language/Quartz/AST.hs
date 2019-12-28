@@ -1,6 +1,7 @@
 module Language.Quartz.AST where
 
 import Data.Primitive.Array
+import Data.Dynamic
 import Control.Monad.Primitive (RealWorld)
 
 data Literal
@@ -43,7 +44,14 @@ data Expr posn
   | Assign (Expr posn) (Expr posn)
   | Self Type
   | MethodOf Type String (Expr posn)
+  | Any (Dynamic' posn)
   deriving (Eq, Show)
+
+data Dynamic' posn = Dynamic' (Maybe posn) Dynamic
+  deriving (Show)
+
+instance Eq (Dynamic' posn) where
+  _ == _ = False
 
 newtype MArray posn = MArray { getMArray :: MutableArray RealWorld (Expr posn) }
   deriving Eq

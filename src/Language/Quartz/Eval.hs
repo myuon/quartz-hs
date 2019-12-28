@@ -62,6 +62,7 @@ isNormalForm vm = case vm of
   Array _      -> True
   RecordOf _ _ -> True
   EnumOf   _ _ -> True
+  Any _        -> True
   _            -> False
 
 
