@@ -244,7 +244,30 @@ evalD decl = go [] decl
         (impls ctx)
         ds
       }
-    Derive name _ _ _ -> error "not yet implemented"
+    Derive name _ Nothing ds -> modify $ \ctx -> ctx
+      { impls = M.union
+          ( M.fromList $ map
+            (\(Func fn body) -> ((fn, ConType (Id [name])), ClosureE body))
+            ds
+          )
+        $ impls ctx
+      }
+
+{-
+      case typ of
+        Just (ConType (Id [typ'])) -> do
+          modify $ \ctx ->
+            ctx { impls = M.insertWith (++) typ' [name] $ impls ctx }
+        Nothing -> modify $ \ctx -> ctx
+          { impls  = M.insertWith (++) name [name] $ impls ctx
+          , traits = M.union
+              ( M.singleton name
+              $ map (\(Func fn (Closure ft _)) -> (fn, ft)) ds
+              )
+            $ traits ctx
+          }
+
+-}
 
 std
   :: MonadIO m

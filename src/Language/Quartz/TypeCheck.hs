@@ -433,9 +433,18 @@ typecheckModule ds = mapM check ds
         }
       return d
     Derive name x typ ds -> do
-      forM_ typ $ \(ConType (Id [typ'])) -> do
-        modify
-          $ \ctx -> ctx { impls = M.insertWith (++) typ' [name] $ impls ctx }
+      case typ of
+        Just (ConType (Id [typ'])) -> do
+          modify $ \ctx ->
+            ctx { impls = M.insertWith (++) typ' [name] $ impls ctx }
+        Nothing -> modify $ \ctx -> ctx
+          { impls  = M.insertWith (++) name [name] $ impls ctx
+          , traits = M.union
+              ( M.singleton name
+              $ map (\(Func fn (Closure ft _)) -> (fn, ft)) ds
+              )
+            $ traits ctx
+          }
 
       ds' <- typecheckModule ds
       return $ Derive name x typ ds'

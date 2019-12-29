@@ -204,3 +204,28 @@ spec_quartz = do
         [id(1)][0]
       }
     |] `evalETo` Lit (IntLit 1)
+
+    specify "associated methods" $ [r|
+      enum Nat {
+        Zero,
+        Succ(Nat),
+      }
+
+      derive Nat {
+        func is_zero(self): bool {
+          match self {
+            Nat::Zero => true,
+            Nat::Succ(_) => false,
+          }
+        }
+
+        func identity(self): self {
+          self
+        }
+      }
+
+      func main(): bool {
+        Nat::Zero.identity().is_zero()
+      }
+    |] `evalDTo` Lit (BoolLit True)
+
