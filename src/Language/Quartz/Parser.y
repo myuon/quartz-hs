@@ -26,12 +26,15 @@ import Language.Quartz.AST
     '.' { Lexeme _ TDot }
     '->' { Lexeme _ TArrow }
     '=>' { Lexeme _ TDArrow }
-    '*' { Lexeme _ TStar }
     '=' { Lexeme _ TEq }
     '_' { Lexeme _ TUnderscore }
     '==' { Lexeme _ TEq2 }
     '::' { Lexeme _ TColon2 }
     '<=' { Lexeme _ TLeq }
+    '+' { Lexeme _ TPlus }
+    '-' { Lexeme _ TMinus }
+    '*' { Lexeme _ TStar }
+    '/' { Lexeme _ TSlash }
 
     FUNC { Lexeme _ TFunc }
     ENUM { Lexeme _ TEnum }
@@ -54,6 +57,8 @@ import Language.Quartz.AST
     STRLIT { Lexeme _ (TStrLit $$) }
     VAR { Lexeme posn (TVar $$) }
 
+%left '+' '-'
+%left '*' '/'
 %%
 
 decl :: { Decl AlexPosn }
@@ -166,10 +171,19 @@ expr
     | '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (FuncType [] (ArgType False $2) (maybe unitType id $4)) $6) }
     | '<' may_generics_internal '>' '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (FuncType $2 (ArgType False $5) (maybe unitType id $7)) $9) }
 
-    | expr '==' expr  { Op Eq $1 $3 }
-    | expr '<=' expr  { Op Leq $1 $3 }
+    -- 演算子優先順位のためにはここはまとめて書いてはいけない？
+    | expr '+' expr { Op Add $1 $3 }
+    | expr '-' expr { Op Sub $1 $3 }
+    | expr '*' expr { Op Mult $1 $3 }
+    | expr '/' expr { Op Div $1 $3 }
+    | expr op expr  { Op $2 $1 $3 }
     | VAR '{' record_expr '}'  { RecordOf $1 $3 }
     | expr_short  { $1 }
+
+op :: { Op }
+op
+    : '=='  { Eq }
+    | '<='  { Leq }
 
 record_expr :: { [(String, Expr AlexPosn)] }
 record_expr

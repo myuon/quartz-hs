@@ -183,13 +183,10 @@ spec_quartz = do
     |] `evalDTo` Lit (BoolLit True)
 
     specify "factorial" $ [r|
-      external func subtract(n: int, m: int): int;
-      external func mult(n: int, m: int): int;
-
       func factorial(n: int): int {
         if {
           n == 0 => { 1 },
-          true => { mult(n, factorial(subtract(n, 1))) },
+          true => { n * factorial(n - 1) },
         }
       }
 
@@ -228,4 +225,8 @@ spec_quartz = do
         Nat::Zero.identity().is_zero()
       }
     |] `evalDTo` Lit (BoolLit True)
+
+    specify "int calculation" $ [r|
+      ((1 + 2) * 4) - (10 / 2)
+    |] `evalETo` Lit (IntLit 7)
 

@@ -44,13 +44,25 @@ data CompilerError
   deriving Show
 
 runExpr :: MonadIO m => String -> m (Either CompilerError (Expr AlexPosn))
-runExpr s =
+runExpr s = do
+  std <- liftIO $ readFile "lib/std.qz"
+
+  -- stdを読み込む必要があるので一旦moduleに送るという強引な手段を取る
+  runExceptT
+    $   ($ std ++ "func main<A>(): A {" ++ s ++ "}")
+    $   (withExceptT ParseError . ExceptT . return . parseModule)
+    >=> (return . map (transformSelfTypeD . transformVarConTypeD . desugarOpD))
+    >=> (withExceptT TypeCheckError . runTypeCheckModule)
+    >=> (withExceptT EvalError . runMainWith M.empty)
+
+{-
   runExceptT
     $   ($ s)
     $   (withExceptT ParseError . ExceptT . return . parseExpr)
-    >=> (return . transformVarConTypeE)
+    >=> (return . transformVarConTypeE . desugarOpE)
     >=> (withExceptT TypeCheckError . runTypeCheckExpr)
     >=> (withExceptT EvalError . runEvalE)
+-}
 
 runModule :: MonadIO m => String -> m (Either CompilerError (Expr AlexPosn))
 runModule = runModuleWith M.empty
@@ -66,6 +78,6 @@ runModuleWith ffi s = do
   runExceptT
     $   ($ std ++ s)
     $   (withExceptT ParseError . ExceptT . return . parseModule)
-    >=> (return . map (transformSelfTypeD . transformVarConTypeD))
+    >=> (return . map (transformSelfTypeD . transformVarConTypeD . desugarOpD))
     >=> (withExceptT TypeCheckError . runTypeCheckModule)
     >=> (withExceptT EvalError . runMainWith ffi)

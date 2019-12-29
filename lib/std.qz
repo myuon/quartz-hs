@@ -4,8 +4,50 @@ external func range(start: int, end: int): array<int>;
 
 external func mod(x: int, y: int): int;
 
-external func add(x: int, y: int): int;
+external func add_int(x: int, y: int): int;
 
-external func subtract(x: int, y: int): int;
+external func subtract_int(x: int, y: int): int;
 
-external func mult(x: int, y: int): int;
+external func mult_int(x: int, y: int): int;
+
+external func div_int(x: int, y: int): int;
+
+interface Add {
+  func _add_(self, other: self): self;
+}
+
+derive Add for int {
+  func _add_(self, other: self): self {
+    add_int(self, other)
+  }
+}
+
+interface Subtract {
+  func _subtract_(self, other: self): self;
+}
+
+derive Subtract for int {
+  func _subtract_(self, other: self): self {
+    subtract_int(self, other)
+  }
+}
+
+interface Mult {
+  func _mult_(self, other: self): self;
+}
+
+derive Mult for int {
+  func _mult_(self, other: self): self {
+    mult_int(self, other)
+  }
+}
+
+interface Div {
+  func _div_(self, other: self): self;
+}
+
+derive Div for int {
+  func _div_(self, other: self): self {
+    div_int(self, other)
+  }
+}

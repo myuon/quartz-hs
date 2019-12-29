@@ -18,6 +18,10 @@ data Id = Id [String]
 data Op
   = Eq
   | Leq
+  | Add
+  | Sub
+  | Mult
+  | Div
   deriving (Eq, Show)
 
 data Expr posn

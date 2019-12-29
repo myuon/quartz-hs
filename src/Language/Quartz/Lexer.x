@@ -44,11 +44,14 @@ tokens :-
   \. { wrap $ \_ -> TDot }
   \-> { wrap $ \_ -> TArrow }
   \=> { wrap $ \_ -> TDArrow }
-  \* { wrap $ \_ -> TStar }
   \= { wrap $ \_ -> TEq }
   \== { wrap $ \_ -> TEq2 }
   \_ { wrap $ \_ -> TUnderscore }
   \<= { wrap $ \_ -> TLeq }
+  \+ { wrap $ \_ -> TPlus }
+  \- { wrap $ \_ -> TMinus }
+  \* { wrap $ \_ -> TStar }
+  \/ { wrap $ \_ -> TSlash }
   $digit+ { wrap (TInt . read) }
   [$alpha \_] [$alpha $digit \_]* { wrap TVar }
   @string { wrap (\s -> TStrLit $ init $ tail s) }
@@ -86,11 +89,14 @@ data Token
   | TDot
   | TArrow
   | TDArrow
-  | TStar
   | TEq
   | TEq2
   | TUnderscore
   | TLeq
+  | TPlus
+  | TMinus
+  | TStar
+  | TSlash
   | TInt Int
   | TVar String
   | TStrLit String
