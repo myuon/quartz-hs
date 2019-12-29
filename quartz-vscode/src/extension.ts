@@ -27,7 +27,10 @@ const runQzfmt = async (
     }
   };
 
-  const { stdout } = await runProcess();
+  const { stdout, stderr } = await runProcess();
+  if (stderr.length > 0) {
+    throw new Error(stderr.toString());
+  }
   return stdout.toString();
 };
 
@@ -40,8 +43,8 @@ export const activate = (context: vscode.ExtensionContext) => {
     const result = await runQzfmt(
       config.fmtPath || "qzfmt",
       document.isDirty
-        ? { filepath: document.uri.fsPath }
-        : { content: document.getText() }
+        ? { content: document.getText() }
+        : { filepath: document.uri.fsPath }
     );
 
     return [vscode.TextEdit.replace(fullRange, result)];
