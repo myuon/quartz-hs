@@ -135,8 +135,8 @@ stmt :: { Expr AlexPosn }
 stmt
     : FOR VAR IN expr_short '{' stmts '}'  { ForIn $2 $4 $6 }
     | IF '{' if_branches '}'  { If $3 }
-    | LET VAR '=' expr ';'  { Let (Id [$2]) $4 }
-    | expr '=' expr ';'  { Assign $1 $3 }
+    | LET VAR '=' expr ';'  { Stmt (Let (Id [$2]) $4) }
+    | expr '=' expr ';'  { Stmt (Assign $1 $3) }
     | expr ';'  { Stmt $1 }
 
 stmts :: { [Expr AlexPosn] }

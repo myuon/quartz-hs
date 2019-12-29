@@ -88,7 +88,7 @@ spec_parser = do
                        ])
                        (ConType (Id ["unit"])))
                        ( Procedure
-                         [ Let
+                         [ Stmt $ Let
                            (Id ["z"])
                            ( FnCall
                              (Var Nothing (Id ["sum"]))
@@ -105,7 +105,7 @@ spec_parser = do
           f
         }
       |] `shouldBe` Procedure [
-          Let (Id ["f"]) (ClosureE (Closure (FuncType [] (ArgType False []) (ConType (Id ["int"]))) (Procedure [Lit (IntLit 10)])))
+          Stmt $ Let (Id ["f"]) (ClosureE (Closure (FuncType [] (ArgType False []) (ConType (Id ["int"]))) (Procedure [Lit (IntLit 10)])))
           , Var Nothing (Id ["f"])
           ]
 
@@ -115,7 +115,7 @@ spec_parser = do
           (FuncType ["A"]
           (ArgType False [("x", VarType "A")])
           (VarType "A"))
-          (Procedure [Let (Id ["y"]) (Var Nothing (Id ["x"])), Var Nothing (Id ["y"])])
+          (Procedure [Stmt $ Let (Id ["y"]) (Var Nothing (Id ["x"])), Var Nothing (Id ["y"])])
         )
 
       parseD "enum Nat { Zero, Succ(Nat) }" `shouldBe` Enum
