@@ -4,7 +4,7 @@ module Main where
 
 import Data.Text.Prettyprint.Doc
 import Data.Text.Prettyprint.Doc.Util
-import Data.Text.Prettyprint.Doc.Render.Text (hPutDoc)
+import Data.Text.Prettyprint.Doc.Render.Text
 import Data.List
 import Language.Quartz
 import System.Environment
@@ -54,7 +54,13 @@ instance Pretty (Expr posn) where
     Let v e -> align $ sep $ [pretty "let", pretty v, equals, pretty e]
     ClosureE c -> pretty c
     Match e brs -> pretty "match" <+> pretty e <+> braces (block $ map (\(x,y) -> pretty x <+> pretty "=>" <+> pretty y <> comma) brs)
-    If es -> pretty "if" <+> braces (block $ map (\(x,y) -> pretty x <+> pretty "=>" <+> pretty y <> comma) es)
+    If es -> pretty "if" <+> braces (block $ map (\(x,y) ->
+      -- ifの条件部は演算子を含むときは括弧を付けたほうが見やすいため
+      (case x of
+        Op _ _ _ -> parens $ pretty x
+        _ -> pretty x
+        )
+      <+> pretty "=>" <+> pretty y <> comma) es)
     Procedure es -> braces $ block $ map pretty es
     ForIn v e1 es -> pretty "for" <+> pretty v <+> pretty "in" <+> pretty e1 <+> braces (block $ map pretty es)
     Unit -> parens emptyDoc
@@ -127,5 +133,6 @@ main = do
     Left  err   -> print err
     Right decls -> do
       let p = pretty decls
-      putDocW 80 p
-      withFile filepath WriteMode $ \handle -> hPutDoc handle p
+      putDocW  80       p
+      withFile filepath WriteMode
+        $ \handle -> renderIO handle $ layoutSmart defaultLayoutOptions p
