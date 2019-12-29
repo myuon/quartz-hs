@@ -125,6 +125,7 @@ main = do
   body <- readFile filepath
   case parseModule body of
     Left  err   -> print err
-    Right decls -> withFile filepath ReadWriteMode $ \handle -> do
-      putDocW 80 $ pretty decls
-      hPutDoc handle $ pretty decls
+    Right decls -> do
+      let p = pretty decls
+      putDocW 80 p
+      withFile filepath WriteMode $ \handle -> hPutDoc handle p
