@@ -40,7 +40,7 @@ instance Pretty Pattern where
   pretty pat = case pat of
     PVar v -> pretty v
     PLit lit -> pretty lit
-    PApp p1 ps -> pretty p1 <> parens (align $ sep $ map pretty ps)
+    PApp p1 ps -> pretty p1 <> parens (listed $ map pretty ps)
     PAny -> pretty "_"
 
 instance Pretty (Closure posn) where
