@@ -64,6 +64,7 @@ instance Pretty (Expr posn) where
     Procedure es -> braces $ block $ map pretty es
     ForIn v e1 es -> pretty "for" <+> pretty v <+> pretty "in" <+> pretty e1 <+> braces (block $ map pretty es)
     Unit -> parens emptyDoc
+    ArrayLit es -> brackets (listed $ map pretty es)
     Op op e1 e2 -> pretty e1 <+> pretty op <+> pretty e2
     Self typ -> pretty "self"
     Member e1 v -> pretty e1 <> dot <> pretty v
