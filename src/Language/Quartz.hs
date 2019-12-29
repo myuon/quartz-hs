@@ -60,9 +60,11 @@ runModuleWith
   => M.Map Id ([Dynamic] -> ExceptT FFIExceptions m (Expr AlexPosn))
   -> String
   -> m (Either CompilerError (Expr AlexPosn))
-runModuleWith ffi s =
+runModuleWith ffi s = do
+  std <- liftIO $ readFile "lib/std.qz"
+
   runExceptT
-    $   ($ s)
+    $   ($ std ++ s)
     $   (withExceptT ParseError . ExceptT . return . parseModule)
     >=> (return . map (transformSelfTypeD . transformVarConTypeD))
     >=> (withExceptT TypeCheckError . runTypeCheckModule)

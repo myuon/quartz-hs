@@ -1,0 +1,11 @@
+external func println<A>(x: A);
+
+external func range(start: int, end: int): array<int>;
+
+external func mod(x: int, y: int): int;
+
+external func add(x: int, y: int): int;
+
+external func subtract(x: int, y: int): int;
+
+external func mult(x: int, y: int): int;

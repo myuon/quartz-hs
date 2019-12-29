@@ -1,5 +1,3 @@
-external func println<A>(s: A);
-
 enum Nat {
   Zero,
   Succ(Nat),
