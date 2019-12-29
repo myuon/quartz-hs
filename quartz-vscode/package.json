@@ -1,25 +1,59 @@
 {
-    "name": "quartz-vscode",
-    "displayName": "quartz-vscode",
-    "description": "",
-    "version": "0.0.1",
-    "engines": {
-        "vscode": "^1.40.0"
-    },
-    "categories": [
-        "Programming Languages"
+  "name": "quartz-vscode",
+  "displayName": "quartz-vscode",
+  "description": "",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.40.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:quartz"
+  ],
+  "main": "./out/extension",
+  "contributes": {
+    "languages": [
+      {
+        "id": "quartz",
+        "aliases": [
+          "Quartz",
+          "quartz"
+        ],
+        "extensions": [
+          ".qz"
+        ],
+        "configuration": "./language-configuration.json"
+      }
     ],
-    "contributes": {
-        "languages": [{
-            "id": "quartz",
-            "aliases": ["Quartz", "quartz"],
-            "extensions": [".qz"],
-            "configuration": "./language-configuration.json"
-        }],
-        "grammars": [{
-            "language": "quartz",
-            "scopeName": "source.qz",
-            "path": "./syntaxes/quartz.tmLanguage.json"
-        }]
+    "grammars": [
+      {
+        "language": "quartz",
+        "scopeName": "source.qz",
+        "path": "./syntaxes/quartz.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "quartz configuration",
+      "type": "object",
+      "properties": {
+        "quartz.fmtPath": {
+          "type": "string",
+          "default": "qzfmt",
+          "description": "Path to quartz-fmt (qzfmt) executable."
+        }
+      }
     }
+  },
+  "devDependencies": {
+    "@types/node": "^13.1.1",
+    "@types/vscode": "^1.41.0",
+    "typescript": "^3.7.4"
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  }
 }

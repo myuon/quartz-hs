@@ -127,12 +127,17 @@ instance {-# OVERLAPS #-} Pretty (Decl posn) => Pretty [Decl posn] where
 
 main = do
   args <- getArgs
-  let filepath = head args
-  body <- readFile filepath
+  body <- case args of
+    [] -> getContents
+    _  -> do
+      let filepath = head args
+      readFile filepath
+
   case parseModule body of
     Left  err   -> print err
     Right decls -> do
       let p = pretty decls
-      putDocW  80       p
-      withFile filepath WriteMode
-        $ \handle -> renderIO handle $ layoutSmart defaultLayoutOptions p
+      putDocW 80 p
+      -- VSCode側でやるので一旦消去
+      --withFile filepath WriteMode
+      --  $ \handle -> renderIO handle $ layoutSmart defaultLayoutOptions p
