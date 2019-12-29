@@ -34,7 +34,7 @@ instance Pretty Literal where
     IntLit v -> pretty v
     DoubleLit v -> pretty v
     CharLit v -> pretty v
-    StringLit v -> pretty $ show v
+    StringLit v -> dquotes $ pretty v
 
 instance Pretty Pattern where
   pretty pat = case pat of
