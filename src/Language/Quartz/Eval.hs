@@ -102,7 +102,14 @@ evalE vm = case vm of
   _ | isNormalForm vm -> return vm
   Var posn t          -> do
     ctx <- get
-    lift $ exprs ctx M.!? t ?? NotFound posn t
+    case t of
+      _ | t `M.member` exprs ctx -> do
+        return $ exprs ctx M.! t
+
+      Id [typ, name] | (name, ConType (Id [typ])) `M.member` impls ctx -> do
+        return $ impls ctx M.! (name, ConType (Id [typ]))
+
+      _ -> lift $ throwE $ NotFound posn t
 
   -- tricky part!
   -- トレイとのメソッド呼び出しx.f(y)はT::f(x,y)と解釈し直すが、このsyntaxはFnCallが外側に来てしまっているので

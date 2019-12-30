@@ -230,3 +230,23 @@ spec_quartz = do
       ((1 + 2) * 4) - (10 / 2)
     |] `evalETo` Lit (IntLit 7)
 
+    specify "call non-self method" $ [r|
+      enum Nat {
+        Zero,
+        Succ(Nat),
+      }
+
+      derive Nat {
+        func succ(self): self {
+          Nat::Succ(self)
+        }
+
+        func two(): self {
+          Nat::Zero.succ().succ()
+        }
+      }
+
+      func main(): self {
+        Nat::two()
+      }
+    |] `evalDTo` EnumOf (Id ["Nat", "Succ"]) [EnumOf (Id ["Nat", "Succ"]) [EnumOf (Id ["Nat", "Zero"]) []]]

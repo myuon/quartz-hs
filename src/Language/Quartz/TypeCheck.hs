@@ -120,10 +120,20 @@ algoW
        (Subst, Type, Expr AlexPosn)
 algoW expr = case expr of
   Var posn v -> do
-    ctx  <- get
-    v'   <- lift $ schemes ctx M.!? v ?? NotFound posn v
-    inst <- instantiate v'
-    return (emptySubst, inst, expr)
+    ctx <- get
+    case v of
+      _ | v `M.member` schemes ctx -> do
+        let v' = schemes ctx M.! v
+        inst <- instantiate v'
+        return (emptySubst, inst, expr)
+
+      -- non-self associated method
+      Id [typ, name] | isJust (lookup name (traits ctx M.! typ)) -> do
+        let Just ft = lookup name (traits ctx M.! typ)
+        return (emptySubst, typeOfArgs ft, expr)
+
+      _ -> lift $ throwE $ NotFound posn v
+
   Lit      (IntLit    n) -> return (emptySubst, ConType (Id ["int"]), expr)
   Lit      (DoubleLit n) -> return (emptySubst, ConType (Id ["double"]), expr)
   Lit      (CharLit   c) -> return (emptySubst, ConType (Id ["char"]), expr)
