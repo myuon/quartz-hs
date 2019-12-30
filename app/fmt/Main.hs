@@ -25,11 +25,14 @@ instance Pretty Id where
 
 instance Pretty Op where
   pretty Eq = pretty "=="
-  pretty Leq = pretty "<="
   pretty Add = pretty "+"
   pretty Sub = pretty "-"
   pretty Mult = pretty "*"
   pretty Div = pretty "/"
+  pretty Leq = pretty "<="
+  pretty Lt = pretty "<"
+  pretty Geq = pretty ">="
+  pretty Gt = pretty ">"
 
 instance Pretty Literal where
   pretty lit = case lit of
