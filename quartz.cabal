@@ -34,6 +34,7 @@ library
     bytestring,
     containers,
     errors,
+    file-embed,
     mtl,
     primitive,
   hs-source-dirs:      src

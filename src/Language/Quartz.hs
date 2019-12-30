@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 module Language.Quartz (
   module Language.Quartz.AST,
   evalE,
@@ -19,6 +20,7 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Data.Bifunctor
 import Data.Dynamic
+import Data.FileEmbed
 import qualified Data.Map as M
 import Language.Quartz.AST
 import Language.Quartz.Lexer
@@ -45,7 +47,7 @@ data CompilerError
 
 runExpr :: MonadIO m => String -> m (Either CompilerError (Expr AlexPosn))
 runExpr s = do
-  std <- liftIO $ readFile "lib/std.qz"
+  let std = $(embedStringFile "lib/std.qz")
 
   -- stdを読み込む必要があるので一旦moduleに送るという強引な手段を取る
   runExceptT
@@ -73,7 +75,7 @@ runModuleWith
   -> String
   -> m (Either CompilerError (Expr AlexPosn))
 runModuleWith ffi s = do
-  std <- liftIO $ readFile "lib/std.qz"
+  let std = $(embedStringFile "lib/std.qz")
 
   runExceptT
     $   ($ std ++ s)
