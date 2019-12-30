@@ -26,6 +26,10 @@ instance Pretty Id where
 instance Pretty Op where
   pretty Eq = pretty "=="
   pretty Leq = pretty "<="
+  pretty Add = pretty "+"
+  pretty Sub = pretty "-"
+  pretty Mult = pretty "*"
+  pretty Div = pretty "/"
 
 instance Pretty Literal where
   pretty lit = case lit of
@@ -51,7 +55,7 @@ instance Pretty (Expr posn) where
     Var _ v -> pretty v
     Lit lit -> pretty lit
     FnCall e1 es -> pretty e1 <> parens (listed $ map pretty es)
-    Let v e -> align $ sep $ [pretty "let", pretty v, equals, pretty e]
+    Let v e -> pretty "let" <+> pretty v <+> equals <+> pretty e
     ClosureE c -> pretty c
     Match e brs -> pretty "match" <+> pretty e <+> braces (block $ map (\(x,y) -> pretty x <+> pretty "=>" <+> pretty y <> comma) brs)
     If es -> pretty "if" <+> braces (block $ map (\(x,y) ->
@@ -62,12 +66,16 @@ instance Pretty (Expr posn) where
         )
       <+> pretty "=>" <+> pretty y <> comma) es)
     Procedure es -> braces $ block $ map pretty es
-    ForIn v e1 es -> pretty "for" <+> pretty v <+> pretty "in" <+> pretty e1 <+> braces (block $ map pretty es)
     Unit -> parens emptyDoc
     ArrayLit es -> brackets (listed $ map pretty es)
+    IndexArray e1 e2 -> pretty e1 <> brackets (pretty e2)
+    ForIn v e1 es -> pretty "for" <+> pretty v <+> pretty "in" <+> pretty e1 <+> braces (block $ map pretty es)
     Op op e1 e2 -> pretty e1 <+> pretty op <+> pretty e2
-    Self typ -> pretty "self"
     Member e1 v -> pretty e1 <> dot <> pretty v
+    RecordOf s vs -> pretty s <+> braces (listed $ map (\(x,y) -> pretty x <> colon <+> pretty y) vs)
+    EnumOf i xs -> pretty i <> parens (listed $ map pretty xs)
+    Assign e1 e2 -> pretty e1 <+> equals <+> pretty e2
+    Self typ -> pretty "self"
     Stmt s -> pretty s <> semi
 
 instance Pretty Type where
@@ -93,10 +101,18 @@ instance Pretty EnumField where
     pretty name
     <> if null typs then emptyDoc else parens (listed $ map pretty typs)
 
+instance Pretty RecordField where
+  pretty (RecordField s t) = pretty s <> colon <+> pretty t
+
 instance Pretty (Decl posn) where
   pretty decl = case decl of
     Enum name tyvars fields -> align $
       pretty "enum"
+      <+> pretty name
+      <> generics tyvars
+      <+> braces (block $ map (\d -> pretty d <> comma) fields)
+    Record name tyvars fields -> align $
+      pretty "record"
       <+> pretty name
       <> generics tyvars
       <+> braces (block $ map (\d -> pretty d <> comma) fields)
