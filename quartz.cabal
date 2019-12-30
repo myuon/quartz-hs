@@ -13,7 +13,9 @@ author:              myuon
 maintainer:          ioi.joi.koi.loi@gmail.com
 -- copyright:
 category:            Language
-extra-source-files:  CHANGELOG.md
+extra-source-files:
+  CHANGELOG.md
+  lib/std.qz
 
 library
   exposed-modules:
