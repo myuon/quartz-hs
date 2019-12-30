@@ -263,6 +263,7 @@ algoW expr = case expr of
       ConType name             -> memberW name v1 s1 t1 e1'
       VarType _                -> lift $ throwE $ CannotInfer e1
       AppType (ConType name) _ -> memberW name v1 s1 t1 e1'
+      _                        -> error $ show t1
   RecordOf name fields -> do
     ctx          <- get
     (tyvars, rc) <- lift $ records ctx M.!? (Id [name]) ?? NotFound
