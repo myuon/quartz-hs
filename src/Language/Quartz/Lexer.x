@@ -47,11 +47,12 @@ tokens :-
   \= { wrap $ \_ -> TEq }
   \== { wrap $ \_ -> TEq2 }
   \_ { wrap $ \_ -> TUnderscore }
-  \<= { wrap $ \_ -> TLeq }
   \+ { wrap $ \_ -> TPlus }
   \- { wrap $ \_ -> TMinus }
   \* { wrap $ \_ -> TStar }
   \/ { wrap $ \_ -> TSlash }
+  \<= { wrap $ \_ -> TLeq }
+  \>= { wrap $ \_ -> TGeq }
   $digit+ { wrap (TInt . read) }
   [$alpha \_] [$alpha $digit \_]* { wrap TVar }
   @string { wrap (\s -> TStrLit $ init $ tail s) }
@@ -92,11 +93,12 @@ data Token
   | TEq
   | TEq2
   | TUnderscore
-  | TLeq
   | TPlus
   | TMinus
   | TStar
   | TSlash
+  | TLeq
+  | TGeq
   | TInt Int
   | TVar String
   | TStrLit String

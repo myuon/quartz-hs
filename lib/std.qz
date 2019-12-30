@@ -6,12 +6,6 @@ external func mod(x: int, y: int): int;
 
 external func add_int(x: int, y: int): int;
 
-external func subtract_int(x: int, y: int): int;
-
-external func mult_int(x: int, y: int): int;
-
-external func div_int(x: int, y: int): int;
-
 interface Add {
   func _add_(self, other: self): self;
 }
@@ -21,6 +15,8 @@ derive Add for int {
     add_int(self, other)
   }
 }
+
+external func subtract_int(x: int, y: int): int;
 
 interface Subtract {
   func _subtract_(self, other: self): self;
@@ -32,6 +28,8 @@ derive Subtract for int {
   }
 }
 
+external func mult_int(x: int, y: int): int;
+
 interface Mult {
   func _mult_(self, other: self): self;
 }
@@ -42,6 +40,8 @@ derive Mult for int {
   }
 }
 
+external func div_int(x: int, y: int): int;
+
 interface Div {
   func _div_(self, other: self): self;
 }
@@ -49,5 +49,38 @@ interface Div {
 derive Div for int {
   func _div_(self, other: self): self {
     div_int(self, other)
+  }
+}
+
+external func leq_int(x: int, y: int): bool;
+
+external func geq_int(x: int, y: int): bool;
+
+external func lt_int(x: int, y: int): bool;
+
+external func gt_int(x: int, y: int): bool;
+
+interface Order {
+  func _leq_(self, other: self): bool;
+  func _geq_(self, other: self): bool;
+  func _lt_(self, other: self): bool;
+  func _gt_(self, other: self): bool;
+}
+
+derive Order for int {
+  func _leq_(self, other: self): bool {
+    leq_int(self, other)
+  }
+  
+  func _geq_(self, other: self): bool {
+    geq_int(self, other)
+  }
+  
+  func _lt_(self, other: self): bool {
+    lt_int(self, other)
+  }
+  
+  func _gt_(self, other: self): bool {
+    gt_int(self, other)
   }
 }

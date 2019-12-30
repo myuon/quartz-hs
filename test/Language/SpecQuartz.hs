@@ -250,3 +250,19 @@ spec_quartz = do
         Nat::two()
       }
     |] `evalDTo` EnumOf (Id ["Nat", "Succ"]) [EnumOf (Id ["Nat", "Succ"]) [EnumOf (Id ["Nat", "Zero"]) []]]
+
+    specify "1 <= 200" $ [r|
+      1 <= 200
+    |] `evalETo` Lit (BoolLit True)
+
+    specify "1 < 200" $ [r|
+      1 < 200
+    |] `evalETo` Lit (BoolLit True)
+
+    specify "200 >= 1" $ [r|
+      200 >= 1
+    |] `evalETo` Lit (BoolLit True)
+
+    specify "200 > 1" $ [r|
+      200 > 1
+    |] `evalETo` Lit (BoolLit True)

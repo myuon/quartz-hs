@@ -136,6 +136,10 @@ desugarOpE expr = go expr
             Sub  -> FnCall (Member e1' "_subtract_") [e2']
             Mult -> FnCall (Member e1' "_mult_") [e2']
             Div  -> FnCall (Member e1' "_div_") [e2']
+            Leq  -> FnCall (Member e1' "_leq_") [e2']
+            Lt   -> FnCall (Member e1' "_lt_") [e2']
+            Geq  -> FnCall (Member e1' "_geq_") [e2']
+            Gt   -> FnCall (Member e1' "_gt_") [e2']
             _    -> Op op e1' e2'
     Var _ _                   -> expr
     Lit _                     -> expr

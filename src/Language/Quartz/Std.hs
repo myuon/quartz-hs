@@ -80,4 +80,36 @@ ffi = M.fromList
           return $ Lit (IntLit (x' `div` y'))
         _ -> throwE $ InvalidExpr d1
     )
+  , ( Id ["leq_int"]
+    , \[d1, d2] -> do
+      x <- (fromDynamic d1 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d1
+      y <- (fromDynamic d2 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d2
+      case (x, y) of
+        (Lit (IntLit x'), Lit (IntLit y')) -> return $ Lit (BoolLit (x' <= y'))
+        _ -> throwE $ InvalidExpr d1
+    )
+  , ( Id ["lt_int"]
+    , \[d1, d2] -> do
+      x <- (fromDynamic d1 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d1
+      y <- (fromDynamic d2 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d2
+      case (x, y) of
+        (Lit (IntLit x'), Lit (IntLit y')) -> return $ Lit (BoolLit (x' < y'))
+        _ -> throwE $ InvalidExpr d1
+    )
+  , ( Id ["geq_int"]
+    , \[d1, d2] -> do
+      x <- (fromDynamic d1 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d1
+      y <- (fromDynamic d2 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d2
+      case (x, y) of
+        (Lit (IntLit x'), Lit (IntLit y')) -> return $ Lit (BoolLit (x' >= y'))
+        _ -> throwE $ InvalidExpr d1
+    )
+  , ( Id ["gt_int"]
+    , \[d1, d2] -> do
+      x <- (fromDynamic d1 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d1
+      y <- (fromDynamic d2 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d2
+      case (x, y) of
+        (Lit (IntLit x'), Lit (IntLit y')) -> return $ Lit (BoolLit (x' > y'))
+        _ -> throwE $ InvalidExpr d1
+    )
   ]
