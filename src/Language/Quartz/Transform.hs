@@ -106,6 +106,8 @@ transformSelfTypeD :: Decl posn -> Decl posn
 transformSelfTypeD decl = case decl of
   Derive name vars (Just t) decls ->
     Derive name vars (Just t) $ map (go t) decls
+  Derive name vars Nothing decls ->
+    Derive name vars Nothing $ map (go (ConType (Id [name]))) decls
   _ -> decl
  where
   apply t typ = case typ of
