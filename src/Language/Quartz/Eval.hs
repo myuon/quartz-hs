@@ -2,9 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Language.Quartz.Eval where
 
-import Control.Applicative
 import Control.Monad.State
-import Control.Monad.IO.Class
 import Control.Error
 import qualified Data.Map as M
 import Data.Dynamic
@@ -52,6 +50,8 @@ subst expr var term = case expr of
   Assign   e1  e2  -> Assign (subst e1 var term) (subst e2 var term)
   Self _           -> expr
   MethodOf t s e   -> MethodOf t s (subst e var term)
+  Any  _           -> expr
+  Stmt s           -> Stmt $ subst s var term
 
 isNormalForm :: Expr AlexPosn -> Bool
 isNormalForm vm = case vm of
