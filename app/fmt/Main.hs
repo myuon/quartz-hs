@@ -11,7 +11,7 @@ import System.Environment
 import System.IO
 
 listed :: [Doc ann] -> Doc ann
-listed = align . sep . punctuate comma
+listed xs = align $ sep (punctuate comma xs) <> flatAlt comma emptyDoc
 
 block :: [Doc ann] -> Doc ann
 block = enclose hardline hardline . indent 2 . align . vsep
@@ -57,7 +57,7 @@ instance Pretty (Expr posn) where
   pretty expr = case expr of
     Var _ v -> pretty v
     Lit lit -> pretty lit
-    FnCall e1 es -> pretty e1 <> parens (listed $ map pretty es)
+    FnCall e1 es -> cat [hang 2 (cat [pretty e1 <> pretty "(", listed $ map pretty es]), pretty ")"]
     Let v e -> pretty "let" <+> pretty v <+> equals <+> pretty e
     ClosureE c -> pretty c
     Match e brs -> pretty "match" <+> pretty e <+> braces (block $ map (\(x,y) -> pretty x <+> pretty "=>" <+> pretty y <> comma) brs)
@@ -70,10 +70,11 @@ instance Pretty (Expr posn) where
       <+> pretty "=>" <+> pretty y <> comma) es)
     Procedure es -> braces $ block $ map pretty es
     Unit -> parens emptyDoc
-    ArrayLit es -> brackets (listed $ map pretty es)
+    ArrayLit es -> cat [hang 2 (cat [pretty "[", (listed $ map pretty es)]) , pretty "]"]
     IndexArray e1 e2 -> pretty e1 <> brackets (pretty e2)
     ForIn v e1 es -> pretty "for" <+> pretty v <+> pretty "in" <+> pretty e1 <+> braces (block $ map pretty es)
     Op op e1 e2 -> pretty e1 <+> pretty op <+> pretty e2
+    -- memberの部分を改行できるようにするためにはf.g()の形に対応する必要がある
     Member e1 v -> pretty e1 <> dot <> pretty v
     RecordOf s vs -> pretty s <+> braces (listed $ map (\(x,y) -> pretty x <> colon <+> pretty y) vs)
     EnumOf i xs -> pretty i <> parens (listed $ map pretty xs)
