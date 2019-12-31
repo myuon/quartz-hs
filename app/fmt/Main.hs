@@ -70,7 +70,9 @@ instance Pretty (Expr posn) where
       <+> pretty "=>" <+> pretty y <> comma) es)
     Procedure es -> braces $ block $ map pretty es
     Unit -> parens emptyDoc
-    ArrayLit es -> cat [hang 2 (cat [pretty "[", (listed $ map pretty es)]) , pretty "]"]
+    ArrayLit es ->
+      let content = sep $ punctuate comma $ map pretty es in
+      cat [pretty "[", flatAlt (indent 2 $ content <> comma) content, pretty "]"]
     IndexArray e1 e2 -> pretty e1 <> brackets (pretty e2)
     ForIn v e1 es -> pretty "for" <+> pretty v <+> pretty "in" <+> pretty e1 <+> braces (block $ map pretty es)
     Op op e1 e2 -> pretty e1 <+> pretty op <+> pretty e2
