@@ -213,6 +213,14 @@ evalE vm = case vm of
         liftIO $ Array.writeArray (getMArray marr) n val
         return Unit
       _ -> lift $ throwE $ Unreachable vm
+  Assign (Var posn v) e -> do
+    ctx <- get
+    r   <- evalE e
+    case v of
+      _ | v `M.member` exprs ctx -> do
+        modify $ \ctx -> ctx { exprs = M.insert v r $ exprs ctx }
+        return Unit
+      _ -> lift $ throwE $ NotFound posn v
   _ -> lift $ throwE $ Unreachable vm
 
 runEvalE

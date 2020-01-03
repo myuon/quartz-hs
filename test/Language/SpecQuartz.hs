@@ -267,6 +267,14 @@ spec_quartz = do
       200 > 1
     |] `evalETo` Lit (BoolLit True)
 
+    specify "assign" $ [r|
+      {
+        let v = 10;
+        v = 20;
+        v
+      }
+    |] `evalETo` Lit (IntLit 20)
+
   describe "stdlib" $ do
     describe "vector" $ do
       specify "push" $ [r|
