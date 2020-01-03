@@ -275,6 +275,18 @@ spec_quartz = do
       }
     |] `evalETo` Lit (IntLit 20)
 
+    specify "record modification in methods" $ [r|
+      record R {
+        x: int,
+      }
+
+      func main(): int {
+        let r = R { x: 10 };
+        r.x = 20;
+        r.x
+      }
+    |] `evalDTo` Lit (IntLit 20)
+
   describe "stdlib" $ do
     describe "vector" $ do
       specify "push" $ [r|

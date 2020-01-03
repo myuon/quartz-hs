@@ -47,11 +47,12 @@ subst expr var term = case expr of
   Member   e1  s   -> Member (subst e1 var term) s
   RecordOf s   xs  -> RecordOf s (map (\(x, y) -> (x, subst y var term)) xs)
   EnumOf   con ts  -> EnumOf con (map (\x -> subst x var term) ts)
-  Assign   e1  e2  -> Assign (subst e1 var term) (subst e2 var term)
-  Self _           -> expr
-  MethodOf t s e   -> MethodOf t s (subst e var term)
-  Any  _           -> expr
-  Stmt s           -> Stmt $ subst s var term
+  Assign e1 e2 ->
+    Assign (exprToAlv $ subst (alvToExpr e1) var term) (subst e2 var term)
+  Self _         -> expr
+  MethodOf t s e -> MethodOf t s (subst e var term)
+  Any  _         -> expr
+  Stmt s         -> Stmt $ subst s var term
 
 isNormalForm :: Expr AlexPosn -> Bool
 isNormalForm vm = case vm of
@@ -204,23 +205,35 @@ evalE vm = case vm of
   RecordOf name fs -> fmap (RecordOf name) $ forM fs $ \(x, y) -> do
     y' <- evalE y
     return (x, y')
-  Assign (IndexArray e1 e2) e3 -> do
-    r1 <- evalE e1
-    r2 <- evalE e2
-    r3 <- evalE e3
-    case (r1, r2, r3) of
-      (Array marr, Lit (IntLit n), val) -> do
-        liftIO $ Array.writeArray (getMArray marr) n val
-        return Unit
-      _ -> lift $ throwE $ Unreachable vm
-  Assign (Var posn v) e -> do
+  Assign e1 e2 -> do
     ctx <- get
-    r   <- evalE e
-    case v of
-      _ | v `M.member` exprs ctx -> do
-        modify $ \ctx -> ctx { exprs = M.insert v r $ exprs ctx }
-        return Unit
-      _ -> lift $ throwE $ NotFound posn v
+    case e1 of
+      VarAssign v -> do
+        case v of
+          _ | Id [v] `M.member` exprs ctx -> do
+            r2 <- evalE e2
+            modify $ \ctx -> ctx { exprs = M.insert (Id [v]) r2 $ exprs ctx }
+            return Unit
+          _ -> lift $ throwE $ NotFound Nothing (Id [v])
+      ArrayIndexAssign arr i -> do
+        arr' <- evalE arr
+        i'   <- evalE i
+        r2   <- evalE e2
+        case (arr', i', r2) of
+          (Array marr, Lit (IntLit n), val) -> do
+            liftIO $ Array.writeArray (getMArray marr) n val
+            return Unit
+          _ -> lift $ throwE $ Unreachable vm
+      RecordFieldAssign rc f -> do
+        rc' <- evalE rc
+        r2  <- evalE e2
+        case (rc', r2) of
+          (RecordOf name rc, val) -> do
+            return $ RecordOf name $ map
+              (\(x, y) -> if x == f then (x, r2) else (x, y))
+              rc
+          _ -> lift $ throwE $ Unreachable vm
+      _ -> lift $ throwE $ Unreachable vm
   _ -> lift $ throwE $ Unreachable vm
 
 runEvalE

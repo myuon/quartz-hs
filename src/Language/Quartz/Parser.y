@@ -142,8 +142,14 @@ stmt
     : FOR VAR IN expr_short '{' stmts '}'  { ForIn $2 $4 $6 }
     | IF '{' if_branches '}'  { If $3 }
     | LET VAR '=' expr ';'  { Stmt (Let (Id [$2]) $4) }
-    | expr '=' expr ';'  { Stmt (Assign $1 $3) }
+    | assign_left '=' expr ';'  { Stmt (Assign $1 $3) }
     | expr ';'  { Stmt $1 }
+
+assign_left :: { AssignLeftValue AlexPosn }
+assign_left
+    : VAR  { VarAssign $1 }
+    | expr_short '.' VAR  { RecordFieldAssign $1 $3 }
+    | expr_short '[' expr ']'  { ArrayIndexAssign $1 $3 }
 
 stmts :: { [Expr AlexPosn] }
 stmts

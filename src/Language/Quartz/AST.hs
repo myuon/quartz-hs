@@ -27,6 +27,24 @@ data Op
   | Gt
   deriving (Eq, Show)
 
+data AssignLeftValue posn
+  = VarAssign String
+  | RecordFieldAssign (Expr posn) String
+  | ArrayIndexAssign (Expr posn) (Expr posn)
+  deriving (Eq, Show)
+
+alvToExpr :: AssignLeftValue posn -> Expr posn
+alvToExpr val = case val of
+  VarAssign v             -> Var Nothing (Id [v])
+  RecordFieldAssign e  v  -> Member e v
+  ArrayIndexAssign  e1 e2 -> IndexArray e1 e2
+
+exprToAlv :: Expr posn -> AssignLeftValue posn
+exprToAlv val = case val of
+  Var        _  (Id [v]) -> VarAssign v
+  Member     e  v        -> RecordFieldAssign e v
+  IndexArray e1 e2       -> ArrayIndexAssign e1 e2
+
 data Expr posn
   = Var (Maybe posn) Id
   | Lit Literal
@@ -48,7 +66,7 @@ data Expr posn
   | Member (Expr posn) String
   | RecordOf String [(String, Expr posn)]
   | EnumOf Id [Expr posn]
-  | Assign (Expr posn) (Expr posn)
+  | Assign (AssignLeftValue posn) (Expr posn)
   | Self Type
   | MethodOf Type String (Expr posn)
   | Any (Dynamic' posn)

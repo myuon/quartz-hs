@@ -38,7 +38,7 @@ transformVarConTypeE expr = go [] expr
     Member   e  r    -> Member (go vars' e) r
     RecordOf s  es   -> RecordOf s (map (\(x, y) -> (x, go vars' y)) es)
     EnumOf   s  es   -> EnumOf s (map (go vars') es)
-    Assign   e1 e2   -> Assign (go vars' e1) (go vars' e2)
+    Assign   e1 e2   -> Assign (exprToAlv $ go vars' $ alvToExpr e1) (go vars' e2)
     Self s           -> Self s
     Stmt s           -> Stmt $ go vars' s
 
@@ -93,7 +93,7 @@ transformSelfTypeE typ expr = go expr
     Member   e  r             -> Member (go e) r
     RecordOf s  es            -> RecordOf s (map (\(x, y) -> (x, go y)) es)
     EnumOf   s  es            -> EnumOf s (map go es)
-    Assign   e1 e2            -> Assign (go e1) (go e2)
+    Assign   e1 e2            -> Assign (exprToAlv $ go $ alvToExpr e1) (go e2)
     Self selfType             -> Self (apply typ selfType)
     Stmt e                    -> Stmt $ go e
 
@@ -160,7 +160,7 @@ desugarOpE expr = go expr
     Member   e  r             -> Member (go e) r
     RecordOf s  es            -> RecordOf s (map (\(x, y) -> (x, go y)) es)
     EnumOf   s  es            -> EnumOf s (map go es)
-    Assign   e1 e2            -> Assign (go e1) (go e2)
+    Assign   e1 e2            -> Assign (exprToAlv $ go $ alvToExpr e1) (go e2)
     Self selfType             -> Self selfType
     Stmt e                    -> Stmt $ go e
 
