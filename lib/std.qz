@@ -1,7 +1,5 @@
 external func println<A>(x: A);
 
-external func range(start: int, end: int): array<int>;
-
 external func mod(x: int, y: int): int;
 
 external func add_int(x: int, y: int): int;
@@ -82,5 +80,51 @@ derive Order for int {
   
   func _gt_(self, other: self): bool {
     gt_int(self, other)
+  }
+}
+
+external func range(start: int, end: int): array<int>;
+
+external func length_array<T>(arr: array<T>): int;
+
+external func grow_array<T>(arr: array<T>, len: int): array<T>;
+
+record vector<T> {
+  arr: array<T>,
+  len: int,
+}
+
+derive vector<T>  {
+  func new(): self {
+    vector {arr: [0,0,0,0,0], len: 0}
+  }
+  
+  func push(self, v: T) {
+    if {
+      (length_array(self.arr) == self.len) => {
+        self.arr = grow_array(self.arr, length_array(self.arr) * 2);
+      },
+      true => {
+        1;
+      },
+    }
+    self.arr[self.len] = v;
+    self.len = self.len + 1;
+  }
+  
+  func get(self, i: int): T {
+    self.arr[i]
+  }
+  
+  func put(self, i: int, v: T) {
+    self.arr[i] = v;
+  }
+  
+  func length(self): int {
+    self.len
+  }
+
+  func capacity(self): int {
+    length_array(self.arr)
   }
 }

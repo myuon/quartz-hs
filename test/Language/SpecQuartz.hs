@@ -266,3 +266,30 @@ spec_quartz = do
     specify "200 > 1" $ [r|
       200 > 1
     |] `evalETo` Lit (BoolLit True)
+
+  describe "stdlib" $ do
+    describe "vector" $ do
+      specify "push" $ [r|
+        {
+          let v = vector::new();
+          v.push(1);
+          v.push(2);
+          v.push(3);
+
+          v.get(2)
+        }
+      |] `evalETo` Lit (IntLit 0)
+
+      specify "grow" $ [r|
+        {
+          let v = vector::new();
+          v.push(1);
+          v.push(2);
+          v.push(3);
+          v.push(4);
+          v.push(5);
+          v.push(6);
+
+          v.capacity()
+        }
+      |] `evalETo` Lit (IntLit 10)

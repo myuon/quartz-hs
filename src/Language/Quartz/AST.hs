@@ -76,6 +76,15 @@ data Type
   | FnType [Type] Type
   deriving (Eq, Show, Ord)
 
+mayAppType :: Type -> [Type] -> Type
+mayAppType typ vars = ((if null vars then id else (\x -> AppType x vars)) typ)
+
+nameOfType :: Type -> String
+nameOfType typ = case typ of
+  ConType (Id [name]) -> name
+  AppType t1 _        -> nameOfType t1
+  FnType  _  _        -> "Fn"
+
 data Scheme = Scheme [String] Type
   deriving (Eq, Show)
 

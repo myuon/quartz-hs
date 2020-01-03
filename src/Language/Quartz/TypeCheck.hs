@@ -1,5 +1,6 @@
 module Language.Quartz.TypeCheck where
 
+import Control.Applicative
 import Control.Error
 import Control.Monad.State
 import Data.Foldable
@@ -266,14 +267,14 @@ algoW expr = case expr of
       _                        -> error $ show t1
   RecordOf name fields -> do
     ctx          <- get
-    (tyvars, rc) <- lift $ records ctx M.!? (Id [name]) ?? NotFound
+    (tyvars, rc) <- lift $ records ctx M.!? Id [name] ?? NotFound
       Nothing
-      (Id [name])
+      (Id ["RecordOf type"])
     substs <- forM fields $ \(field, expr) -> do
       typ             <- lift $ lookup field rc ?? NotFound Nothing (Id [field])
       (s1, t1, expr') <- algoW expr
       s2              <- lift $ mgu t1 typ
-      return $ (s2 `compose` s1, (field, expr'))
+      return (s2 `compose` s1, (field, expr'))
     let s = foldr1 compose $ map fst substs
 
     fvars <- mapM (\_ -> fresh) tyvars
@@ -329,34 +330,46 @@ algoW expr = case expr of
          (ExceptT TypeCheckExceptions m)
          (Subst, Type, Expr AlexPosn)
   memberW name v1 s1 t1 e1' = do
-    ctx <- get
+    StateT $ \ctx -> catchE (runStateT tryRecord ctx) $ \err -> case err of
+      NotFound _ _ -> runStateT (tryImpl name) ctx
+      _            -> throwE err
+   where
+    tryRecord = do
+      ctx     <- get
+      (_, rc) <- lift $ records ctx M.!? name ?? NotFound Nothing name
+      t2      <- lift $ lookup v1 rc ?? NotFound Nothing (Id [v1])
+      return (s1, t2, Member e1' v1)
 
-    case name of
-      _ | name `M.member` records ctx -> do
-        (_, rc) <- lift $ records ctx M.!? name ?? NotFound Nothing name
-        t2      <- lift $ lookup v1 rc ?? NotFound Nothing (Id [v1])
-        return (s1, t2, Member e1' v1)
-      Id [name'] | name' `M.member` impls ctx -> do
-        traitNames <- lift $ impls ctx M.!? name' ?? NotFound Nothing name
-        let functypes = filter (\ft -> fst ft == v1) $ concat $ map
-              (traits ctx M.!)
-              traitNames
-        (methodName, ft) <-
-          lift
-          $  (\t -> if length t == 1 then Just (head t) else Nothing) functypes
-          ?? AmbiguousName v1
+    tryImpl
+      :: MonadIO m
+      => Id
+      -> StateT
+           Context
+           (ExceptT TypeCheckExceptions m)
+           (Subst, Type, Expr AlexPosn)
+    tryImpl (Id [name']) = do
+      ctx        <- get
+      traitNames <- lift $ impls ctx M.!? name' ?? NotFound Nothing name
+      let functypes = filter (\ft -> fst ft == v1) $ concat $ map
+            (traits ctx M.!)
+            traitNames
+      (methodName, ft) <-
+        lift
+        $  (\t -> if length t == 1 then Just (head t) else Nothing) functypes
+        ?? AmbiguousName v1
 
-        -- SelfTypeを剥がす
-        -- ここで、interfaceの型定義はselfを含むのでこれは型変数に書き換える
-        b <- fresh
-        let FnType (arr1:args) ret = selfTypeToVar (typeOfArgs ft) b
-        s2 <- lift $ mgu arr1 t1
+      -- SelfTypeを剥がす
+      -- ここで、interfaceの型定義はselfを含むのでこれは型変数に書き換える
+      b <- fresh
+      let FnType (arr1:args) ret = selfTypeToVar (typeOfArgs ft) b
+      s2 <- lift $ mgu arr1 t1
 
-        return
-          ( s2 `compose` s1
-          , apply s2 $ FnType args ret
-          , MethodOf t1 methodName e1'
-          )
+      return
+        ( s2 `compose` s1
+        , apply s2 $ FnType args ret
+        , MethodOf t1 methodName e1'
+        )
+    tryImpl name = lift $ throwE $ NotFound Nothing name
 
   appW (e1:e2:[]) = do
     b             <- VarType <$> fresh
@@ -445,9 +458,14 @@ typecheckModule ds = mapM check ds
       return d
     Derive name x typ ds -> do
       case typ of
-        Just (ConType (Id [typ'])) -> do
-          modify $ \ctx ->
-            ctx { impls = M.insertWith (++) typ' [name] $ impls ctx }
+        Just (ConType (Id [typ'])) -> modify $ \ctx -> ctx
+          { impls  = M.insertWith (++) typ' [name] $ impls ctx
+          , traits = M.union
+              ( M.singleton name
+              $ map (\(Func fn (Closure ft _)) -> (fn, ft)) ds
+              )
+            $ traits ctx
+          }
         Nothing -> modify $ \ctx -> ctx
           { impls  = M.insertWith (++) name [name] $ impls ctx
           , traits = M.union
@@ -456,7 +474,6 @@ typecheckModule ds = mapM check ds
               )
             $ traits ctx
           }
-
       ds' <- typecheckModule ds
       return $ Derive name x typ ds'
     OpenD _ -> return d

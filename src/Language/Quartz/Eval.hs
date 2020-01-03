@@ -18,7 +18,7 @@ data Context m = Context {
   decls :: PathTree.PathTree String (Decl AlexPosn),
   exprs :: M.Map Id (Expr AlexPosn),
   ffi :: M.Map Id ([Dynamic] -> ExceptT Std.FFIExceptions m (Expr AlexPosn)),
-  impls :: M.Map (String, Type) (Expr AlexPosn)
+  impls :: M.Map (String, String) (Expr AlexPosn)
 }
 
 subst :: Expr AlexPosn -> String -> Expr AlexPosn -> Expr AlexPosn
@@ -55,15 +55,15 @@ subst expr var term = case expr of
 
 isNormalForm :: Expr AlexPosn -> Bool
 isNormalForm vm = case vm of
-  Lit      _   -> True
-  ClosureE _   -> True
-  OpenE    _   -> True
-  Unit         -> True
-  Array _      -> True
-  RecordOf _ _ -> True
-  EnumOf   _ _ -> True
-  Any _        -> True
-  _            -> False
+  Lit      _    -> True
+  ClosureE _    -> True
+  OpenE    _    -> True
+  Unit          -> True
+  Array _       -> True
+  RecordOf _ fs -> all isNormalForm $ map snd fs
+  EnumOf   _ _  -> True
+  Any _         -> True
+  _             -> False
 
 
 match
@@ -106,8 +106,8 @@ evalE vm = case vm of
       _ | t `M.member` exprs ctx -> do
         return $ exprs ctx M.! t
 
-      Id [typ, name] | (name, ConType (Id [typ])) `M.member` impls ctx -> do
-        return $ impls ctx M.! (name, ConType (Id [typ]))
+      Id [typ, name] | (name, typ) `M.member` impls ctx -> do
+        return $ impls ctx M.! (name, typ)
 
       _ -> lift $ throwE $ NotFound posn t
 
@@ -116,7 +116,9 @@ evalE vm = case vm of
   -- 1段ネストの深いパターンマッチが必要
   FnCall (MethodOf typ name e1) es -> do
     ctx  <- get
-    expr <- lift $ impls ctx M.!? (name, typ) ?? NotFound Nothing (Id [name])
+    expr <- lift $ impls ctx M.!? (name, nameOfType typ) ?? NotFound
+      Nothing
+      (Id [name])
     evalE $ FnCall expr (e1 : es)
 
   FnCall f xs -> do
@@ -198,8 +200,20 @@ evalE vm = case vm of
     case r1 of
       RecordOf _ fields -> do
         return $ (\(Just x) -> x) $ lookup v1 fields
-  Stmt e -> evalE e
-  _      -> lift $ throwE $ Unreachable vm
+  Stmt e           -> evalE e
+  RecordOf name fs -> fmap (RecordOf name) $ forM fs $ \(x, y) -> do
+    y' <- evalE y
+    return (x, y')
+  Assign (IndexArray e1 e2) e3 -> do
+    r1 <- evalE e1
+    r2 <- evalE e2
+    r3 <- evalE e3
+    case (r1, r2, r3) of
+      (Array marr, Lit (IntLit n), val) -> do
+        liftIO $ Array.writeArray (getMArray marr) n val
+        return Unit
+      _ -> lift $ throwE $ Unreachable vm
+  _ -> lift $ throwE $ Unreachable vm
 
 runEvalE
   :: MonadIO m => Expr AlexPosn -> ExceptT RuntimeExceptions m (Expr AlexPosn)
@@ -246,18 +260,16 @@ evalD decl = go [] decl
         )
     Interface _ _ _             -> return ()
     Derive name _ (Just typ) ds -> modify $ \ctx -> ctx
-      { impls = foldl'
-        (\mp d@(Func name body) -> M.insert (name, typ) (ClosureE body) mp)
-        (impls ctx)
-        ds
-      }
-    Derive name _ Nothing ds -> modify $ \ctx -> ctx
       { impls = M.union
-          ( M.fromList $ map
-            (\(Func fn body) -> ((fn, ConType (Id [name])), ClosureE body))
-            ds
-          )
-        $ impls ctx
+        ( M.fromList
+        $ map (\(Func fn body) -> ((fn, nameOfType typ), ClosureE body)) ds
+        )
+        (impls ctx)
+      }
+    Derive name vars Nothing ds -> modify $ \ctx -> ctx
+      { impls = M.union
+        (M.fromList $ map (\(Func fn body) -> ((fn, name), ClosureE body)) ds)
+        (impls ctx)
       }
 
 std

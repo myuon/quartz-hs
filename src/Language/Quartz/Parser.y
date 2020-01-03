@@ -182,7 +182,9 @@ expr
     | expr '>=' expr { Op Geq $1 $3 }
     | expr '>' expr { Op Gt $1 $3 }
     | expr '==' expr { Op Eq $1 $3 }
+
     | VAR '{' record_expr '}'  { RecordOf $1 $3 }
+
     | expr_short  { $1 }
 
 record_expr :: { [(String, Expr AlexPosn)] }

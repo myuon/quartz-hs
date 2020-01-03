@@ -112,4 +112,12 @@ ffi = M.fromList
         (Lit (IntLit x'), Lit (IntLit y')) -> return $ Lit (BoolLit (x' > y'))
         _ -> throwE $ InvalidExpr d1
     )
+  , ( Id ["length_array"]
+    , \[d1] -> do
+      arr <- (fromDynamic d1 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d1
+      case arr of
+        (Array (MArray marr)) ->
+          return $ Lit $ IntLit $ Array.sizeofMutableArray marr
+        _ -> throwE $ InvalidExpr d1
+    )
   ]

@@ -77,7 +77,7 @@ transformSelfTypeE typ expr = go expr
   go expr = case expr of
     Var _ _                   -> expr
     Lit _                     -> expr
-    FnCall x ys               -> FnCall x (map go ys)
+    FnCall x ys               -> FnCall (go x) (map go ys)
     Let    x e                -> Let x (go e)
     ClosureE (Closure args e) -> ClosureE (Closure (goArgTypes args) (go e))
     Match e bs                -> Match (go e) (map (\(p, e) -> (p, go e)) bs)
@@ -107,9 +107,11 @@ transformSelfTypeD decl = case decl of
   Derive name vars (Just t) decls ->
     Derive name vars (Just t) $ map (go t) decls
   Derive name vars Nothing decls ->
-    Derive name vars Nothing $ map (go (ConType (Id [name]))) decls
+    Derive name vars Nothing $ map (go (createType name vars)) decls
   _ -> decl
  where
+  createType name vars = mayAppType (ConType (Id [name])) (map VarType vars)
+
   apply t typ = case typ of
     SelfType         -> t
     FnType  args ret -> FnType (map (apply t) args) (apply t ret)
