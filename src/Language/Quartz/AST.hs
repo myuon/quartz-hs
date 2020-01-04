@@ -2,6 +2,7 @@ module Language.Quartz.AST where
 
 import Data.Primitive.Array
 import Data.Dynamic
+import Data.IORef
 import Control.Monad.Primitive (RealWorld)
 
 data Literal
@@ -39,8 +40,6 @@ data Expr posn
   | Procedure [Expr posn]
   | Unit
   | FFI Id [Expr posn]
-  -- primitiveのときはMutableByteArrayにしたい
-  | Array (MArray posn)
   | ArrayLit [Expr posn]
   | IndexArray (Expr posn) (Expr posn)
   | ForIn String (Expr posn) [Expr posn]
@@ -55,6 +54,9 @@ data Expr posn
   | Stmt (Expr posn)
   | Ref (Expr posn)
   | Deref (Expr posn)
+  -- 以下、evaluation時のみ
+  -- primitiveのときはMutableByteArrayにしたい
+  | Array (MArray posn)
   deriving (Eq, Show)
 
 data Dynamic' posn = Dynamic' (Maybe posn) Dynamic
@@ -68,6 +70,12 @@ newtype MArray posn = MArray { getMArray :: MutableArray RealWorld (Expr posn) }
 
 instance Show (MArray posn) where
   show _ = "<<array>>"
+
+newtype MRef posn = MRef { getMRef :: IORef (Expr posn) }
+  deriving Eq
+
+instance Show (MRef posn) where
+  show _ = "<<ref>>"
 
 data Type
   = ConType Id

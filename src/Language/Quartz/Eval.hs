@@ -7,6 +7,7 @@ import Control.Error
 import qualified Data.Map as M
 import Data.Dynamic
 import Data.Foldable
+import Data.IORef
 import Language.Quartz.AST
 import Language.Quartz.Lexer (AlexPosn)
 import Language.Quartz.TypeCheck (fresh, argumentOf)
@@ -50,9 +51,10 @@ subst expr var term = case expr of
   Assign   e1  e2  -> Assign (subst e1 var term) (subst e2 var term)
   Self _           -> expr
   MethodOf t s e   -> MethodOf t s (subst e var term)
-  Any  _           -> expr
-  Stmt s           -> Stmt $ subst s var term
-  Ref  v           -> Ref v
+  Any   _          -> expr
+  Stmt  s          -> Stmt $ subst s var term
+  Ref   v          -> Ref $ subst v var term
+  Deref e          -> Deref $ subst e var term
 
 isNormalForm :: Expr AlexPosn -> Bool
 isNormalForm vm = case vm of
@@ -202,10 +204,7 @@ evalE vm = case vm of
     case r1 of
       RecordOf _ fields -> do
         return $ (\(Just x) -> x) $ lookup v1 fields
-
-      -- auto derefence
-      Ref r1' -> evalE $ Member r1' v1
-      _       -> lift $ throwE $ Unreachable vm
+      _ -> lift $ throwE $ Unreachable vm
   Stmt e           -> evalE e
   RecordOf name fs -> fmap (RecordOf name) $ forM fs $ \(x, y) -> do
     y' <- evalE y
@@ -213,21 +212,11 @@ evalE vm = case vm of
   Assign e1 e2 -> do
     ctx <- get
     case e1 of
-      Var Nothing v -> do
+      Ref (Var Nothing v) -> do
         r2 <- evalE e2
         modify $ \ctx -> ctx { exprs = M.insert v r2 $ exprs ctx }
-      Member (Var _ r) v -> do
-        r2 <- evalE e2
-        modify $ \ctx -> ctx
-          { exprs = M.adjust
-              ( \(RecordOf f rc) -> RecordOf f
-                $ map (\(x, y) -> if x == v then (x, r2) else (x, y)) rc
-              )
-              r
-            $ exprs ctx
-          }
       -- 多段にネストされたメンバーへの代入が出来ないが今は適当
-      Member (Ref (Var _ r)) v -> do
+      Ref (Member (Var _ r) v) -> do
         r2 <- evalE e2
         modify $ \ctx -> ctx
           { exprs = M.adjust

@@ -267,6 +267,7 @@ algoW expr = case expr of
       ConType name             -> memberW name v1 s1 t1 e1'
       VarType _                -> lift $ throwE $ CannotInfer e1
       AppType (ConType name) _ -> memberW name v1 s1 t1 e1'
+      -- auto dereference
       RefType t                -> algoW $ Member (Deref e1) v1
       _                        -> error $ show t1
   RecordOf name fields -> do
@@ -313,11 +314,11 @@ algoW expr = case expr of
     (s1, t1, expr') <- algoW expr
 
     return (s1, ConType (Id ["unit"]), expr')
-  Ref   v -> algoW v
+  Ref   v -> fmap (\(s, t, e) -> (s, t, Ref e)) $ algoW v
   Deref e -> do
     (s, t, e') <- algoW e
     case t of
-      RefType t' -> return (s, t', e')
+      RefType t' -> return (s, t', Deref e')
       _          -> lift $ throwE $ CannotDerefNonReferencedType t
   _ -> error $ show expr
  where
