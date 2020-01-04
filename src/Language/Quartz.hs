@@ -29,6 +29,7 @@ import Language.Quartz.Transform
 import Language.Quartz.TypeCheck
 import Language.Quartz.Eval
 import Language.Quartz.Std
+import Paths_quartz
 
 parseExpr :: String -> Either String (Expr AlexPosn)
 parseExpr = parserExpr . alexScanTokens
@@ -47,7 +48,7 @@ data CompilerError
 
 runExpr :: MonadIO m => String -> m (Either CompilerError (Expr AlexPosn))
 runExpr s = do
-  let std = $(embedStringFile "lib/std.qz")
+  std <- liftIO $ readFile =<< getDataFileName "lib/std.qz"
 
   -- stdを読み込む必要があるので一旦moduleに送るという強引な手段を取る
   runExceptT
@@ -75,7 +76,7 @@ runModuleWith
   -> String
   -> m (Either CompilerError (Expr AlexPosn))
 runModuleWith ffi s = do
-  let std = $(embedStringFile "lib/std.qz")
+  std <- liftIO $ readFile =<< getDataFileName "lib/std.qz"
 
   runExceptT
     $   ($ std ++ s)
