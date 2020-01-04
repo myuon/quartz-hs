@@ -334,6 +334,7 @@ algoW expr = case expr of
       FnType  xs y  -> FnType (map go xs) (go y)
       AppType x  ys -> AppType (go x) (map go ys)
       SelfType      -> VarType b
+      RefType t     -> go t
       _             -> typ
 
   memberW
@@ -381,16 +382,13 @@ algoW expr = case expr of
       -- ついでにRefTypeの処理, 現状はrefできるのはselfのみ
       b <- fresh
       let FnType (arr1:args) ret = selfTypeToVar (typeOfArgs ft) b
-      s2 <- lift $ mgu arr1 $ case arr1 of
-        RefType _ -> RefType t1
-        _         -> t1
+      let FuncType _ at _        = ft
+      s2 <- lift $ mgu arr1 $ if isRefSelfArgType at then RefType t1 else t1
 
       return
         ( s2 `compose` s1
         , apply s2 $ FnType args ret
-        , MethodOf t1 methodName $ case arr1 of
-          RefType _ -> Ref e1'
-          _         -> e1'
+        , MethodOf t1 methodName $ if isRefSelfArgType at then Ref e1' else e1'
         )
     tryImpl name = lift $ throwE $ NotFound Nothing name
 

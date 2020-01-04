@@ -293,17 +293,17 @@ spec_quartz = do
       }
 
       derive R {
-        func setX(&self, val: int) {
-          self.x = val;
+        func addX(&self, val: int) {
+          self = R { x: self.x + val };
         }
       }
 
       func main(): int {
-        let r = R { x: 10 };
-        r.setX(20);
+        let r = &R { x: 10 };
+        r.addX(20);
         r.x
       }
-    |] `evalDTo` Lit (IntLit 20)
+    |] `evalDTo` Lit (IntLit 30)
 
   describe "stdlib" $ do
     describe "vector" $ do

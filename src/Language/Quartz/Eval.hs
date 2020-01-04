@@ -27,7 +27,7 @@ subst expr var term = case expr of
   Var _ y | y == Id [var] -> term
   Var _ _                 -> expr
   Lit _                   -> expr
-  FnCall f xs             -> FnCall f (map (\x -> subst x var term) xs)
+  FnCall f xs -> FnCall (subst f var term) (map (\x -> subst x var term) xs)
   Let    x t              -> Let x (subst t var term)
   -- FIXME: shadowingしてる場合
   ClosureE (Closure argtypes e) ->
