@@ -96,10 +96,10 @@ record vector<T> {
 
 derive vector<T>  {
   func new(): self {
-    vector {arr: [0,0,0,0,0], len: 0}
+    vector {arr: [0, 0, 0, 0, 0], len: 0}
   }
   
-  func push(self, v: T) {
+  func push(&self, v: T) {
     if {
       (length_array(self.arr) == self.len) => {
         self.arr = grow_array(self.arr, length_array(self.arr) * 2);
@@ -123,7 +123,7 @@ derive vector<T>  {
   func length(self): int {
     self.len
   }
-
+  
   func capacity(self): int {
     length_array(self.arr)
   }

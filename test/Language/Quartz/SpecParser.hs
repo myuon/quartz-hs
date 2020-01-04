@@ -60,13 +60,13 @@ spec_parser = do
 
       parseE "(a: string): string -> { a }" `shouldBe` ClosureE
         ( Closure
-          (FuncType [] (ArgType False [("a", ConType (Id ["string"]))]) (ConType (Id ["string"])))
+          (FuncType [] (ArgType False False [("a", ConType (Id ["string"]))]) (ConType (Id ["string"])))
           (Procedure [Var Nothing (Id ["a"])])
         )
 
       parseE "<A>(a: A): A -> a" `shouldBe` ClosureE
         ( Closure
-          (FuncType ["A"] (ArgType False [("a", VarType "A")]) (VarType "A"))
+          (FuncType ["A"] (ArgType False False [("a", VarType "A")]) (VarType "A"))
           (Var Nothing (Id ["a"]))
         )
 
@@ -81,7 +81,7 @@ spec_parser = do
         `shouldBe` ClosureE
                      ( Closure
                        (FuncType []
-                       (ArgType False [
+                       (ArgType False False [
                          ("a", ConType (Id ["int"])),
                          ("b", ConType (Id ["int"])),
                          ("c", ConType (Id ["int"]))
@@ -105,7 +105,7 @@ spec_parser = do
           f
         }
       |] `shouldBe` Procedure [
-          Stmt $ Let (Id ["f"]) (ClosureE (Closure (FuncType [] (ArgType False []) (ConType (Id ["int"]))) (Procedure [Lit (IntLit 10)])))
+          Stmt $ Let (Id ["f"]) (ClosureE (Closure (FuncType [] (ArgType False False []) (ConType (Id ["int"]))) (Procedure [Lit (IntLit 10)])))
           , Var Nothing (Id ["f"])
           ]
 
@@ -113,7 +113,7 @@ spec_parser = do
         "id"
         ( Closure
           (FuncType ["A"]
-          (ArgType False [("x", VarType "A")])
+          (ArgType False False [("x", VarType "A")])
           (VarType "A"))
           (Procedure [Stmt $ Let (Id ["y"]) (Var Nothing (Id ["x"])), Var Nothing (Id ["y"])])
         )
@@ -162,7 +162,7 @@ spec_parser = do
                          "is_zero"
                          ( Closure
                            (FuncType []
-                           (ArgType True [])
+                           (ArgType False True [])
                            (ConType (Id ["bool"])))
                            ( Procedure
                              [ Match
@@ -184,14 +184,14 @@ spec_parser = do
       |] `shouldBe` Func "main" (Closure
         (FuncType
         []
-        (ArgType False [])
+        (ArgType False False [])
         (ConType (Id ["unit"])))
         (Procedure [Stmt $ FnCall (Var Nothing (Id ["println"])) [Lit (StringLit "Hello, World!")]])
         )
 
       parseD [r|
         external func println(x: string);
-      |] `shouldBe` ExternalFunc "println" (FuncType [] (ArgType False [("x", ConType (Id ["string"]))]) (ConType (Id ["unit"])))
+      |] `shouldBe` ExternalFunc "println" (FuncType [] (ArgType False False [("x", ConType (Id ["string"]))]) (ConType (Id ["unit"])))
 
       parseD [r|
         func f() {
@@ -199,7 +199,7 @@ spec_parser = do
             put(i);
           }
         }
-      |] `shouldBe` Func "f" (Closure (FuncType [] (ArgType False []) (ConType (Id ["unit"]))) (
+      |] `shouldBe` Func "f" (Closure (FuncType [] (ArgType False False []) (ConType (Id ["unit"]))) (
                       Procedure [
                         ForIn "i" (Var Nothing (Id ["foo"])) [
                           Stmt $ FnCall (Var Nothing (Id ["put"])) [Var Nothing (Id ["i"])]
@@ -213,7 +213,7 @@ spec_parser = do
             put(i);
           }
         }
-      |] `shouldBe` Func "f" (Closure (FuncType [] (ArgType False []) (ConType (Id ["unit"]))) (
+      |] `shouldBe` Func "f" (Closure (FuncType [] (ArgType False False []) (ConType (Id ["unit"]))) (
                       Procedure [
                         ForIn "i" (FnCall (Var Nothing (Id ["foo"])) [Var Nothing (Id ["y"]), Var Nothing (Id ["z"])]) [
                           Stmt $ FnCall (Var Nothing (Id ["put"])) [Var Nothing (Id ["i"])]
@@ -225,7 +225,7 @@ spec_parser = do
         func barOf(foo: Foo): int {
           foo.bar
         }
-      |] `shouldBe` Func "barOf" (Closure (FuncType [] (ArgType False [("foo", ConType (Id ["Foo"]))]) (ConType (Id ["int"]))) (Procedure [
+      |] `shouldBe` Func "barOf" (Closure (FuncType [] (ArgType False False [("foo", ConType (Id ["Foo"]))]) (ConType (Id ["int"]))) (Procedure [
           Member (Var Nothing (Id ["foo"])) "bar"
         ]))
 
@@ -246,7 +246,7 @@ spec_parser = do
         }
       |] `shouldBe` Func "snoc" (Closure (FuncType
           ["T"]
-          (ArgType False [
+          (ArgType False False [
             ("xs", AppType (ConType (Id ["List"])) [VarType "T"]),
             ("x", VarType "T")
           ])
@@ -260,8 +260,8 @@ spec_parser = do
           func put<T>(self, i: int, val: T);
         }
       |] `shouldBe` Interface "IState" [] [
-          (,) "get" (FuncType ["T"] (ArgType True [("i", ConType (Id ["int"]))]) (VarType "T")),
-          (,) "put" (FuncType ["T"] (ArgType True [("i", ConType (Id ["int"])), ("val", VarType "T")]) (ConType (Id ["unit"])))
+          (,) "get" (FuncType ["T"] (ArgType False True [("i", ConType (Id ["int"]))]) (VarType "T")),
+          (,) "put" (FuncType ["T"] (ArgType False True [("i", ConType (Id ["int"])), ("val", VarType "T")]) (ConType (Id ["unit"])))
         ]
 
       parseD [r|
@@ -271,7 +271,7 @@ spec_parser = do
           }
         }
       |] `shouldBe` Derive "IState" [] (Just (AppType (ConType (Id ["array"])) [ConType (Id ["int"])]))
-          [ Func "get" (Closure (FuncType ["T"] (ArgType True [("i", ConType (Id ["int"]))]) (VarType "T")) (Procedure [
+          [ Func "get" (Closure (FuncType ["T"] (ArgType False True [("i", ConType (Id ["int"]))]) (VarType "T")) (Procedure [
             IndexArray (Self SelfType) (Var Nothing (Id ["i"]))
           ]))
           ]

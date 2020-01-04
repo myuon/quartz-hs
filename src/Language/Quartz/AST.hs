@@ -27,24 +27,6 @@ data Op
   | Gt
   deriving (Eq, Show)
 
-data AssignLeftValue posn
-  = VarAssign String
-  | RecordFieldAssign (Expr posn) String
-  | ArrayIndexAssign (Expr posn) (Expr posn)
-  deriving (Eq, Show)
-
-alvToExpr :: AssignLeftValue posn -> Expr posn
-alvToExpr val = case val of
-  VarAssign v             -> Var Nothing (Id [v])
-  RecordFieldAssign e  v  -> Member e v
-  ArrayIndexAssign  e1 e2 -> IndexArray e1 e2
-
-exprToAlv :: Expr posn -> AssignLeftValue posn
-exprToAlv val = case val of
-  Var        _  (Id [v]) -> VarAssign v
-  Member     e  v        -> RecordFieldAssign e v
-  IndexArray e1 e2       -> ArrayIndexAssign e1 e2
-
 data Expr posn
   = Var (Maybe posn) Id
   | Lit Literal
@@ -66,11 +48,12 @@ data Expr posn
   | Member (Expr posn) String
   | RecordOf String [(String, Expr posn)]
   | EnumOf Id [Expr posn]
-  | Assign (AssignLeftValue posn) (Expr posn)
+  | Assign (Expr posn) (Expr posn)
   | Self Type
   | MethodOf Type String (Expr posn)
   | Any (Dynamic' posn)
   | Stmt (Expr posn)
+  | Ref (Expr posn)
   deriving (Eq, Show)
 
 data Dynamic' posn = Dynamic' (Maybe posn) Dynamic
@@ -92,6 +75,7 @@ data Type
   | SelfType
   | NoType
   | FnType [Type] Type
+  | RefType Type
   deriving (Eq, Show, Ord)
 
 mayAppType :: Type -> [Type] -> Type
@@ -113,15 +97,21 @@ data Pattern
   | PAny
   deriving (Eq, Show)
 
-data ArgType = ArgType Bool [(String, Type)]
+data ArgType = ArgType Bool Bool [(String, Type)]
   deriving (Eq, Show)
 
 listArgTypes :: ArgType -> [Type]
-listArgTypes (ArgType self xs) =
-  (if self then (SelfType :) else id) $ map snd xs
+listArgTypes (ArgType ref self xs) =
+  ( if ref && self
+      then (RefType SelfType :)
+      else if self then (SelfType :) else id
+    )
+    $ map snd xs
 
 listArgNames :: ArgType -> [String]
-listArgNames (ArgType self xs) = (if self then ("self" :) else id) $ map fst xs
+listArgNames (ArgType ref self xs) =
+  (if ref && self then ("&self" :) else if self then ("self" :) else id)
+    $ map fst xs
 
 data FuncType = FuncType [String] ArgType Type
   deriving (Eq, Show)
@@ -149,5 +139,4 @@ schemeOfArgs :: FuncType -> Scheme
 schemeOfArgs at@(FuncType vars _ _) = Scheme vars (typeOfArgs at)
 
 typeOfArgs :: FuncType -> Type
-typeOfArgs (FuncType _ (ArgType self args) ret) =
-  FnType ((if self then (SelfType :) else id) $ map snd args) ret
+typeOfArgs (FuncType _ at ret) = FnType (listArgTypes at) ret

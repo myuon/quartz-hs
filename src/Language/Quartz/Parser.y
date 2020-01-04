@@ -24,6 +24,7 @@ import Language.Quartz.AST
     ':' { Lexeme _ TColon }
     ';' { Lexeme _ TSemiColon }
     '.' { Lexeme _ TDot }
+    '&' { Lexeme _ TAnd }
     '->' { Lexeme _ TArrow }
     '=>' { Lexeme _ TDArrow }
     '=' { Lexeme _ TEq }
@@ -64,7 +65,7 @@ import Language.Quartz.AST
 
 decl :: { Decl AlexPosn }
 decl
-    : EXTERNAL FUNC VAR may_generics '(' arg_types ')' may_return_type ';'  { ExternalFunc $3 (FuncType $4 (ArgType False $6) (maybe unitType id $8)) }
+    : EXTERNAL FUNC VAR may_generics '(' arg_types ')' may_return_type ';'  { ExternalFunc $3 (FuncType $4 (ArgType False False $6) (maybe unitType id $8)) }
     | FUNC VAR may_generics '(' self_arg_types ')' may_return_type '{' stmts '}'  { Func $2 (Closure (FuncType $3 $5 (maybe unitType id $7)) (Procedure $9)) }
     | ENUM VAR may_generics '{' enum_fields '}'  { Enum $2 $3 $5 }
     | RECORD VAR may_generics '{' record_fields '}'  { Record $2 $3 $5 }
@@ -145,11 +146,11 @@ stmt
     | assign_left '=' expr ';'  { Stmt (Assign $1 $3) }
     | expr ';'  { Stmt $1 }
 
-assign_left :: { AssignLeftValue AlexPosn }
+assign_left :: { Expr AlexPosn }
 assign_left
-    : VAR  { VarAssign $1 }
-    | expr_short '.' VAR  { RecordFieldAssign $1 $3 }
-    | expr_short '[' expr ']'  { ArrayIndexAssign $1 $3 }
+    : expr_short  { Ref $1 }
+    | expr_short '.' VAR  { Member (Ref $1) $3 }
+    | expr_short '[' expr ']'  { IndexArray (Ref $1) $3 }
 
 stmts :: { [Expr AlexPosn] }
 stmts
@@ -175,8 +176,8 @@ expr
     | IF '{' if_branches '}'  { If $3 }
 
     -- こうしないとちゃんとパースできないので(先読みの問題？)
-    | '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (FuncType [] (ArgType False $2) (maybe unitType id $4)) $6) }
-    | '<' may_generics_internal '>' '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (FuncType $2 (ArgType False $5) (maybe unitType id $7)) $9) }
+    | '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (FuncType [] (ArgType False False $2) (maybe unitType id $4)) $6) }
+    | '<' may_generics_internal '>' '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (FuncType $2 (ArgType False False $5) (maybe unitType id $7)) $9) }
 
     -- 演算子優先順位のためにはここはまとめて書いてはいけない？
     | expr '+' expr { Op Add $1 $3 }
@@ -241,9 +242,11 @@ arg_types
 
 self_arg_types :: { ArgType }
 self_arg_types
-    : SELF ',' arg_types  { ArgType True $3 }
-    | SELF  { ArgType True [] }
-    | arg_types  { ArgType False $1 }
+    : SELF ',' arg_types  { ArgType False True $3 }
+    | SELF  { ArgType False True [] }
+    | '&' SELF ',' arg_types  { ArgType True True $4 }
+    | '&' SELF  { ArgType True True [] }
+    | arg_types  { ArgType False False $1 }
 
 literal :: { Literal }
 literal

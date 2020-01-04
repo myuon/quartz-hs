@@ -47,12 +47,12 @@ subst expr var term = case expr of
   Member   e1  s   -> Member (subst e1 var term) s
   RecordOf s   xs  -> RecordOf s (map (\(x, y) -> (x, subst y var term)) xs)
   EnumOf   con ts  -> EnumOf con (map (\x -> subst x var term) ts)
-  Assign e1 e2 ->
-    Assign (exprToAlv $ subst (alvToExpr e1) var term) (subst e2 var term)
-  Self _         -> expr
-  MethodOf t s e -> MethodOf t s (subst e var term)
-  Any  _         -> expr
-  Stmt s         -> Stmt $ subst s var term
+  Assign   e1  e2  -> Assign (subst e1 var term) (subst e2 var term)
+  Self _           -> expr
+  MethodOf t s e   -> MethodOf t s (subst e var term)
+  Any  _           -> expr
+  Stmt s           -> Stmt $ subst s var term
+  Ref  v           -> Ref v
 
 isNormalForm :: Expr AlexPosn -> Bool
 isNormalForm vm = case vm of
@@ -208,13 +208,21 @@ evalE vm = case vm of
   Assign e1 e2 -> do
     ctx <- get
     case e1 of
-      VarAssign v -> do
-        case v of
-          _ | Id [v] `M.member` exprs ctx -> do
-            r2 <- evalE e2
-            modify $ \ctx -> ctx { exprs = M.insert (Id [v]) r2 $ exprs ctx }
-            return Unit
-          _ -> lift $ throwE $ NotFound Nothing (Id [v])
+      Var Nothing v -> do
+        r2 <- evalE e2
+        modify $ \ctx -> ctx { exprs = M.insert v r2 $ exprs ctx }
+      Member (Var _ r) v -> do
+        r2 <- evalE e2
+        modify $ \ctx -> ctx
+          { exprs = M.adjust
+              ( \(RecordOf f rc) -> RecordOf f
+                $ map (\(x, y) -> if x == v then (x, r2) else (x, y)) rc
+              )
+              r
+            $ exprs ctx
+          }
+      _ -> lift $ throwE $ Unreachable e1
+      {-
       ArrayIndexAssign arr i -> do
         arr' <- evalE arr
         i'   <- evalE i
@@ -234,6 +242,9 @@ evalE vm = case vm of
               rc
           _ -> lift $ throwE $ Unreachable vm
       _ -> lift $ throwE $ Unreachable vm
+      -}
+
+    return Unit
   _ -> lift $ throwE $ Unreachable vm
 
 runEvalE
@@ -257,8 +268,9 @@ evalD decl = go [] decl
               ( if null typs
                 then EnumOf (Id [name, f]) []
                 else ClosureE
-                  ( Closure (FuncType [] (ArgType False $ zip bs typs) NoType)
-                            (EnumOf (Id [name, f]) vars)
+                  ( Closure
+                    (FuncType [] (ArgType False False $ zip bs typs) NoType)
+                    (EnumOf (Id [name, f]) vars)
                   )
               )
             $ exprs ctx
@@ -270,13 +282,13 @@ evalD decl = go [] decl
       modify $ \ctx ->
         ctx { exprs = M.insert (Id [d]) (ClosureE body) (exprs ctx) }
     ExternalFunc name (FuncType tyvars args ret) -> do
-      bs <- mapM (\_ -> fresh) $ (\(ArgType _ xs) -> xs) args
+      bs <- mapM (\_ -> fresh) $ (\(ArgType _ _ xs) -> xs) args
       let args' = zip bs $ listArgTypes args
 
       evalD $ Func
         name
         ( Closure
-          (FuncType tyvars (ArgType False args') ret)
+          (FuncType tyvars (ArgType False False args') ret)
           (FFI (Id [name]) (map (\n -> Var Nothing (Id [n])) $ map fst args'))
         )
     Interface _ _ _             -> return ()

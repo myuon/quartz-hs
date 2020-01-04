@@ -10,10 +10,13 @@ varToConType vars t = case t of
   _             -> t
 
 varToConTypeArgTypes :: [String] -> FuncType -> FuncType
-varToConTypeArgTypes vars' (FuncType vars (ArgType self args) ret) = FuncType
-  vars
-  (ArgType self $ map (\(x, y) -> (x, varToConType (vars' ++ vars) y)) args)
-  (varToConType (vars' ++ vars) ret)
+varToConTypeArgTypes vars' (FuncType vars (ArgType ref self args) ret) =
+  FuncType
+    vars
+    ( ArgType ref self
+    $ map     (\(x, y) -> (x, varToConType (vars' ++ vars) y)) args
+    )
+    (varToConType (vars' ++ vars) ret)
 
 transformVarConTypeE :: Expr posn -> Expr posn
 transformVarConTypeE expr = go [] expr
@@ -38,9 +41,10 @@ transformVarConTypeE expr = go [] expr
     Member   e  r    -> Member (go vars' e) r
     RecordOf s  es   -> RecordOf s (map (\(x, y) -> (x, go vars' y)) es)
     EnumOf   s  es   -> EnumOf s (map (go vars') es)
-    Assign   e1 e2   -> Assign (exprToAlv $ go vars' $ alvToExpr e1) (go vars' e2)
+    Assign   e1 e2   -> Assign (go vars' e1) (go vars' e2)
     Self s           -> Self s
     Stmt s           -> Stmt $ go vars' s
+    Ref  e           -> Ref $ go vars' e
 
 transformVarConTypeD :: Decl posn -> Decl posn
 transformVarConTypeD decl = go [] decl
@@ -93,13 +97,14 @@ transformSelfTypeE typ expr = go expr
     Member   e  r             -> Member (go e) r
     RecordOf s  es            -> RecordOf s (map (\(x, y) -> (x, go y)) es)
     EnumOf   s  es            -> EnumOf s (map go es)
-    Assign   e1 e2            -> Assign (exprToAlv $ go $ alvToExpr e1) (go e2)
+    Assign   e1 e2            -> Assign (go e1) (go e2)
     Self selfType             -> Self (apply typ selfType)
     Stmt e                    -> Stmt $ go e
+    Ref  e                    -> Ref $ go e
 
-  goArgTypes (FuncType vars (ArgType self args) ret) = FuncType
+  goArgTypes (FuncType vars (ArgType ref self args) ret) = FuncType
     vars
-    (ArgType self $ map (\(x, y) -> (x, apply typ y)) args)
+    (ArgType ref self $ map (\(x, y) -> (x, apply typ y)) args)
     (apply typ ret)
 
 transformSelfTypeD :: Decl posn -> Decl posn
@@ -118,9 +123,9 @@ transformSelfTypeD decl = case decl of
     AppType t1   ts  -> AppType (apply t t1) (map (apply t) ts)
     _                -> typ
 
-  goArgTypes t (FuncType vars (ArgType self args) ret) = FuncType
+  goArgTypes t (FuncType vars (ArgType ref self args) ret) = FuncType
     vars
-    (ArgType self $ map (\(x, y) -> (x, apply t y)) args)
+    (ArgType ref self $ map (\(x, y) -> (x, apply t y)) args)
     (apply t ret)
 
   go t (Func name (Closure argtypes body)) =
@@ -160,9 +165,10 @@ desugarOpE expr = go expr
     Member   e  r             -> Member (go e) r
     RecordOf s  es            -> RecordOf s (map (\(x, y) -> (x, go y)) es)
     EnumOf   s  es            -> EnumOf s (map go es)
-    Assign   e1 e2            -> Assign (exprToAlv $ go $ alvToExpr e1) (go e2)
+    Assign   e1 e2            -> Assign (go e1) (go e2)
     Self selfType             -> Self selfType
     Stmt e                    -> Stmt $ go e
+    Ref  e                    -> Ref $ go e
 
 desugarOpD :: Decl posn -> Decl posn
 desugarOpD decl = go decl

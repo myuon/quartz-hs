@@ -42,6 +42,7 @@ tokens :-
   \:: { wrap $ \_ -> TColon2 }
   \; { wrap $ \_ -> TSemiColon }
   \. { wrap $ \_ -> TDot }
+  \& { wrap $ \_ -> TAnd }
   \-> { wrap $ \_ -> TArrow }
   \=> { wrap $ \_ -> TDArrow }
   \= { wrap $ \_ -> TEq }
@@ -88,6 +89,7 @@ data Token
   | TColon2
   | TSemiColon
   | TDot
+  | TAnd
   | TArrow
   | TDArrow
   | TEq

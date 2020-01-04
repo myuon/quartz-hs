@@ -69,9 +69,11 @@ mgu x y = case (x, y) of
     return $ u1 `compose` foldr' compose emptySubst u2s
 
   -- SelfTypeはメソッド呼び出し時に解決されているはずなのでここでは無視できる
-  (SelfType, _       ) -> return emptySubst
-  (_       , SelfType) -> return emptySubst
-  _                    -> throwE $ TypeNotMatch x y
+  (SelfType  , _         ) -> return emptySubst
+  (_         , SelfType  ) -> return emptySubst
+  (RefType t1, t2        ) -> mgu t1 t2
+  (t1        , RefType t2) -> mgu t1 t2
+  _                        -> throwE $ TypeNotMatch x y
  where
   varBind u t | t == VarType u     = return emptySubst
               | u `S.member` ftv t = throwE $ OccurCheck u t
@@ -167,7 +169,7 @@ algoW expr = case expr of
       , IndexArray arr' i'
       )
   -- ここでSchemeの引数を無視しているが問題ないか？
-  ClosureE (Closure functype@(FuncType _ (ArgType self args) ret) body) -> do
+  ClosureE (Closure functype@(FuncType _ (ArgType _ _ args) ret) body) -> do
     (s1, t1, body') <- do
       modify $ \ctx -> ctx
         { schemes = foldl' (\mp (s, t) -> M.insert (Id [s]) (Scheme [] t) mp)
@@ -298,18 +300,19 @@ algoW expr = case expr of
 
     return (s', apply s' (VarType b), Match e1' $ map snd substs)
   Assign e1 e2 -> do
-    (s1, t1, e1') <- algoW $ alvToExpr e1
+    (s1, t1, e1') <- algoW e1
     (s2, t2, e2') <- algoW e2
     s3            <- lift $ mgu t1 t2
 
-    return (s3 `compose` s2 `compose` s1, apply s3 t1, Assign (exprToAlv e1') e2')
+    return (s3 `compose` s2 `compose` s1, apply s3 t1, Assign e1' e2')
   Self typ  -> return (emptySubst, typ, Var Nothing (Id ["self"]))
   Stmt expr -> do
     -- ignore t1 here
     (s1, t1, expr') <- algoW expr
 
     return (s1, ConType (Id ["unit"]), expr')
-  _ -> error $ show expr
+  Ref v -> algoW v
+  _     -> error $ show expr
  where
   selfTypeToVar typ b = go typ
    where
