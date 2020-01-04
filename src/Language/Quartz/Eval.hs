@@ -7,10 +7,9 @@ import Control.Error
 import qualified Data.Map as M
 import Data.Dynamic
 import Data.Foldable
-import Data.IORef
 import Language.Quartz.AST
 import Language.Quartz.Lexer (AlexPosn)
-import Language.Quartz.TypeCheck (fresh, argumentOf)
+import Language.Quartz.TypeCheck (fresh)
 import qualified Language.Quartz.Std as Std
 import qualified Data.PathTree as PathTree
 import qualified Data.Primitive.Array as Array
@@ -30,8 +29,8 @@ subst expr var term = case expr of
   FnCall f xs             -> FnCall f (map (\x -> subst x var term) xs)
   Let    x t              -> Let x (subst t var term)
   -- FIXME: shadowingしてる場合
-  ClosureE (Closure argtypes expr) ->
-    ClosureE (Closure argtypes (subst expr var term))
+  ClosureE (Closure argtypes e) ->
+    ClosureE (Closure argtypes (subst e var term))
   OpenE _ -> expr
   Match e args ->
     Match (subst e var term) (map (\(pat, br) -> (pat, subst br var term)) args)
@@ -129,7 +128,7 @@ evalE vm = case vm of
     f'  <- evalE f
     xs' <- mapM evalE xs
     case f' of
-      ClosureE (Closure (FuncType tyvars fargs ret) fbody)
+      ClosureE (Closure (FuncType _ fargs _) fbody)
         | length (listArgTypes fargs) == length xs -> do
           let fbody' =
                 foldl' (uncurry . subst) fbody $ zip (listArgNames fargs) xs'
@@ -139,7 +138,7 @@ evalE vm = case vm of
     f <- evalE t
     modify $ \ctx -> ctx { exprs = M.insert x f (exprs ctx) }
     return Unit
-  Match t brs -> do
+  Match t brs0 -> do
     t' <- evalE t
     fix
       ( \cont brs -> case brs of
@@ -151,7 +150,7 @@ evalE vm = case vm of
             Left  _    -> cont bs
             Right ctx' -> put ctx' >> evalE b
       )
-      brs
+      brs0
   Procedure es -> foldl' (\m e -> m >> evalE e) (return Unit) es
   FFI p es     -> get >>= \ctx -> do
     pf <- lift $ ffi ctx M.!? p ?? NotFound Nothing p
@@ -163,13 +162,13 @@ evalE vm = case vm of
     return $ Array $ MArray marr
   IndexArray e1 e2 -> do
     arr <- evalE e1
-    i   <- evalE e2
-    case (arr, i) of
+    ie  <- evalE e2
+    case (arr, ie) of
       (Array m, Lit (IntLit i)) -> liftIO $ Array.readArray (getMArray m) i
       _                         -> lift $ throwE $ Unreachable vm
   ForIn var e1 es -> do
-    arr <- evalE e1
-    ctx <- get
+    arr  <- evalE e1
+    ctx0 <- get
     case arr of
       (Array m) ->
         forM_ [0 .. Array.sizeofMutableArray (getMArray m) - 1] $ \i -> do
@@ -177,10 +176,10 @@ evalE vm = case vm of
           modify $ \ctx -> ctx { exprs = M.insert (Id [var]) r (exprs ctx) }
           mapM_ evalE es
       _ -> lift $ throwE $ Unreachable vm
-    put ctx
+    put ctx0
 
     return Unit
-  If brs -> fix
+  If brs0 -> fix
     ( \cont brs -> case brs of
       []                  -> return Unit
       ((cond, br):others) -> do
@@ -190,7 +189,7 @@ evalE vm = case vm of
           Lit (BoolLit False) -> cont others
           _                   -> error $ show result
     )
-    brs
+    brs0
   Op op e1 e2 -> do
     r1 <- evalE e1
     r2 <- evalE e2
@@ -199,6 +198,7 @@ evalE vm = case vm of
         return $ if r1 == r2 then Lit (BoolLit True) else Lit (BoolLit False)
       (Leq, Lit (IntLit x), Lit (IntLit y)) ->
         return $ if x <= y then Lit (BoolLit True) else Lit (BoolLit False)
+      _ -> lift $ throwE $ Unreachable vm
   Member e1 v1 -> do
     r1 <- evalE e1
     case r1 of
@@ -210,7 +210,6 @@ evalE vm = case vm of
     y' <- evalE y
     return (x, y')
   Assign e1 e2 -> do
-    ctx <- get
     case e1 of
       Ref (Var Nothing v) -> do
         r2 <- evalE e2
@@ -271,7 +270,7 @@ evalD
   -> StateT (Context m) (ExceptT RuntimeExceptions m) ()
 evalD decl = go [] decl
  where
-  go path decl = case decl of
+  go _ d = case d of
     Enum name _ fs -> do
       forM_ fs $ \(EnumField f typs) -> do
         bs <- mapM (\_ -> fresh) typs
@@ -290,11 +289,10 @@ evalD decl = go [] decl
             $ exprs ctx
           }
 
-    Record d _ _ ->
-      modify $ \ctx -> ctx { decls = PathTree.insert [d] decl (decls ctx) }
-    Func d body ->
-      modify $ \ctx ->
-        ctx { exprs = M.insert (Id [d]) (ClosureE body) (exprs ctx) }
+    Record name _ _ ->
+      modify $ \ctx -> ctx { decls = PathTree.insert [name] decl (decls ctx) }
+    Func name body -> modify $ \ctx ->
+      ctx { exprs = M.insert (Id [name]) (ClosureE body) (exprs ctx) }
     ExternalFunc name (FuncType tyvars args ret) -> do
       bs <- mapM (\_ -> fresh) $ (\(ArgType _ _ xs) -> xs) args
       let args' = zip bs $ listArgTypes args
@@ -305,19 +303,20 @@ evalD decl = go [] decl
           (FuncType tyvars (ArgType False False args') ret)
           (FFI (Id [name]) (map (\n -> Var Nothing (Id [n])) $ map fst args'))
         )
-    Interface _ _ _             -> return ()
-    Derive name _ (Just typ) ds -> modify $ \ctx -> ctx
+    Interface _ _ _          -> return ()
+    Derive _ _ (Just typ) ds -> modify $ \ctx -> ctx
       { impls = M.union
         ( M.fromList
         $ map (\(Func fn body) -> ((fn, nameOfType typ), ClosureE body)) ds
         )
         (impls ctx)
       }
-    Derive name vars Nothing ds -> modify $ \ctx -> ctx
+    Derive name _ Nothing ds -> modify $ \ctx -> ctx
       { impls = M.union
         (M.fromList $ map (\(Func fn body) -> ((fn, name), ClosureE body)) ds)
         (impls ctx)
       }
+    _ -> error $ show decl
 
 std
   :: MonadIO m
@@ -339,6 +338,6 @@ runMainWith
   => M.Map Id ([Dynamic] -> ExceptT Std.FFIExceptions m (Expr AlexPosn))
   -> [Decl AlexPosn]
   -> ExceptT RuntimeExceptions m (Expr AlexPosn)
-runMainWith lib decls = flip evalStateT (std lib) $ do
-  mapM_ evalD decls
+runMainWith lib ds = flip evalStateT (std lib) $ do
+  mapM_ evalD ds
   evalE (FnCall (Var Nothing (Id ["main"])) [])
