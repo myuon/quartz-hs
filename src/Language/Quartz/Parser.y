@@ -143,14 +143,8 @@ stmt
     : FOR VAR IN expr_short '{' stmts '}'  { ForIn $2 $4 $6 }
     | IF '{' if_branches '}'  { If $3 }
     | LET VAR '=' expr ';'  { Stmt (Let (Id [$2]) $4) }
-    | assign_left '=' expr ';'  { Stmt (Assign $1 $3) }
+    | expr_short '=' expr ';'  { Stmt (Assign $1 $3) }
     | expr ';'  { Stmt $1 }
-
-assign_left :: { Expr AlexPosn }
-assign_left
-    : expr_short  { Ref $1 }
-    | expr_short '.' VAR  { Member (Ref $1) $3 }
-    | expr_short '[' expr ']'  { IndexArray (Ref $1) $3 }
 
 stmts :: { [Expr AlexPosn] }
 stmts
@@ -163,13 +157,13 @@ expr_short
     : literal  { Lit $1 }
     | var  { Var Nothing (Id $1) }
     | SELF  { Self SelfType }
-    | '*' expr_short  { Deref $2 }
     | expr_short args  { FnCall $1 $2 }
     | expr_short '.' VAR  { Member $1 $3 }
     | expr_short '[' expr ']'  { IndexArray $1 $3 }
     | '(' expr ')'  { $2 }
     | '{' stmts '}'  { Procedure $2 }
     | '[' array_lit ']'  { ArrayLit $2 }
+    | '*' expr  { Deref $2 }
 
 expr :: { Expr AlexPosn }
 expr
@@ -191,6 +185,7 @@ expr
     | expr '>' expr { Op Gt $1 $3 }
     | expr '==' expr { Op Eq $1 $3 }
 
+    | '&' expr  { Ref $2 }
     | VAR '{' record_expr '}'  { RecordOf $1 $3 }
 
     | expr_short  { $1 }

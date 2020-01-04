@@ -39,6 +39,7 @@ data TypeCheckExceptions
   | PatternNotMatch Pattern Type
   | AmbiguousName String
   | CannotDerefNonReferencedType Type
+  | CannotAssignToNonReferencedType (Expr AlexPosn) Type
   deriving (Eq, Show)
 
 argumentOf :: Type -> ([Type], Type)
@@ -304,17 +305,22 @@ algoW expr = case expr of
     return (s', apply s' (VarType b), Match e1' $ map snd substs)
   Assign e1 e2 -> do
     (s1, t1, e1') <- algoW e1
+    t1'           <- case t1 of
+      RefType t -> return t
+      _         -> lift $ throwE $ CannotAssignToNonReferencedType e1 t1
     (s2, t2, e2') <- algoW e2
-    s3            <- lift $ mgu t1 t2
+    s3            <- lift $ mgu t1' t2
 
-    return (s3 `compose` s2 `compose` s1, apply s3 t1, Assign e1' e2')
+    return (s3 `compose` s2 `compose` s1, ConType (Id ["unit"]), Assign e1' e2')
   Self typ  -> return (emptySubst, typ, Var Nothing (Id ["self"]))
   Stmt expr -> do
     -- ignore t1 here
     (s1, t1, expr') <- algoW expr
 
     return (s1, ConType (Id ["unit"]), expr')
-  Ref   v -> fmap (\(s, t, e) -> (s, t, Ref e)) $ algoW v
+  Ref v -> do
+    (s, t, e) <- algoW v
+    return (s, RefType t, Ref e)
   Deref e -> do
     (s, t, e') <- algoW e
     case t of

@@ -10,6 +10,7 @@ $alpha = [a-zA-Z]
 
 tokens :-
   $white+ ;
+  "//".*  ;
   func { wrap (\_ -> TFunc) }
   enum { wrap (\_ -> TEnum) }
   record { wrap $ \_ -> TRecord }
@@ -72,6 +73,7 @@ data Token
   | TIn
   | TIf
   | TElse
+  | TRef
   | TTrue
   | TFalse
   | TInterface

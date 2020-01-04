@@ -267,22 +267,22 @@ spec_quartz = do
       200 > 1
     |] `evalETo` Lit (BoolLit True)
 
-    specify "assign" $ [r|
+    specify "assign with reference" $ [r|
       {
-        let v = 10;
+        let v = &10;
         v = 20;
-        v
+        *v
       }
     |] `evalETo` Lit (IntLit 20)
 
-    specify "record modification in methods" $ [r|
+    specify "assign to variable via reference" $ [r|
       record R {
         x: int,
       }
 
       func main(): int {
-        let r = R { x: 10 };
-        r.x = 20;
+        let r = &R { x: 10 };
+        r = R { x: 20 };
         r.x
       }
     |] `evalDTo` Lit (IntLit 20)

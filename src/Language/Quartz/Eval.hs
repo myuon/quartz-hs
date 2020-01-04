@@ -18,7 +18,8 @@ data Context m = Context {
   decls :: PathTree.PathTree String (Decl AlexPosn),
   exprs :: M.Map Id (Expr AlexPosn),
   ffi :: M.Map Id ([Dynamic] -> ExceptT Std.FFIExceptions m (Expr AlexPosn)),
-  impls :: M.Map (String, String) (Expr AlexPosn)
+  impls :: M.Map (String, String) (Expr AlexPosn),
+  heap :: M.Map Int (Expr AlexPosn)
 }
 
 subst :: Expr AlexPosn -> String -> Expr AlexPosn -> Expr AlexPosn
@@ -54,6 +55,7 @@ subst expr var term = case expr of
   Stmt  s          -> Stmt $ subst s var term
   Ref   v          -> Ref $ subst v var term
   Deref e          -> Deref $ subst e var term
+  RefTo r          -> RefTo r
 
 isNormalForm :: Expr AlexPosn -> Bool
 isNormalForm vm = case vm of
@@ -64,8 +66,8 @@ isNormalForm vm = case vm of
   Array _       -> True
   RecordOf _ fs -> all isNormalForm $ map snd fs
   EnumOf   _ _  -> True
-  Any _         -> True
-  Ref _         -> True
+  Any   _       -> True
+  RefTo _       -> True
   _             -> False
 
 
@@ -210,54 +212,26 @@ evalE vm = case vm of
     y' <- evalE y
     return (x, y')
   Assign e1 e2 -> do
-    case e1 of
-      Ref (Var Nothing v) -> do
-        r2 <- evalE e2
-        modify $ \ctx -> ctx { exprs = M.insert v r2 $ exprs ctx }
-      -- 多段にネストされたメンバーへの代入が出来ないが今は適当
-      Ref (Member (Var _ r) v) -> do
-        r2 <- evalE e2
-        modify $ \ctx -> ctx
-          { exprs = M.adjust
-              ( \(RecordOf f rc) -> RecordOf f
-                $ map (\(x, y) -> if x == v then (x, r2) else (x, y)) rc
-              )
-              r
-            $ exprs ctx
-          }
-      IndexArray arr i -> do
-        arr' <- evalE arr
-        i'   <- evalE i
-        r2   <- evalE e2
-
-        case (arr', i') of
-          (Array marr, Lit (IntLit n)) -> do
-            liftIO $ Array.writeArray (getMArray marr) n r2
-          _ -> lift $ throwE $ Unreachable vm
-      _ -> lift $ throwE $ Unreachable vm
-      {-
-      ArrayIndexAssign arr i -> do
-        arr' <- evalE arr
-        i'   <- evalE i
-        r2   <- evalE e2
-        case (arr', i', r2) of
-          (Array marr, Lit (IntLit n), val) -> do
-            liftIO $ Array.writeArray (getMArray marr) n val
-            return Unit
-          _ -> lift $ throwE $ Unreachable vm
-      RecordFieldAssign rc f -> do
-        rc' <- evalE rc
-        r2  <- evalE e2
-        case (rc', r2) of
-          (RecordOf name rc, val) -> do
-            return $ RecordOf name $ map
-              (\(x, y) -> if x == f then (x, r2) else (x, y))
-              rc
-          _ -> lift $ throwE $ Unreachable vm
-      _ -> lift $ throwE $ Unreachable vm
-      -}
-
+    r1 <- evalE e1
+    r2 <- evalE e2
+    case r1 of
+      RefTo ref -> do
+        modify $ \ctx -> ctx { heap = M.insert ref r2 $ heap ctx }
     return Unit
+  Ref e -> do
+    v   <- evalE e
+    ctx <- get
+    let key = fst (M.findMax (heap ctx)) + 1
+
+    put $ ctx { heap = M.insert key v $ heap ctx }
+    return $ RefTo key
+  Deref e -> do
+    r <- evalE e
+    case r of
+      RefTo ref -> do
+        ctx <- get
+        return $ heap ctx M.! ref
+      _ -> lift $ throwE $ Unreachable vm
   _ -> lift $ throwE $ Unreachable vm
 
 runEvalE
@@ -327,6 +301,7 @@ std exts = Context
   , exprs = M.empty
   , decls = PathTree.empty
   , impls = M.empty
+  , heap  = M.singleton 0 Unit
   }
 
 runMain

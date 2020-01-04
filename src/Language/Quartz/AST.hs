@@ -52,11 +52,14 @@ data Expr posn
   | MethodOf Type String (Expr posn)
   | Any (Dynamic' posn)
   | Stmt (Expr posn)
+  -- references
+  | LetMut String (Expr posn)
   | Ref (Expr posn)
   | Deref (Expr posn)
   -- 以下、evaluation時のみ
   -- primitiveのときはMutableByteArrayにしたい
   | Array (MArray posn)
+  | RefTo Int
   deriving (Eq, Show)
 
 data Dynamic' posn = Dynamic' (Maybe posn) Dynamic

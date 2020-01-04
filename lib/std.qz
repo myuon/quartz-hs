@@ -102,14 +102,14 @@ derive vector<T>  {
   func push(&self, v: T) {
     if {
       (length_array(self.arr) == self.len) => {
-        self.arr = grow_array(self.arr, length_array(self.arr) * 2);
+        // self.arr = grow_array(self.arr, length_array(self.arr) * 2);
       },
       true => {
         1;
       },
     }
-    self.arr[self.len] = v;
-    self.len = self.len + 1;
+    // self.arr[self.len] = v;
+    // self.len = self.len + 1;
   }
   
   func get(self, i: int): T {
@@ -117,7 +117,7 @@ derive vector<T>  {
   }
   
   func put(&self, i: int, v: T) {
-    self.arr[i] = v;
+    // self.arr[i] = v;
   }
   
   func length(self): int {
