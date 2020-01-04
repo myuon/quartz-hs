@@ -64,6 +64,7 @@ isNormalForm vm = case vm of
   RecordOf _ fs -> all isNormalForm $ map snd fs
   EnumOf   _ _  -> True
   Any _         -> True
+  Ref _         -> True
   _             -> False
 
 
@@ -201,6 +202,10 @@ evalE vm = case vm of
     case r1 of
       RecordOf _ fields -> do
         return $ (\(Just x) -> x) $ lookup v1 fields
+
+      -- auto derefence
+      Ref r1' -> evalE $ Member r1' v1
+      _       -> lift $ throwE $ Unreachable vm
   Stmt e           -> evalE e
   RecordOf name fs -> fmap (RecordOf name) $ forM fs $ \(x, y) -> do
     y' <- evalE y
@@ -221,7 +226,27 @@ evalE vm = case vm of
               r
             $ exprs ctx
           }
-      _ -> lift $ throwE $ Unreachable e1
+      -- 多段にネストされたメンバーへの代入が出来ないが今は適当
+      Member (Ref (Var _ r)) v -> do
+        r2 <- evalE e2
+        modify $ \ctx -> ctx
+          { exprs = M.adjust
+              ( \(RecordOf f rc) -> RecordOf f
+                $ map (\(x, y) -> if x == v then (x, r2) else (x, y)) rc
+              )
+              r
+            $ exprs ctx
+          }
+      IndexArray arr i -> do
+        arr' <- evalE arr
+        i'   <- evalE i
+        r2   <- evalE e2
+
+        case (arr', i') of
+          (Array marr, Lit (IntLit n)) -> do
+            liftIO $ Array.writeArray (getMArray marr) n r2
+          _ -> lift $ throwE $ Unreachable vm
+      _ -> lift $ throwE $ Unreachable vm
       {-
       ArrayIndexAssign arr i -> do
         arr' <- evalE arr

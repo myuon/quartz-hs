@@ -38,6 +38,7 @@ data TypeCheckExceptions
   | CannotInfer (Expr AlexPosn)
   | PatternNotMatch Pattern Type
   | AmbiguousName String
+  | CannotDerefNonReferencedType Type
   deriving (Eq, Show)
 
 argumentOf :: Type -> ([Type], Type)
@@ -71,8 +72,8 @@ mgu x y = case (x, y) of
   -- SelfTypeはメソッド呼び出し時に解決されているはずなのでここでは無視できる
   (SelfType  , _         ) -> return emptySubst
   (_         , SelfType  ) -> return emptySubst
-  (RefType t1, t2        ) -> mgu t1 t2
-  (t1        , RefType t2) -> mgu t1 t2
+
+  (RefType t1, RefType t2) -> mgu t1 t2
   _                        -> throwE $ TypeNotMatch x y
  where
   varBind u t | t == VarType u     = return emptySubst
@@ -266,6 +267,7 @@ algoW expr = case expr of
       ConType name             -> memberW name v1 s1 t1 e1'
       VarType _                -> lift $ throwE $ CannotInfer e1
       AppType (ConType name) _ -> memberW name v1 s1 t1 e1'
+      RefType t                -> algoW $ Member (Deref e1) v1
       _                        -> error $ show t1
   RecordOf name fields -> do
     ctx          <- get
@@ -311,8 +313,13 @@ algoW expr = case expr of
     (s1, t1, expr') <- algoW expr
 
     return (s1, ConType (Id ["unit"]), expr')
-  Ref v -> algoW v
-  _     -> error $ show expr
+  Ref   v -> algoW v
+  Deref e -> do
+    (s, t, e') <- algoW e
+    case t of
+      RefType t' -> return (s, t', e')
+      _          -> lift $ throwE $ CannotDerefNonReferencedType t
+  _ -> error $ show expr
  where
   selfTypeToVar typ b = go typ
    where
@@ -364,14 +371,19 @@ algoW expr = case expr of
 
       -- SelfTypeを剥がす
       -- ここで、interfaceの型定義はselfを含むのでこれは型変数に書き換える
+      -- ついでにRefTypeの処理, 現状はrefできるのはselfのみ
       b <- fresh
       let FnType (arr1:args) ret = selfTypeToVar (typeOfArgs ft) b
-      s2 <- lift $ mgu arr1 t1
+      s2 <- lift $ mgu arr1 $ case arr1 of
+        RefType _ -> RefType t1
+        _         -> t1
 
       return
         ( s2 `compose` s1
         , apply s2 $ FnType args ret
-        , MethodOf t1 methodName e1'
+        , MethodOf t1 methodName $ case arr1 of
+          RefType _ -> Ref e1'
+          _         -> e1'
         )
     tryImpl name = lift $ throwE $ NotFound Nothing name
 

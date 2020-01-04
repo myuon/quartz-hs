@@ -93,7 +93,7 @@ instance Pretty Type where
     SelfType -> pretty "self"
 
 instance Pretty ArgType where
-  pretty (ArgType self args) = parens (listed $ (if self then (pretty "self" :) else id) $ map (\(x,y) -> pretty x <> colon <+> pretty y) args)
+  pretty (ArgType ref self args) = parens (listed $ (if ref && self then (pretty "&self" :) else if self then (pretty "self" :) else id) $ map (\(x,y) -> pretty x <> colon <+> pretty y) args)
 
 instance Pretty FuncType where
   pretty (FuncType tyvars args ret) = align $

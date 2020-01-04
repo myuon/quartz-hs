@@ -54,6 +54,7 @@ data Expr posn
   | Any (Dynamic' posn)
   | Stmt (Expr posn)
   | Ref (Expr posn)
+  | Deref (Expr posn)
   deriving (Eq, Show)
 
 data Dynamic' posn = Dynamic' (Maybe posn) Dynamic
@@ -110,8 +111,9 @@ listArgTypes (ArgType ref self xs) =
 
 listArgNames :: ArgType -> [String]
 listArgNames (ArgType ref self xs) =
-  (if ref && self then ("&self" :) else if self then ("self" :) else id)
-    $ map fst xs
+  (if self then ("self" :) else id) $ map fst xs
+
+isRefSelfArgType (ArgType ref _ _) = ref
 
 data FuncType = FuncType [String] ArgType Type
   deriving (Eq, Show)

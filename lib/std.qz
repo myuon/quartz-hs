@@ -116,7 +116,7 @@ derive vector<T>  {
     self.arr[i]
   }
   
-  func put(self, i: int, v: T) {
+  func put(&self, i: int, v: T) {
     self.arr[i] = v;
   }
   
