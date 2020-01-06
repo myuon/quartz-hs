@@ -43,9 +43,9 @@ transformVarConTypeE expr = go [] expr
     RecordOf s  es   -> RecordOf s (map (\(x, y) -> (x, go vars' y)) es)
     EnumOf   s  es   -> EnumOf s (map (go vars') es)
     Assign   e1 e2   -> Assign (go vars' e1) (go vars' e2)
-    Self  s          -> Self s
-    Stmt  s          -> Stmt $ go vars' s
-    Ref   e          -> Ref $ go vars' e
+    Self s           -> Self s
+    Stmt s           -> Stmt $ go vars' s
+    LetRef x e       -> LetRef x (go vars' e)
     Deref e          -> Deref $ go vars' e
 
 transformVarConTypeD :: Decl posn -> Decl posn
@@ -101,9 +101,9 @@ transformSelfTypeE typ expr = go expr
     RecordOf s  es            -> RecordOf s (map (\(x, y) -> (x, go y)) es)
     EnumOf   s  es            -> EnumOf s (map go es)
     Assign   e1 e2            -> Assign (go e1) (go e2)
-    Self  selfType            -> Self (apply typ selfType)
-    Stmt  e                   -> Stmt $ go e
-    Ref   e                   -> Ref $ go e
+    Self selfType             -> Self (apply typ selfType)
+    Stmt e                    -> Stmt $ go e
+    LetRef x e                -> LetRef x (go e)
     Deref e                   -> Deref $ go e
 
   goArgTypes (FuncType vars (ArgType ref self args) ret) = FuncType
@@ -177,9 +177,9 @@ desugarOpE expr = go expr
     RecordOf s  es            -> RecordOf s (map (\(x, y) -> (x, go y)) es)
     EnumOf   s  es            -> EnumOf s (map go es)
     Assign   e1 e2            -> Assign (go e1) (go e2)
-    Self  selfType            -> Self selfType
-    Stmt  e                   -> Stmt $ go e
-    Ref   e                   -> Ref $ go e
+    Self selfType             -> Self selfType
+    Stmt e                    -> Stmt $ go e
+    LetRef x e                -> LetRef x (go e)
     Deref e                   -> Deref $ go e
 
 desugarOpD :: Decl posn -> Decl posn

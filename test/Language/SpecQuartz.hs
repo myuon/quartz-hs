@@ -269,7 +269,7 @@ spec_quartz = do
 
     specify "assign with reference" $ [r|
       {
-        let v = &10;
+        let ref v = 10;
         v = 20;
         *v
       }
@@ -281,7 +281,7 @@ spec_quartz = do
       }
 
       func main(): int {
-        let r = &R { x: 10 };
+        let ref r = R { x: 10 };
         r = R { x: 20 };
         r.x
       }
@@ -299,7 +299,7 @@ spec_quartz = do
       }
 
       func main(): int {
-        let r = &R { x: 10 };
+        let ref r = R { x: 10 };
         r.addX(20);
         r.x
       }

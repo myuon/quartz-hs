@@ -25,6 +25,7 @@ tokens :-
   else { wrap $ \_ -> TElse }
   interface { wrap $ \_ -> TInterface }
   derive { wrap $ \_ -> TDerive }
+  ref { wrap $ \_ -> TRef }
 
   -- 避けられるなら予約語から外したい
   true { wrap $ \_ -> TTrue }

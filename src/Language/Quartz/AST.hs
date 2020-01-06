@@ -53,8 +53,7 @@ data Expr posn
   | Any (Dynamic' posn)
   | Stmt (Expr posn)
   -- references
-  | LetMut String (Expr posn)
-  | Ref (Expr posn)
+  | LetRef String (Expr posn)
   | Deref (Expr posn)
   -- 以下、evaluation時のみ
   -- primitiveのときはMutableByteArrayにしたい

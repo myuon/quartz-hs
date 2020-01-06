@@ -54,6 +54,7 @@ import Language.Quartz.AST
     FALSE { Lexeme _ TFalse }
     INTERFACE { Lexeme _ TInterface }
     DERIVE { Lexeme _ TDerive }
+    REF { Lexeme _ TRef }
 
     INT { Lexeme _ (TInt $$) }
     STRLIT { Lexeme _ (TStrLit $$) }
@@ -142,6 +143,7 @@ stmt :: { Expr AlexPosn }
 stmt
     : FOR VAR IN expr_short '{' stmts '}'  { ForIn $2 $4 $6 }
     | IF '{' if_branches '}'  { If $3 }
+    | LET REF VAR '=' expr ';'  { Stmt (LetRef $3 $5) }
     | LET VAR '=' expr ';'  { Stmt (Let (Id [$2]) $4) }
     | expr_short '=' expr ';'  { Stmt (Assign $1 $3) }
     | expr ';'  { Stmt $1 }
@@ -185,7 +187,6 @@ expr
     | expr '>' expr { Op Gt $1 $3 }
     | expr '==' expr { Op Eq $1 $3 }
 
-    | '&' expr  { Ref $2 }
     | VAR '{' record_expr '}'  { RecordOf $1 $3 }
 
     | expr_short  { $1 }

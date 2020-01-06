@@ -51,9 +51,9 @@ subst expr var term = case expr of
   Assign   e1  e2  -> Assign (subst e1 var term) (subst e2 var term)
   Self _           -> expr
   MethodOf t s e   -> MethodOf t s (subst e var term)
-  Any   _          -> expr
-  Stmt  s          -> Stmt $ subst s var term
-  Ref   v          -> Ref $ subst v var term
+  Any  _           -> expr
+  Stmt s           -> Stmt $ subst s var term
+  LetRef x t       -> LetRef x (subst t var term)
   Deref e          -> Deref $ subst e var term
   RefTo r          -> RefTo r
 
@@ -218,13 +218,15 @@ evalE vm = case vm of
       RefTo ref -> do
         modify $ \ctx -> ctx { exprs = M.insert ref r2 $ exprs ctx }
     return Unit
-  Ref e -> do
-    v   <- evalE e
-    ctx <- get
-    b   <- fresh
+  LetRef x e -> do
+    -- reference typeとしてallocateされたものはGCがないので解放されない
+    b <- fresh
     let key = Id ["?ref{" ++ show b ++ "}"]
 
-    put $ ctx { exprs = M.insert key v $ exprs ctx }
+    v <- evalE e
+    modify $ \ctx -> ctx
+      { exprs = M.insert key e $ M.insert (Id [x]) (RefTo key) $ exprs ctx
+      }
     return $ RefTo key
   Deref e -> do
     r <- evalE e

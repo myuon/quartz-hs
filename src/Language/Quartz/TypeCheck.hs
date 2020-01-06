@@ -318,9 +318,12 @@ algoW expr = case expr of
     (s1, t1, expr') <- algoW expr
 
     return (s1, ConType (Id ["unit"]), expr')
-  Ref v -> do
-    (s, t, e) <- algoW v
-    return (s, RefType t, Ref e)
+  LetRef x e -> do
+    (s, t, e') <- algoW e
+    modify $ \ctx -> ctx
+      { schemes = M.insert (Id [x]) (Scheme [] $ RefType t) $ schemes ctx
+      }
+    return (s, ConType (Id ["unit"]), LetRef x e')
   Deref e -> do
     (s, t, e') <- algoW e
     case t of
@@ -388,7 +391,7 @@ algoW expr = case expr of
       return
         ( s2 `compose` s1
         , apply s2 $ FnType args ret
-        , MethodOf t1 methodName $ if isRefSelfArgType at then Ref e1' else e1'
+        , MethodOf t1 methodName e1'
         )
     tryImpl name = lift $ throwE $ NotFound Nothing name
 
