@@ -264,6 +264,7 @@ type
     | '_'  { NoType }
     | SELF { SelfType }
     | VAR  { ConType (Id [$1]) }
+    | REF '<' type '>'  { RefType $3 }
     | type '<' types_comma '>'  { AppType $1 $3 }
 
 types_comma :: { [Type] }

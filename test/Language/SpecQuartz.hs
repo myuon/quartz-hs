@@ -287,6 +287,18 @@ spec_quartz = do
       }
     |] `evalDTo` Lit (IntLit 20)
 
+    specify "reference modification through function" $ [r|
+      func setVal(r: ref<int>, v: int) {
+        r = v;
+      }
+
+      func main(): int {
+        let ref r = 10;
+        setVal(r, 20);
+        *r
+      }
+    |] `evalDTo` Lit (IntLit 20)
+
     specify "record modification via ref self method" $ [r|
       record R {
         x: int,
