@@ -316,7 +316,7 @@ spec_quartz = do
 
           v.get(2)
         }
-      |] `evalETo` Lit (IntLit 0)
+      |] `evalETo` Lit (IntLit 3)
 
       specify "grow" $ [r|
         {

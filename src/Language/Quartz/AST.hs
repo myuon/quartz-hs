@@ -59,7 +59,7 @@ data Expr posn
   -- 以下、evaluation時のみ
   -- primitiveのときはMutableByteArrayにしたい
   | Array (MArray posn)
-  | RefTo Int
+  | RefTo Id
   deriving (Eq, Show)
 
 data Dynamic' posn = Dynamic' (Maybe posn) Dynamic

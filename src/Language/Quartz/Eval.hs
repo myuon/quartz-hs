@@ -16,10 +16,10 @@ import qualified Data.Primitive.Array as Array
 
 data Context m = Context {
   decls :: PathTree.PathTree String (Decl AlexPosn),
-  exprs :: M.Map Id (Expr AlexPosn),
   ffi :: M.Map Id ([Dynamic] -> ExceptT Std.FFIExceptions m (Expr AlexPosn)),
   impls :: M.Map (String, String) (Expr AlexPosn),
-  heap :: M.Map Int (Expr AlexPosn)
+  -- referenceのstoreにも使うので登録したものを動かしてはいけない
+  exprs :: M.Map Id (Expr AlexPosn)
 }
 
 subst :: Expr AlexPosn -> String -> Expr AlexPosn -> Expr AlexPosn
@@ -216,21 +216,22 @@ evalE vm = case vm of
     r2 <- evalE e2
     case r1 of
       RefTo ref -> do
-        modify $ \ctx -> ctx { heap = M.insert ref r2 $ heap ctx }
+        modify $ \ctx -> ctx { exprs = M.insert ref r2 $ exprs ctx }
     return Unit
   Ref e -> do
     v   <- evalE e
     ctx <- get
-    let key = fst (M.findMax (heap ctx)) + 1
+    b   <- fresh
+    let key = Id ["?ref{" ++ show b ++ "}"]
 
-    put $ ctx { heap = M.insert key v $ heap ctx }
+    put $ ctx { exprs = M.insert key v $ exprs ctx }
     return $ RefTo key
   Deref e -> do
     r <- evalE e
     case r of
       RefTo ref -> do
         ctx <- get
-        return $ heap ctx M.! ref
+        return $ exprs ctx M.! ref
       _ -> lift $ throwE $ Unreachable vm
   _ -> lift $ throwE $ Unreachable vm
 
@@ -301,7 +302,6 @@ std exts = Context
   , exprs = M.empty
   , decls = PathTree.empty
   , impls = M.empty
-  , heap  = M.singleton 0 Unit
   }
 
 runMain
