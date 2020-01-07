@@ -24,7 +24,6 @@ import Language.Quartz.AST
     ':' { Lexeme _ TColon }
     ';' { Lexeme _ TSemiColon }
     '.' { Lexeme _ TDot }
-    '&' { Lexeme _ TAnd }
     '->' { Lexeme _ TArrow }
     '=>' { Lexeme _ TDArrow }
     '=' { Lexeme _ TEq }
@@ -241,8 +240,8 @@ self_arg_types :: { ArgType }
 self_arg_types
     : SELF ',' arg_types  { ArgType False True $3 }
     | SELF  { ArgType False True [] }
-    | '&' SELF ',' arg_types  { ArgType True True $4 }
-    | '&' SELF  { ArgType True True [] }
+    | REF SELF ',' arg_types  { ArgType True True $4 }
+    | REF SELF  { ArgType True True [] }
     | arg_types  { ArgType False False $1 }
 
 literal :: { Literal }

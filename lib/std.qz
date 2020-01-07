@@ -99,7 +99,7 @@ derive vector<T>  {
     vector {arr: [0, 0, 0, 0, 0], len: 0}
   }
   
-  func push(&self, v: T) {
+  func push(ref self, v: T) {
     if {
       (length_array(self.arr) == self.len) => {
         // self.arr = grow_array(self.arr, length_array(self.arr) * 2);
@@ -116,7 +116,7 @@ derive vector<T>  {
     self.arr[i]
   }
   
-  func put(&self, i: int, v: T) {
+  func put(ref self, i: int, v: T) {
     // self.arr[i] = v;
   }
   

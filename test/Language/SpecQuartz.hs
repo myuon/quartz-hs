@@ -305,7 +305,7 @@ spec_quartz = do
       }
 
       derive R {
-        func addX(&self, val: int) {
+        func addX(ref self, val: int) {
           self = R { x: self.x + val };
         }
       }
