@@ -92,11 +92,12 @@ data Type
 mayAppType :: Type -> [Type] -> Type
 mayAppType typ vars = ((if null vars then id else (\x -> AppType x vars)) typ)
 
-nameOfType :: Type -> String
+nameOfType :: Type -> Maybe String
 nameOfType typ = case typ of
-  ConType (Id [name]) -> name
+  ConType (Id [name]) -> Just name
   AppType t1 _        -> nameOfType t1
-  FnType  _  _        -> "Fn"
+  RefType t           -> nameOfType t
+  _                   -> Nothing
 
 data Scheme = Scheme [String] Type
   deriving (Eq, Show)

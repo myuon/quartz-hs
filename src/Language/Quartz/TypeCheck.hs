@@ -264,13 +264,9 @@ algoW expr = case expr of
           )
   Member e1 v1 -> do
     (s1, t1, e1') <- algoW e1
-    case t1 of
-      ConType name             -> memberW name v1 s1 t1 e1'
-      VarType _                -> lift $ throwE $ CannotInfer e1
-      AppType (ConType name) _ -> memberW name v1 s1 t1 e1'
-      -- auto dereference
-      RefType t                -> algoW $ Member (Deref e1) v1
-      _                        -> error $ show t1
+    name <- lift $ nameOfType t1 ?? NotFound Nothing
+                                             (Id ["nameOfType " ++ show t1])
+    memberW (Id [name]) v1 s1 t1 e1'
   RecordOf name fields -> do
     ctx          <- get
     (tyvars, rc) <- lift $ records ctx M.!? Id [name] ?? NotFound
@@ -317,7 +313,7 @@ algoW expr = case expr of
     -- ignore t1 here
     (s1, t1, expr') <- algoW expr
 
-    return (s1, ConType (Id ["unit"]), expr')
+    return (s1, ConType (Id ["unit"]), Stmt expr')
   LetRef x e -> do
     (s, t, e') <- algoW e
     modify $ \ctx -> ctx
@@ -360,7 +356,17 @@ algoW expr = case expr of
       ctx     <- get
       (_, rc) <- lift $ records ctx M.!? name ?? NotFound Nothing name
       t2      <- lift $ lookup v1 rc ?? NotFound Nothing (Id [v1])
-      return (s1, t2, Member e1' v1)
+      return
+        ( s1
+        , t2
+        , Member
+          ( -- auto dereference for record access via reference type
+            case t1 of
+            RefType _ -> Deref e1'
+            _         -> e1'
+          )
+          v1
+        )
 
     tryImpl
       :: MonadIO m

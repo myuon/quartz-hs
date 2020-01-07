@@ -120,10 +120,10 @@ evalE vm = case vm of
   -- トレイとのメソッド呼び出しx.f(y)はT::f(x,y)と解釈し直すが、このsyntaxはFnCallが外側に来てしまっているので
   -- 1段ネストの深いパターンマッチが必要
   FnCall (MethodOf typ name e1) es -> do
-    ctx  <- get
-    expr <- lift $ impls ctx M.!? (name, nameOfType typ) ?? NotFound
-      Nothing
-      (Id [name])
+    ctx     <- get
+    typName <- lift $ nameOfType typ ?? Unreachable vm
+    expr    <- lift $ impls ctx M.!? (name, typName) ?? NotFound Nothing
+                                                                 (Id [name])
     evalE $ FnCall expr (e1 : es)
 
   FnCall f xs -> do
@@ -206,6 +206,7 @@ evalE vm = case vm of
     case r1 of
       RecordOf _ fields -> do
         return $ (\(Just x) -> x) $ lookup v1 fields
+      -- auto dereference
       _ -> lift $ throwE $ Unreachable vm
   Stmt e           -> evalE e
   RecordOf name fs -> fmap (RecordOf name) $ forM fs $ \(x, y) -> do
@@ -281,13 +282,15 @@ evalD decl = go [] decl
           (FFI (Id [name]) (map (\n -> Var Nothing (Id [n])) $ map fst args'))
         )
     Interface _ _ _          -> return ()
-    Derive _ _ (Just typ) ds -> modify $ \ctx -> ctx
-      { impls = M.union
-        ( M.fromList
-        $ map (\(Func fn body) -> ((fn, nameOfType typ), ClosureE body)) ds
-        )
-        (impls ctx)
-      }
+    Derive _ _ (Just typ) ds -> do
+      let Just typName = nameOfType typ
+      modify $ \ctx -> ctx
+        { impls = M.union
+          ( M.fromList
+          $ map (\(Func fn body) -> ((fn, typName), ClosureE body)) ds
+          )
+          (impls ctx)
+        }
     Derive name _ Nothing ds -> modify $ \ctx -> ctx
       { impls = M.union
         (M.fromList $ map (\(Func fn body) -> ((fn, name), ClosureE body)) ds)
