@@ -213,12 +213,31 @@ evalE vm = case vm of
     y' <- evalE y
     return (x, y')
   Assign e1 e2 -> do
-    r1 <- evalE e1
-    r2 <- evalE e2
-    case r1 of
-      RefTo ref -> do
-        modify $ \ctx -> ctx { exprs = M.insert ref r2 $ exprs ctx }
-    return Unit
+    case e1 of
+      -- r.x = e;の形は特別扱い
+      Member r v -> do
+        r1 <- evalE r
+        r2 <- evalE e2
+        case r1 of
+          RefTo ref -> do
+            modify $ \ctx -> ctx
+              { exprs = M.adjust
+                  ( \(RecordOf name rc) ->
+                    RecordOf name
+                      $ fmap (\(x, y) -> if x == v then (x, r2) else (x, y))
+                      $ rc
+                  )
+                  ref
+                $ exprs ctx
+              }
+        return Unit
+      _ -> do
+        r1 <- evalE e1
+        r2 <- evalE e2
+        case r1 of
+          RefTo ref -> do
+            modify $ \ctx -> ctx { exprs = M.insert ref r2 $ exprs ctx }
+        return Unit
   LetRef x e -> do
     -- reference typeとしてallocateされたものはGCがないので解放されない
     b <- fresh

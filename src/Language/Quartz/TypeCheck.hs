@@ -300,14 +300,34 @@ algoW expr = case expr of
 
     return (s', apply s' (VarType b), Match e1' $ map snd substs)
   Assign e1 e2 -> do
-    (s1, t1, e1') <- algoW e1
-    t1'           <- case t1 of
-      RefType t -> return t
-      _         -> lift $ throwE $ CannotAssignToNonReferencedType e1 t1
-    (s2, t2, e2') <- algoW e2
-    s3            <- lift $ mgu t1' t2
+    case e1 of
+      -- r.x = e;の形は特別扱い
+      Member r v -> do
+        (s1, t1, e1') <- algoW r
+        (s2, t2, e2') <- algoW e2
 
-    return (s3 `compose` s2 `compose` s1, ConType (Id ["unit"]), Assign e1' e2')
+        let Just name' = nameOfType t1
+        let name = Id [name']
+        ctx     <- get
+        (_, rc) <- lift $ records ctx M.!? name ?? NotFound Nothing name
+        tv      <- lift $ lookup v rc ?? NotFound Nothing (Id [v])
+
+        s3      <- lift $ mgu tv t2
+        return
+          ( s3 `compose` s2 `compose` s1
+          , ConType (Id ["unit"])
+          , Assign (Member e1' v) e2'
+          )
+      _ -> do
+        (s1, t1, e1') <- algoW e1
+        t1'           <- case t1 of
+          RefType t -> return t
+          _         -> lift $ throwE $ CannotAssignToNonReferencedType e1 t1
+        (s2, t2, e2') <- algoW e2
+        s3            <- lift $ mgu t1' t2
+
+        return
+          (s3 `compose` s2 `compose` s1, ConType (Id ["unit"]), Assign e1' e2')
   Self typ  -> return (emptySubst, typ, Var Nothing (Id ["self"]))
   Stmt expr -> do
     -- ignore t1 here

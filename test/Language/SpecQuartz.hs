@@ -317,6 +317,24 @@ spec_quartz = do
       }
     |] `evalDTo` Lit (IntLit 30)
 
+    specify "record field assignment" $ [r|
+      record R {
+        x: int,
+      }
+
+      derive R {
+        func addX(ref self, val: int) {
+          self.x = self.x + val;
+        }
+      }
+
+      func main(): int {
+        let ref r = R { x: 10 };
+        r.addX(20);
+        r.x
+      }
+    |] `evalDTo` Lit (IntLit 30)
+
   describe "stdlib" $ do
     describe "vector" $ do
       specify "push" $ [r|
