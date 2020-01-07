@@ -75,6 +75,10 @@
         {
           "name": "constant.language.self.quartz",
           "match": "\\b(self)\\b"
+        },
+        {
+          "name": "constant.language.ref.quartz",
+          "match": "\\b(ref)\\b"
         }
       ]
     },
