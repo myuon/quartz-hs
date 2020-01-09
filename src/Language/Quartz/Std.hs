@@ -120,4 +120,20 @@ ffi = M.fromList
           return $ Lit $ IntLit $ Array.sizeofMutableArray marr
         _ -> throwE $ InvalidExpr d1
     )
+  , ( Id ["grow_array"]
+    , \[d1, d2] -> do
+      arr  <- (fromDynamic d1 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d1
+      size <- (fromDynamic d2 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d2
+      case (arr, size) of
+        (Array (MArray marr), Lit (IntLit n)) -> do
+          marr' <- liftIO
+            $ Array.newArray (Array.sizeofMutableArray marr + n) Unit
+          liftIO $ Array.copyMutableArray marr'
+                                          0
+                                          marr
+                                          0
+                                          (Array.sizeofMutableArray marr)
+          return $ Array $ MArray marr'
+        _ -> throwE $ InvalidExpr d1
+    )
   ]
