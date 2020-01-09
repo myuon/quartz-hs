@@ -214,6 +214,16 @@ evalE vm = case vm of
     return (x, y')
   Assign e1 e2 -> do
     case e1 of
+      -- r[i] = e;の形は特別扱い
+      IndexArray arr i -> do
+        arr' <- evalE arr
+        i'   <- evalE i
+        r    <- evalE e2
+        case (arr', i') of
+          (RefTo ref, Lit (IntLit n)) -> do
+            ctx <- get
+            let Array marr = exprs ctx M.! ref
+            liftIO $ Array.writeArray (getMArray marr) n r
       -- r.x = e;の形は特別扱い
       Member r v -> do
         r1 <- evalE r
@@ -230,14 +240,13 @@ evalE vm = case vm of
                   ref
                 $ exprs ctx
               }
-        return Unit
       _ -> do
         r1 <- evalE e1
         r2 <- evalE e2
         case r1 of
           RefTo ref -> do
             modify $ \ctx -> ctx { exprs = M.insert ref r2 $ exprs ctx }
-        return Unit
+    return Unit
   LetRef x e -> do
     -- reference typeとしてallocateされたものはGCがないので解放されない
     b <- fresh
@@ -245,7 +254,7 @@ evalE vm = case vm of
 
     v <- evalE e
     modify $ \ctx -> ctx
-      { exprs = M.insert key e $ M.insert (Id [x]) (RefTo key) $ exprs ctx
+      { exprs = M.insert key v $ M.insert (Id [x]) (RefTo key) $ exprs ctx
       }
     return $ RefTo key
   Deref e -> do

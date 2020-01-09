@@ -301,13 +301,29 @@ algoW expr = case expr of
     return (s', apply s' (VarType b), Match e1' $ map snd substs)
   Assign e1 e2 -> do
     case e1 of
+      -- r[i] = e;の形は特別扱い
+      IndexArray arr i -> do
+        (s1, t1, arr') <- algoW arr
+        (s2, t2, i'  ) <- algoW i
+        (s3, t3, e2' ) <- algoW e2
+
+        g              <- fmap VarType fresh
+        s4 <- lift $ mgu t1 (RefType (AppType (ConType (Id ["array"])) [g]))
+        s5             <- lift $ mgu t2 (ConType (Id ["int"]))
+        s6             <- lift $ mgu g t3
+
+        return
+          ( s6 `compose` s5 `compose` s4 `compose` s3 `compose` s2 `compose` s1
+          , ConType (Id ["unit"])
+          , Assign (IndexArray arr' i') e2'
+          )
       -- r.x = e;の形は特別扱い
       Member r v -> do
         (s1, t1, e1') <- algoW r
         (s2, t2, e2') <- algoW e2
 
         let Just name' = nameOfType t1
-        let name = Id [name']
+        let name       = Id [name']
         ctx     <- get
         (_, rc) <- lift $ records ctx M.!? name ?? NotFound Nothing name
         tv      <- lift $ lookup v rc ?? NotFound Nothing (Id [v])

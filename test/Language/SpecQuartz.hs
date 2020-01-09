@@ -335,6 +335,27 @@ spec_quartz = do
       }
     |] `evalDTo` Lit (IntLit 30)
 
+    specify "record field assignment (2)" $ [r|
+      record R {
+        x: int,
+        y: string,
+      }
+
+      func main(): string {
+        let ref r = R { x: 10, y: "foo" };
+        r.y = "yeah";
+        r.y
+      }
+    |] `evalDTo` Lit (StringLit "yeah")
+
+    specify "array index assignment" $ [r|
+      func main(): int {
+        let ref r = [1,2,3,4];
+        r[2] = 10;
+        (*r)[2]
+      }
+    |] `evalDTo` Lit (IntLit 10)
+
   describe "stdlib" $ do
     describe "vector" $ do
       specify "push" $ [r|
