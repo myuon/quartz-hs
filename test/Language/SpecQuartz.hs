@@ -357,6 +357,18 @@ spec_quartz = do
     |] `evalDTo` Lit (IntLit 10)
 
   describe "stdlib" $ do
+    describe "array" $ do
+      specify "grow and push to array" $ [r|
+        {
+          let ref arr = [0,0,0];
+          for i in range(0,2) {
+            arr[i] = i + 1;
+          }
+
+          (*arr)[2]
+        }
+      |] `evalETo` Lit (IntLit 3)
+
     describe "vector" $ do
       specify "push" $ [r|
         {

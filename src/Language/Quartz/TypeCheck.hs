@@ -224,7 +224,8 @@ algoW expr = case expr of
     s2 <- lift $ mgu t1 (AppType (ConType (Id ["array"])) [VarType b])
     ctx            <- get
     modify $ \ctx -> ctx
-      { schemes = M.insert (Id [elem]) (Scheme [] (VarType b)) $ schemes ctx
+      { schemes = M.insert (Id [elem]) (Scheme [] (apply s2 $ VarType b))
+        $ schemes ctx
       }
     (s3, t3, es') <- algoW $ Procedure es
     put ctx
