@@ -9,6 +9,7 @@ import Data.List
 import Language.Quartz
 import System.Environment
 import System.IO
+import System.Exit
 
 listed :: [Doc ann] -> Doc ann
 listed = align . sep . punctuate comma
@@ -68,13 +69,13 @@ instance Pretty (Expr posn) where
         _ -> pretty x
         )
       <+> pretty "=>" <+> pretty y <> comma) es)
-    Procedure es -> braces $ block $ map pretty es
+    Procedure es -> braces $ block $ map (pretty . snd) es
     Unit -> parens emptyDoc
     ArrayLit es ->
       let content = sep $ punctuate comma $ map pretty es in
       cat [pretty "[", flatAlt (indent 2 $ content <> comma) content, pretty "]"]
     IndexArray e1 e2 -> pretty e1 <> brackets (pretty e2)
-    ForIn v e1 es -> pretty "for" <+> pretty v <+> pretty "in" <+> pretty e1 <+> braces (block $ map pretty es)
+    ForIn v e1 es -> pretty "for" <+> pretty v <+> pretty "in" <+> pretty e1 <+> braces (block $ map (pretty . snd) es)
     Op op e1 e2 -> pretty e1 <+> pretty op <+> pretty e2
     -- memberの部分を改行できるようにするためにはf.g()の形に対応する必要がある
     Member e1 v -> hang 2 $ cat [pretty e1, dot <> pretty v]
@@ -157,7 +158,10 @@ main = do
       readFile filepath
 
   case parseModule body of
-    Left  err   -> print err
+    Left err -> do
+      hPrint stderr err
+      exitFailure
+
     Right decls -> do
       let p = pretty decls
       putDocW 80 p
