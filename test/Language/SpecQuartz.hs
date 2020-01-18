@@ -6,6 +6,7 @@ import Control.Error
 import Language.Quartz
 import Language.Quartz.Lexer (AlexPosn)
 import Language.Quartz.AST
+import Language.Quartz.Transform (transformIgnorePosnE)
 import Test.Tasty.Hspec hiding (Failure, Success)
 import qualified Data.Map as M
 import Text.RawString.QQ
@@ -32,7 +33,11 @@ spec_quartz = do
     specify "id(1000)" $ [r| { let id = <A>(a: A): A -> a; id(1000) } |] `evalETo` parseE [r| 1000 |]
     specify "id(\"hello\")" $ [r| { let id = <A>(a: A): A -> a; id("hello") } |] `evalETo` Lit (StringLit "hello")
     specify "10" $ [r| 10 |] `evalETo` parseE [r| 10 |]
-    specify "(a) -> a" $ [r| (a: string): string -> { a } |] `evalETo` parseE [r| (a: string): string -> { a } |]
+    specify "(a) -> a" $ do
+      result <- runExpr [r| (a: string): string -> { a } |]
+      case result of
+        Right (ClosureE _) -> () `shouldBe` ()
+        _ -> fail "error"
     specify "(\\a. a)(10)" $ [r|
       {
         let f = <A>(a: A): A -> { a };

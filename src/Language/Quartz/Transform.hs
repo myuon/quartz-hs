@@ -189,3 +189,40 @@ desugarOpD decl = go decl
     Func name (Closure args expr) -> Func name (Closure args (desugarOpE expr))
     Derive name vars implFor ds -> Derive name vars implFor $ map desugarOpD ds
     _ -> decl
+
+transformIgnorePosnE :: Expr posn -> Expr posn
+transformIgnorePosnE expr = go expr
+ where
+  go expr = case expr of
+    Var _ v                   -> Var Nothing v
+    Lit _                     -> expr
+    FnCall x ys               -> FnCall (go x) (map go ys)
+    Let    x e                -> Let x (go e)
+    ClosureE (Closure args e) -> ClosureE (Closure args (go e))
+    Match e bs                -> Match (go e) (map (\(p, e) -> (p, go e)) bs)
+    If        es              -> If (map (\(x, y) -> (go x, go y)) es)
+    Procedure es              -> Procedure (map go es)
+    Unit                      -> Unit
+    FFI x es                  -> FFI x (map go es)
+    Array    _                -> expr
+    ArrayLit es               -> ArrayLit (map go es)
+    IndexArray e1 e2          -> IndexArray (go e1) (go e2)
+    ForIn s  e  es            -> ForIn s (go e) (map go es)
+    Op    op e1 e2            -> Op op (go e1) (go e2)
+    Member   e  r             -> Member (go e) r
+    RecordOf s  es            -> RecordOf s (map (\(x, y) -> (x, go y)) es)
+    EnumOf   s  es            -> EnumOf s (map go es)
+    Assign   e1 e2            -> Assign (go e1) (go e2)
+    Self selfType             -> expr
+    Stmt e                    -> Stmt $ go e
+    LetRef x e                -> LetRef x (go e)
+    Deref e                   -> Deref $ go e
+
+transformIgnorePosnD :: Decl posn -> Decl posn
+transformIgnorePosnD decl = go decl
+ where
+  go decl = case decl of
+    Func name (Closure args expr) ->
+      Func name (Closure args (transformIgnorePosnE expr))
+    Derive name vars implFor ds -> Derive name vars implFor $ map go ds
+    _                           -> decl

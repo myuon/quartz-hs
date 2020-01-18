@@ -156,7 +156,7 @@ stmts
 expr_short :: { Expr AlexPosn }
 expr_short
     : literal  { Lit $1 }
-    | var  { Var Nothing (Id $1) }
+    | var  { let (x,y) = $1 in Var (Just y) (Id x) }
     | SELF  { Self SelfType }
     | expr_short args  { FnCall $1 $2 }
     | expr_short '.' VAR  { Member $1 $3 }
@@ -212,7 +212,7 @@ pattern :: { Pattern }
 pattern
     : '_'  { PAny }
     | pattern '(' patterns ')'  { PApp $1 $3 }
-    | var  { PVar (Id $1) }
+    | var  { PVar (Id (fst $1)) }
     | literal  { PLit $1 }
 
 patterns :: { [Pattern] }
@@ -272,10 +272,10 @@ types_comma
     | type  { [$1] }
     | type ',' types_comma  { $1 : $3 }
 
-var :: { [String] }
+var :: { ([String], AlexPosn) }
 var
-    : VAR  { [$1] }
-    | VAR '::' var  { $1 : $3 }
+    : VAR  { ([$1], posn) }
+    | VAR '::' var  { let (x,y) = $3 in ($1 : x, y) }
 
 {
 happyError tokens = Left $ "Parse error\n" ++ show tokens

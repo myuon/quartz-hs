@@ -1,16 +1,16 @@
 {-# LANGUAGE QuasiQuotes #-}
 module Language.Quartz.SpecParser where
 
-import Language.Quartz.Lexer (alexScanTokens, Lexeme, AlexPosn)
+import Language.Quartz.Lexer (alexScanTokens, Lexeme, AlexPosn(AlexPn))
 import Language.Quartz.AST
 import Language.Quartz.Parser
 import Language.Quartz.Transform
 import Test.Tasty.Hspec hiding (Failure, Success)
 import Text.RawString.QQ
 
-parseE = either error id . fmap transformVarConTypeE . parserExpr . alexScanTokens
-parseD = either error id . fmap transformVarConTypeD . parser . alexScanTokens
-parseDs = either error id . fmap (map transformVarConTypeD) . parserDecls . alexScanTokens
+parseE = either error id . fmap (transformIgnorePosnE . transformVarConTypeE) . parserExpr . alexScanTokens
+parseD = either error id . fmap (transformIgnorePosnD . transformVarConTypeD) . parser . alexScanTokens
+parseDs = either error id . fmap (map (transformIgnorePosnD . transformVarConTypeD)) . parserDecls . alexScanTokens
 
 spec_parser :: Spec
 spec_parser = do
