@@ -31,13 +31,13 @@ transformVarConTypeE expr = go [] expr
       ClosureE (Closure (varToConTypeArgTypes vars' args) (go vars' e))
     Match e bs       -> Match (go vars' e) (map (\(p, e) -> (p, go vars' e)) bs)
     If        es     -> If (map (\(x, y) -> (go vars' x, go vars' y)) es)
-    Procedure es     -> Procedure (map (go vars') es)
+    Procedure es     -> Procedure (map (\(x, y) -> (x, go vars' y)) es)
     Unit             -> Unit
     FFI x es         -> FFI x (map (go vars') es)
     Array    _       -> expr
     ArrayLit es      -> ArrayLit (map (go vars') es)
     IndexArray e1 e2 -> IndexArray (go vars' e1) (go vars' e2)
-    ForIn s  e  es   -> ForIn s (go vars' e) (map (go vars') es)
+    ForIn s e es -> ForIn s (go vars' e) (map (\(x, y) -> (x, go vars' y)) es)
     Op    op e1 e2   -> Op op (go vars' e1) (go vars' e2)
     Member   e  r    -> Member (go vars' e) r
     RecordOf s  es   -> RecordOf s (map (\(x, y) -> (x, go vars' y)) es)
@@ -89,13 +89,13 @@ transformSelfTypeE typ expr = go expr
     ClosureE (Closure args e) -> ClosureE (Closure (goArgTypes args) (go e))
     Match e bs                -> Match (go e) (map (\(p, e) -> (p, go e)) bs)
     If        es              -> If (map (\(x, y) -> (go x, go y)) es)
-    Procedure es              -> Procedure (map go es)
+    Procedure es              -> Procedure (map (\(x, y) -> (x, go y)) es)
     Unit                      -> Unit
     FFI x es                  -> FFI x (map go es)
     Array    _                -> expr
     ArrayLit es               -> ArrayLit (map go es)
     IndexArray e1 e2          -> IndexArray (go e1) (go e2)
-    ForIn s  e  es            -> ForIn s (go e) (map go es)
+    ForIn s  e  es            -> ForIn s (go e) (map (\(x, y) -> (x, go y)) es)
     Op    op e1 e2            -> Op op (go e1) (go e2)
     Member   e  r             -> Member (go e) r
     RecordOf s  es            -> RecordOf s (map (\(x, y) -> (x, go y)) es)
@@ -166,13 +166,13 @@ desugarOpE expr = go expr
     ClosureE (Closure args e) -> ClosureE (Closure args (go e))
     Match e bs                -> Match (go e) (map (\(p, e) -> (p, go e)) bs)
     If        es              -> If (map (\(x, y) -> (go x, go y)) es)
-    Procedure es              -> Procedure (map go es)
+    Procedure es              -> Procedure (map (\(x, y) -> (x, go y)) es)
     Unit                      -> Unit
     FFI x es                  -> FFI x (map go es)
     Array    _                -> expr
     ArrayLit es               -> ArrayLit (map go es)
     IndexArray e1 e2          -> IndexArray (go e1) (go e2)
-    ForIn s e es              -> ForIn s (go e) (map go es)
+    ForIn s e es              -> ForIn s (go e) (map (\(x, y) -> (x, go y)) es)
     Member   e  r             -> Member (go e) r
     RecordOf s  es            -> RecordOf s (map (\(x, y) -> (x, go y)) es)
     EnumOf   s  es            -> EnumOf s (map go es)
@@ -201,13 +201,13 @@ transformIgnorePosnE expr = go expr
     ClosureE (Closure args e) -> ClosureE (Closure args (go e))
     Match e bs                -> Match (go e) (map (\(p, e) -> (p, go e)) bs)
     If        es              -> If (map (\(x, y) -> (go x, go y)) es)
-    Procedure es              -> Procedure (map go es)
+    Procedure es              -> Procedure (map (\(x, y) -> (Nothing, go y)) es)
     Unit                      -> Unit
     FFI x es                  -> FFI x (map go es)
     Array    _                -> expr
     ArrayLit es               -> ArrayLit (map go es)
     IndexArray e1 e2          -> IndexArray (go e1) (go e2)
-    ForIn s  e  es            -> ForIn s (go e) (map go es)
+    ForIn s e es -> ForIn s (go e) (map (\(x, y) -> (Nothing, go y)) es)
     Op    op e1 e2            -> Op op (go e1) (go e2)
     Member   e  r             -> Member (go e) r
     RecordOf s  es            -> RecordOf s (map (\(x, y) -> (x, go y)) es)

@@ -138,19 +138,19 @@ may_return_type
     : ':' type  { Just $2 }
     | {- empty -}  { Nothing }
 
-stmt :: { Expr AlexPosn }
+stmt :: { (Maybe AlexPosn, Expr AlexPosn) }
 stmt
-    : FOR VAR IN expr_short '{' stmts '}'  { ForIn $2 $4 $6 }
-    | IF '{' if_branches '}'  { If $3 }
-    | LET REF VAR '=' expr ';'  { Stmt (LetRef $3 $5) }
-    | LET VAR '=' expr ';'  { Stmt (Let (Id [$2]) $4) }
-    | expr_short '=' expr ';'  { Stmt (Assign $1 $3) }
-    | expr ';'  { Stmt $1 }
+    : FOR VAR IN expr_short '{' stmts '}'  { (Nothing, ForIn $2 $4 $6) }
+    | IF '{' if_branches '}'  { (Nothing, If $3) }
+    | LET REF VAR '=' expr ';'  { (Nothing, Stmt (LetRef $3 $5)) }
+    | LET VAR '=' expr ';'  { (Nothing, Stmt (Let (Id [$2]) $4)) }
+    | expr_short '=' expr ';'  { (Nothing, Stmt (Assign $1 $3)) }
+    | expr ';'  { (Nothing, Stmt $1) }
 
-stmts :: { [Expr AlexPosn] }
+stmts :: { [(Maybe AlexPosn, Expr AlexPosn)] }
 stmts
     : {- empty -}  { [] }
-    | expr  { [$1] }
+    | expr  { [(Nothing, $1)] }
     | stmt stmts  { $1 : $2 }
 
 expr_short :: { Expr AlexPosn }

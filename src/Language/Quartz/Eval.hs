@@ -37,25 +37,26 @@ subst expr var term = case expr of
     Match (subst e var term) (map (\(pat, br) -> (pat, subst br var term)) args)
   If args ->
     If (map (\(pat, br) -> (subst pat var term, subst br var term)) args)
-  Procedure es     -> Procedure $ map (\x -> subst x var term) es
+  Procedure es     -> Procedure $ map (\(x, y) -> (x, subst y var term)) es
   Unit             -> expr
   FFI p es         -> FFI p $ map (\x -> subst x var term) es
   Array    _       -> expr
   ArrayLit xs      -> ArrayLit (map (\x -> subst x var term) xs)
   IndexArray e1 e2 -> IndexArray (subst e1 var term) (subst e2 var term)
-  ForIn v e es -> ForIn v (subst e var term) (map (\x -> subst x var term) es)
-  Op    op e1 e2   -> Op op (subst e1 var term) (subst e2 var term)
-  Member   e1  s   -> Member (subst e1 var term) s
-  RecordOf s   xs  -> RecordOf s (map (\(x, y) -> (x, subst y var term)) xs)
-  EnumOf   con ts  -> EnumOf con (map (\x -> subst x var term) ts)
-  Assign   e1  e2  -> Assign (subst e1 var term) (subst e2 var term)
-  Self _           -> expr
-  MethodOf t s e   -> MethodOf t s (subst e var term)
-  Any  _           -> expr
-  Stmt s           -> Stmt $ subst s var term
-  LetRef x t       -> LetRef x (subst t var term)
-  Deref e          -> Deref $ subst e var term
-  RefTo r          -> RefTo r
+  ForIn v e es ->
+    ForIn v (subst e var term) (map (\(x, y) -> (x, subst y var term)) es)
+  Op op e1 e2     -> Op op (subst e1 var term) (subst e2 var term)
+  Member   e1  s  -> Member (subst e1 var term) s
+  RecordOf s   xs -> RecordOf s (map (\(x, y) -> (x, subst y var term)) xs)
+  EnumOf   con ts -> EnumOf con (map (\x -> subst x var term) ts)
+  Assign   e1  e2 -> Assign (subst e1 var term) (subst e2 var term)
+  Self _          -> expr
+  MethodOf t s e  -> MethodOf t s (subst e var term)
+  Any  _          -> expr
+  Stmt s          -> Stmt $ subst s var term
+  LetRef x t      -> LetRef x (subst t var term)
+  Deref e         -> Deref $ subst e var term
+  RefTo r         -> RefTo r
 
 isNormalForm :: Expr AlexPosn -> Bool
 isNormalForm vm = case vm of
@@ -153,7 +154,7 @@ evalE vm = case vm of
             Right ctx' -> put ctx' >> evalE b
       )
       brs0
-  Procedure es -> foldl' (\m e -> m >> evalE e) (return Unit) es
+  Procedure es -> foldl' (\m e -> m >> evalE e) (return Unit) $ map snd es
   FFI p es     -> get >>= \ctx -> do
     pf <- lift $ ffi ctx M.!? p ?? NotFound Nothing p
     lift $ withExceptT FFIExceptions $ pf $ map toDyn es
@@ -176,7 +177,7 @@ evalE vm = case vm of
         forM_ [0 .. Array.sizeofMutableArray (getMArray m) - 1] $ \i -> do
           r <- liftIO $ Array.readArray (getMArray m) i
           modify $ \ctx -> ctx { exprs = M.insert (Id [var]) r (exprs ctx) }
-          mapM_ evalE es
+          mapM_ evalE $ map snd es
       _ -> lift $ throwE $ Unreachable vm
     put ctx0
 

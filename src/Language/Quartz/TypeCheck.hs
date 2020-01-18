@@ -211,10 +211,10 @@ algoW expr = case expr of
     return (s1, ConType (Id ["unit"]), Let x expr')
   Unit         -> return (emptySubst, ConType (Id ["unit"]), expr)
   Procedure es -> fmap (\(x, y, z) -> (x, y, Procedure $ reverse z)) $ foldlM
-    ( \(s1, _, e0) e -> do
+    ( \(s1, _, e0) (posn, e) -> do
       -- discarding the previous type information
       (s2, t2, e') <- algoW e
-      return (s2 `compose` s1, t2, e' : e0)
+      return (s2 `compose` s1, t2, (posn, e') : e0)
     )
     (emptySubst, ConType (Id ["unit"]), [])
     es

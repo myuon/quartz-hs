@@ -37,12 +37,12 @@ data Expr posn
   | OpenE Id
   | Match (Expr posn) [(Pattern, Expr posn)]
   | If [(Expr posn, Expr posn)]
-  | Procedure [Expr posn]
+  | Procedure [(Maybe posn, Expr posn)]
   | Unit
   | FFI Id [Expr posn]
   | ArrayLit [Expr posn]
   | IndexArray (Expr posn) (Expr posn)
-  | ForIn String (Expr posn) [Expr posn]
+  | ForIn String (Expr posn) [(Maybe posn, Expr posn)]
   | Op Op (Expr posn) (Expr posn)
   | Member (Expr posn) String
   | RecordOf String [(String, Expr posn)]
