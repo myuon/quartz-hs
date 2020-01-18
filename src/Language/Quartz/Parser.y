@@ -22,7 +22,7 @@ import Language.Quartz.AST
     ']' { Lexeme _ TRBracket }
     ',' { Lexeme _ TComma }
     ':' { Lexeme _ TColon }
-    ';' { Lexeme _ TSemiColon }
+    ';' { Lexeme posn TSemiColon }
     '.' { Lexeme _ TDot }
     '->' { Lexeme _ TArrow }
     '=>' { Lexeme _ TDArrow }
@@ -41,11 +41,11 @@ import Language.Quartz.AST
     ENUM { Lexeme _ TEnum }
     RECORD { Lexeme _ TRecord }
     OPEN { Lexeme _ TOpen }
-    LET { Lexeme _ TLet }
+    LET { Lexeme posn TLet }
     SELF { Lexeme _ TSelf }
     MATCH { Lexeme _ TMatch }
     EXTERNAL { Lexeme _ TExternal }
-    FOR { Lexeme _ TFor }
+    FOR { Lexeme posn TFor }
     IN { Lexeme _ TIn }
     IF { Lexeme _ TIf }
     ELSE { Lexeme _ TElse }
@@ -140,10 +140,10 @@ may_return_type
 
 stmt :: { (Maybe AlexPosn, Expr AlexPosn) }
 stmt
-    : FOR VAR IN expr_short '{' stmts '}'  { (Nothing, ForIn $2 $4 $6) }
+    : FOR VAR IN expr_short '{' stmts '}'  { (Just posn, ForIn $2 $4 $6) }
     | IF '{' if_branches '}'  { (Nothing, If $3) }
-    | LET REF VAR '=' expr ';'  { (Nothing, Stmt (LetRef $3 $5)) }
-    | LET VAR '=' expr ';'  { (Nothing, Stmt (Let (Id [$2]) $4)) }
+    | LET REF VAR '=' expr ';'  { (Just posn, Stmt (LetRef $3 $5)) }
+    | LET VAR '=' expr ';'  { (Just posn, Stmt (Let (Id [$2]) $4)) }
     | expr_short '=' expr ';'  { (Nothing, Stmt (Assign $1 $3)) }
     | expr ';'  { (Nothing, Stmt $1) }
 
