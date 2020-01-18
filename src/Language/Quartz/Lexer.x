@@ -110,6 +110,9 @@ data Token
 data Lexeme = Lexeme AlexPosn Token
   deriving (Eq, Show)
 
+posOfLexeme :: Lexeme -> AlexPosn
+posOfLexeme (Lexeme p _) = p
+
 wrap :: (String -> Token) -> AlexPosn -> String -> Lexeme
 wrap f p s = Lexeme p (f s)
 }

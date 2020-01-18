@@ -145,7 +145,7 @@ stmt
     | LET REF VAR '=' expr ';'  { (Just posn, Stmt (LetRef $3 $5)) }
     | LET VAR '=' expr ';'  { (Just posn, Stmt (Let (Id [$2]) $4)) }
     | expr_short '=' expr ';'  { (Nothing, Stmt (Assign $1 $3)) }
-    | expr ';'  { (Nothing, Stmt $1) }
+    | expr ';'  { (Just $ posOfLexeme $2, Stmt $1) }
 
 stmts :: { [(Maybe AlexPosn, Expr AlexPosn)] }
 stmts

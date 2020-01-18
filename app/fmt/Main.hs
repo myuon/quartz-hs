@@ -7,6 +7,7 @@ import Data.Text.Prettyprint.Doc.Util
 import Data.Text.Prettyprint.Doc.Render.Text
 import Data.List
 import Language.Quartz
+import Language.Quartz.Lexer
 import System.Environment
 import System.IO
 import System.Exit
@@ -51,10 +52,10 @@ instance Pretty Pattern where
     PApp p1 ps -> pretty p1 <> parens (listed $ map pretty ps)
     PAny -> pretty "_"
 
-instance Pretty (Closure posn) where
+instance Pretty (Closure AlexPosn) where
   pretty (Closure typ body) = pretty typ <+> pretty "->" <+> pretty body
 
-instance Pretty (Expr posn) where
+instance Pretty (Expr AlexPosn) where
   pretty expr = case expr of
     Var _ v -> pretty v
     Lit lit -> pretty lit
@@ -69,7 +70,12 @@ instance Pretty (Expr posn) where
         _ -> pretty x
         )
       <+> pretty "=>" <+> pretty y <> comma) es)
-    Procedure es -> braces $ block $ map (pretty . snd) es
+    Procedure es -> braces $ block $ reverse $ snd $ foldl (\(p, doc) (q, e) ->
+      let spaces = case (p,q) of
+            (Just (AlexPn _ x _), Just (AlexPn _ y _)) -> replicate (y - x - 1) softline
+            _ -> []
+      in
+      (q, pretty e : (spaces ++ doc))) (Nothing, []) es
     Unit -> parens emptyDoc
     ArrayLit es ->
       let content = sep $ punctuate comma $ map pretty es in
@@ -111,7 +117,7 @@ instance Pretty EnumField where
 instance Pretty RecordField where
   pretty (RecordField s t) = pretty s <> colon <+> pretty t
 
-instance Pretty (Decl posn) where
+instance Pretty (Decl AlexPosn) where
   pretty decl = case decl of
     Enum name tyvars fields -> align $
       pretty "enum"
