@@ -170,7 +170,11 @@ main = do
 
     Right decls -> do
       let p = pretty decls
-      putDocW 80 p
+      let w = 80
+      renderIO System.IO.stdout $ removeTrailingWhitespace $ layoutPretty
+        (LayoutOptions {layoutPageWidth = AvailablePerLine w 1})
+        (unAnnotate p)
+
       -- VSCode側でやるので一旦消去
       --withFile filepath WriteMode
       --  $ \handle -> renderIO handle $ layoutSmart defaultLayoutOptions p

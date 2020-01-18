@@ -28,14 +28,14 @@ derive Numeric for Nat {
       Nat::Succ(_) => false,
     }
   }
-  
+
   func pred(self): self {
     match self {
       Nat::Succ(m) => m,
       _ => Nat::Zero,
     }
   }
-  
+
   func add(self, other: self): self {
     match self {
       Nat::Zero => other,
