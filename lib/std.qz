@@ -128,3 +128,18 @@ derive vector<T>  {
     length_array(self.arr)
   }
 }
+
+external func concat_string(s1: string, s2: string): string;
+external func int_to_string(n: int): string;
+
+derive string {
+  func concat(self, other: string): self {
+    concat_string(self, other)
+  }
+}
+
+derive int {
+  func to_string(self): string {
+    int_to_string(self)
+  }
+}

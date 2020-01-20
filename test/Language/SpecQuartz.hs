@@ -362,6 +362,19 @@ spec_quartz = do
     |] `evalDTo` Lit (IntLit 10)
 
   describe "stdlib" $ do
+    describe "basic operations" $ do
+      specify "to_string" $ [r|
+        {
+          let f = 100;
+          f.to_string()
+        }
+      |] `evalETo` Lit (StringLit "100")
+      specify "concat_string" $ [r|
+        {
+          "hello".concat(",").concat(" world!")
+        }
+      |] `evalETo` Lit (StringLit "hello, world!")
+
     describe "array" $ do
       specify "for-push" $ [r|
         {

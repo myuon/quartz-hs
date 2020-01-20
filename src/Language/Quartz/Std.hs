@@ -136,4 +136,21 @@ ffi = M.fromList
           return $ Array $ MArray marr'
         _ -> throwE $ InvalidExpr d1
     )
+  , ( Id ["concat_string"]
+    , \[d1, d2] -> do
+      arr  <- (fromDynamic d1 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d1
+      size <- (fromDynamic d2 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d2
+      case (arr, size) of
+        (Lit (StringLit s1), Lit (StringLit s2)) -> do
+          return $ Lit $ StringLit $ s1 ++ s2
+        _ -> throwE $ InvalidExpr d1
+    )
+  , ( Id ["int_to_string"]
+    , \[d1] -> do
+      e1  <- (fromDynamic d1 :: Maybe (Expr AlexPosn)) ?? InvalidExpr d1
+      case e1 of
+        Lit (IntLit n) -> do
+          return $ Lit $ StringLit $ show n
+        _ -> throwE $ InvalidExpr d1
+    )
   ]
