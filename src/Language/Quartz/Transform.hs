@@ -25,7 +25,7 @@ transformVarConTypeE expr = go [] expr
   go vars' expr = case expr of
     Var _ _     -> expr
     Lit _       -> expr
-    FnCall x ys -> FnCall x (map (go vars') ys)
+    FnCall x ys -> FnCall (go vars' x) (map (go vars') ys)
     Let    x e  -> Let x (go vars' e)
     ClosureE (Closure args e) ->
       ClosureE (Closure (varToConTypeArgTypes vars' args) (go vars' e))
@@ -161,7 +161,7 @@ desugarOpE expr = go expr
             _    -> Op op e1' e2'
     Var _ _                   -> expr
     Lit _                     -> expr
-    FnCall x ys               -> FnCall x (map go ys)
+    FnCall x ys               -> FnCall (go x) (map go ys)
     Let    x e                -> Let x (go e)
     ClosureE (Closure args e) -> ClosureE (Closure args (go e))
     Match e bs                -> Match (go e) (map (\(p, e) -> (p, go e)) bs)

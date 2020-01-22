@@ -361,6 +361,19 @@ spec_quartz = do
       }
     |] `evalDTo` Lit (IntLit 10)
 
+    specify "Op in FnCall" $ [r|
+      record R {
+        x1234: int,
+      }
+
+      func main(): string {
+        let r = R { x1234: 100 };
+        (100 * r.x1234).to_string()
+      }
+    |] `evalDTo` Lit (StringLit "10000")
+
+--    error $ show $ parseE [r| (100 * r.x1234.y1234).to_string() |]
+
   describe "stdlib" $ do
     describe "basic operations" $ do
       specify "to_string" $ [r|
