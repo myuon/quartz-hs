@@ -142,6 +142,7 @@ stmt :: { (Maybe AlexPosn, Expr AlexPosn) }
 stmt
     : FOR VAR IN expr_short '{' stmts '}'  { (Just posn, ForIn $2 $4 $6) }
     | IF '{' if_branches '}'  { (Nothing, If $3) }
+    | MATCH expr_short '{' match_branches '}'  { (Nothing, Match $2 $4) }
     | LET REF VAR '=' expr ';'  { (Just posn, Stmt (LetRef $3 $5)) }
     | LET VAR '=' expr ';'  { (Just posn, Stmt (Let (Id [$2]) $4)) }
     | expr_short '=' expr ';'  { (Nothing, Stmt (Assign $1 $3)) }
