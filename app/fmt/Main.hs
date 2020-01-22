@@ -90,6 +90,8 @@ instance Pretty (Expr AlexPosn) where
     Assign e1 e2 -> pretty e1 <+> equals <+> pretty e2
     Self typ -> pretty "self"
     Stmt s -> pretty s <> semi
+    LetRef v e -> pretty "let" <+> pretty "ref" <+> pretty v <+> equals <+> pretty e
+    Deref t -> pretty "*" <> pretty t
 
 instance Pretty Type where
   pretty typ = case typ of
@@ -98,9 +100,10 @@ instance Pretty Type where
     AppType con args -> pretty con <> angles (listed $ map pretty args)
     FnType args ret -> pretty "func" <> parens (listed $ map pretty args)
     SelfType -> pretty "self"
+    RefType t -> pretty "ref" <> angles (pretty t)
 
 instance Pretty ArgType where
-  pretty (ArgType ref self args) = parens (listed $ (if ref && self then (pretty "&self" :) else if self then (pretty "self" :) else id) $ map (\(x,y) -> pretty x <> colon <+> pretty y) args)
+  pretty (ArgType ref self args) = parens (listed $ (if ref && self then (pretty "ref self" :) else if self then (pretty "self" :) else id) $ map (\(x,y) -> pretty x <> colon <+> pretty y) args)
 
 instance Pretty FuncType where
   pretty (FuncType tyvars args ret) = align $
