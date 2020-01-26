@@ -174,7 +174,7 @@ main = do
     Right decls -> do
       let p = pretty decls
       let w = 80
-      renderIO System.IO.stdout $ removeTrailingWhitespace $ layoutPretty
+      renderIO System.IO.stdout $ removeTrailingWhitespace $ layoutSmart
         (LayoutOptions {layoutPageWidth = AvailablePerLine w 1})
         (unAnnotate p)
 
