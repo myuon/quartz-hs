@@ -6,7 +6,7 @@ module Language.Quartz.Tools.FmtLexer where
 
 $digit = [0-9]
 $alpha = [a-zA-Z]
-@token = [$alpha $digit \_ \:\:]+
+@token = [$alpha $digit \_]+
 @string = \" ($printable # \")* \"
 
 tokens :-
@@ -35,6 +35,8 @@ tokens :-
   \/ { wrap $ TSymbol }
   \<= { wrap $ TSymbol }
   \>= { wrap $ TSymbol }
+  \: { wrap $ TSymbol }
+  \:\: { wrap $ TSymbol }
   @token { wrap Token }
   @string { wrap (\s -> TStrLit $ init $ tail s) }
 

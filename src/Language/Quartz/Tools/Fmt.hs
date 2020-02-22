@@ -27,18 +27,11 @@ parse tokens = runST $ do
 
   forM_ tokens $ \token -> do
     case token of
-      Lexeme _ (TSymbol t) | t == "(" -> do
-        v <- new 0
-        push v     token
-        push stack (STokens v)
-        w <- new 0
-        push stack (STokens w)
-      Lexeme _ (TSymbol t) | t == "," -> do
-        v <- new 0
-        push stack (STokens v)
-      Lexeme _ (TSymbol t) | t == ")" -> do
-        vs <- popUntil stack (TSymbol "(")
-        push stack (SCode $ Scope $ V.reverse $ V.fromList vs)
+      Lexeme _ (TSymbol t) | t == "," -> continue stack
+      Lexeme _ (TSymbol t) | t == "(" -> start stack token
+      Lexeme _ (TSymbol t) | t == ")" -> close stack "("
+      Lexeme _ (TSymbol t) | t == "<" -> start stack token
+      Lexeme _ (TSymbol t) | t == ">" -> close stack "<"
       _ -> do
         popped <- pop stack
         case popped of
@@ -59,6 +52,21 @@ parse tokens = runST $ do
       if V.null v then return Nothing else return (Just $ Tokens v)
     SCode c -> return (Just c)
  where
+  start stack token = do
+    v <- new 0
+    push v     token
+    push stack (STokens v)
+    w <- new 0
+    push stack (STokens w)
+
+  continue stack = do
+    v <- new 0
+    push stack (STokens v)
+
+  close stack ch = do
+    vs <- popUntil stack (TSymbol ch)
+    push stack (SCode $ Scope $ V.reverse $ V.fromList vs)
+
   popUntil stack ch = do
     popped <- pop stack
     case popped of
