@@ -30,6 +30,7 @@ library
     Language.Quartz.Std
     Language.Quartz.TypeCheck
     Language.Quartz.Eval
+    Language.Quartz.Tools.FmtLexer
   other-modules:
     Paths_quartz
   -- other-extensions:
