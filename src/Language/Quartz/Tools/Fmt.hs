@@ -10,8 +10,9 @@ import Language.Quartz.Tools.FmtLexer
 
 data Code
   = Tokens (V.Vector Lexeme)
-  | Block (V.Vector Code)
-  | Scope (V.Vector Code)
+  -- open punctuation close
+  | Block String String String (V.Vector Code)
+  | Scope String String String (V.Vector Code)
   deriving (Eq, Show)
 
 data StackElement s
@@ -29,9 +30,9 @@ parse tokens = runST $ do
     case token of
       Lexeme _ (TSymbol t) | t == "," -> continue stack
       Lexeme _ (TSymbol t) | t == "(" -> start stack token
-      Lexeme _ (TSymbol t) | t == ")" -> close stack "("
+      Lexeme _ (TSymbol t) | t == ")" -> close stack "(" "," ")"
       Lexeme _ (TSymbol t) | t == "<" -> start stack token
-      Lexeme _ (TSymbol t) | t == ">" -> close stack "<"
+      Lexeme _ (TSymbol t) | t == ">" -> close stack "<" "," ">"
       _ -> do
         popped <- pop stack
         case popped of
@@ -63,9 +64,9 @@ parse tokens = runST $ do
     v <- new 0
     push stack (STokens v)
 
-  close stack ch = do
-    vs <- popUntil stack (TSymbol ch)
-    push stack (SCode $ Scope $ V.reverse $ V.fromList vs)
+  close stack open punct close = do
+    vs <- popUntil stack (TSymbol open)
+    push stack (SCode $ Scope open punct close $ V.reverse $ V.fromList vs)
 
   popUntil stack ch = do
     popped <- pop stack

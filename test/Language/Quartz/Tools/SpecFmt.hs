@@ -36,7 +36,7 @@ spec_fmt = do
     it "" $ do
       parse (alexScanTokens "(10)")
         `shouldBe` [
-          Scope (V.fromList [
+          Scope "(" "," ")" (V.fromList [
             Tokens (V.fromList [
               Lexeme (AlexPn 1 1 2) (Token "10")
             ])
@@ -46,7 +46,7 @@ spec_fmt = do
     it "" $ do
       parse (alexScanTokens "(10,20,30,40)")
         `shouldBe` [
-          Scope (V.fromList [
+          Scope "(" "," ")" (V.fromList [
             Tokens (V.fromList [
               Lexeme (AlexPn 1 1 2) (Token "10")
             ]),
@@ -65,7 +65,7 @@ spec_fmt = do
     it "" $ do
       parse (alexScanTokens "(a: int, b: string, c: Hello<A,B,C>)")
         `shouldBe` [
-          Scope (V.fromList [
+          Scope "(" "," ")" (V.fromList [
             Tokens (V.fromList [
               Lexeme (AlexPn 1 1 2) (Token "a"),
               Lexeme (AlexPn 2 1 3) (TSymbol ":"),
@@ -81,7 +81,7 @@ spec_fmt = do
               Lexeme (AlexPn 21 1 22) (TSymbol ":"),
               Lexeme (AlexPn 23 1 24) (Token "Hello")
             ]),
-            Scope (V.fromList [
+            Scope "<" "," ">" (V.fromList [
               Tokens (V.fromList [
                 Lexeme (AlexPn 29 1 30) (Token "A")
               ]),
