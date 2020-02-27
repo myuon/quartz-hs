@@ -1,5 +1,11 @@
 # Revision history for quartz
 
+## 0.2.0.0 -- 2020-02-28
+
+- Breaking change: Towards LL(1) syntax
+  - Type application becomes `[]` instead of `<>`
+  - Lambda abstration becomes `[tyvars](arg) => expr`
+
 ## 0.1.0.0 -- 2020-02-23
 
 - First release
