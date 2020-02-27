@@ -1,4 +1,4 @@
-external func println<A>(x: A);
+external func println[A](x: A);
 
 external func mod(x: int, y: int): int;
 
@@ -83,20 +83,20 @@ derive Order for int {
   }
 }
 
-external func range(start: int, end: int): array<int>;
+external func range(start: int, end: int): array[int];
 
-external func length_array<T>(arr: array<T>): int;
+external func length_array[T](arr: array[T]): int;
 
-external func grow_array<T>(arr: array<T>, len: int): array<T>;
+external func grow_array[T](arr: array[T], len: int): array[T];
 
-record vector<T> {
-  arr: array<T>,
+record vector[T] {
+  arr: array[T],
   len: int,
 }
 
-derive vector<T>  {
+derive vector[T]  {
   func new(): self {
-    vector {arr: [0, 0, 0, 0, 0], len: 0}
+    vector {arr: array![0, 0, 0, 0, 0], len: 0}
   }
   
   func push(ref self, v: T) {

@@ -2,7 +2,7 @@
 module Language.Quartz.SpecTypeCheck where
 
 import Control.Error
-import Language.Quartz.Lexer (alexScanTokens)
+import Language.Quartz.Lexer (alexScanTokens, AlexPosn)
 import Language.Quartz.AST
 import Language.Quartz.Parser
 import Language.Quartz.Transform
@@ -16,9 +16,11 @@ runTypeCheck r1 r2 = do
     Right v   -> v `shouldBe` r2
     Left  err -> fail $ show err
 
+check :: String -> IO ()
 check s = do
   result <- runExceptT $ runTypeCheckModule $ parseDs s
   either (fail . show) return result
+  return ()
 
 parseE = either error id . fmap transformVarConTypeE . parserExpr . alexScanTokens
 parseD = either error id . fmap transformVarConTypeD . parser . alexScanTokens
@@ -27,48 +29,56 @@ parseDs = either error id . fmap (fmap transformVarConTypeD) . parserDecls . ale
 spec_typecheck :: Spec
 spec_typecheck = do
   describe "typechecker" $ do
-    it "should typecheck" $ do
+    it "" $
       parseE [r| 10 |] `runTypeCheck` ConType (Id ["int"])
 
-      parseE [r| [1,2,3,4] |] `runTypeCheck` AppType (ConType (Id ["array"])) [ConType (Id ["int"])]
+    it "" $
+      parseE [r| array![1,2,3,4] |] `runTypeCheck` AppType (ConType (Id ["array"])) [ConType (Id ["int"])]
 
-      parseE [r| ["aaa","bbb"][0] |] `runTypeCheck` ConType (Id ["string"])
+    it "" $
+      parseE [r| array!["aaa","bbb"][0] |] `runTypeCheck` ConType (Id ["string"])
 
-      parseE [r| (x: int): int -> { x } |]
+    it "" $
+      parseE [r| [](x: int): int => { x } |]
         `runTypeCheck` FnType [ConType (Id ["int"])] (ConType (Id ["int"]))
 
+    it "" $
       parseE [r|
         {
-          let f = (x: int): int -> x;
+          let f = [](x: int): int => x;
           f(10)
         }
       |]
         `runTypeCheck` ConType (Id ["int"])
 
+    it "" $ do
       parseE [r|
         {
-          let f = (x: int): int -> x;
+          let f = [](x: int): int => x;
           f(10);
         }
       |]
         `runTypeCheck` ConType (Id ["unit"])
 
+    it "" $ do
       parseE [r|
         {
-          let f = (): int -> 10;
+          let f = [](): int => 10;
           f
         }
       |]
         `runTypeCheck` FnType [] (ConType (Id ["int"]))
 
+    it "" $ do
       parseE [r|
         {
-          let f = <A>(x: A): A -> x;
+          let f = [A](x: A): A => x;
           let x = 10;
           f(x) == 20
         }
       |] `runTypeCheck` ConType (Id ["bool"])
 
+    it "" $ do
       parseE [r|
         if {
           0 == 1 => "true",
@@ -76,6 +86,7 @@ spec_typecheck = do
         }
       |] `runTypeCheck` ConType (Id ["string"])
 
+    it "" $ do
       check [r|
         record Foo {
           bar: int,
@@ -86,6 +97,7 @@ spec_typecheck = do
         }
       |]
 
+    it "" $ do
       check [r|
         record P {
           x: int,
@@ -110,6 +122,7 @@ spec_typecheck = do
         }
       |]
 
+    it "" $ do
       check [r|
         enum Color {
           Red,
@@ -130,6 +143,7 @@ spec_typecheck = do
         }
       |]
 
+    it "" $ do
       check [r|
         enum Nat {
           Zero,
@@ -152,30 +166,32 @@ spec_typecheck = do
         }
       |]
 
+    it "" $ do
       check [r|
-        enum Tree<T> {
+        enum Tree[T] {
           Empty,
-          Node(Tree<T>, T, Tree<T>),
+          Node(Tree[T], T, Tree[T]),
         }
 
-        func node<T>(left: Tree<T>, value: T, right: Tree<T>): Tree<T> {
+        func node[T](left: Tree[T], value: T, right: Tree[T]): Tree[T] {
           Tree::Node(left, value, right)
         }
 
-        func get_value<T>(tree: Tree<T>): T {
+        func get_value[T](tree: Tree[T]): T {
           match tree {
             Tree::Node(_, v, _) => v
           }
         }
       |]
 
+    it "" $ do
       check [r|
-        record Pair<X,Y> {
+        record Pair[X,Y] {
           proj1: X,
           proj2: Y,
         }
 
-        func pair<S,T>(x: S, y: T): Pair<S,T> {
+        func pair[S,T](x: S, y: T): Pair[S,T] {
           Pair {
             proj1: x,
             proj2: y,
@@ -183,17 +199,16 @@ spec_typecheck = do
         }
       |]
 
+    it "" $ do
       check [r|
-        interface Hoge<T> {
+        interface Hoge[T] {
           func doSth(x: T);
           func get(self): T;
         }
 
-        derive Hoge<T> for int {
+        derive Hoge[T] for int {
           func get(self): T {
             100
           }
         }
       |]
-
-      return ()

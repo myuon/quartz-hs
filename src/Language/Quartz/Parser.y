@@ -55,6 +55,8 @@ import Language.Quartz.AST
     DERIVE { Lexeme _ TDerive }
     REF { Lexeme _ TRef }
 
+    ARRAY_LIT { Lexeme _ TArrayLit }
+
     INT { Lexeme _ (TInt $$) }
     STRLIT { Lexeme _ (TStrLit $$) }
     VAR { Lexeme posn (TVar $$) }
@@ -125,7 +127,7 @@ record_field
 may_generics :: { [String] }
 may_generics
     : {- empty -}  { [] }
-    | '<' may_generics_internal '>'  { $2 }
+    | '[' may_generics_internal ']'  { $2 }
 
 may_generics_internal :: { [String] }
 may_generics_internal
@@ -164,17 +166,14 @@ expr_short
     | expr_short '[' expr ']'  { IndexArray $1 $3 }
     | '(' expr ')'  { $2 }
     | '{' stmts '}'  { Procedure $2 }
-    | '[' array_lit ']'  { ArrayLit $2 }
+    | ARRAY_LIT '[' array_lit ']'  { ArrayLit $3 }
     | '*' expr  { Deref $2 }
 
 expr :: { Expr AlexPosn }
 expr
     : MATCH expr_short '{' match_branches '}'  { Match $2 $4 }
     | IF '{' if_branches '}'  { If $3 }
-
-    -- こうしないとちゃんとパースできないので(先読みの問題？)
-    | '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (FuncType [] (ArgType False False $2) (maybe unitType id $4)) $6) }
-    | '<' may_generics_internal '>' '(' arg_types ')' may_return_type '->' expr  { ClosureE (Closure (FuncType $2 (ArgType False False $5) (maybe unitType id $7)) $9) }
+    | '[' may_generics_internal ']' '(' arg_types ')' may_return_type '=>' expr  { ClosureE (Closure (FuncType $2 (ArgType False False $5) (maybe unitType id $7)) $9) }
 
     -- 演算子優先順位のためにはここはまとめて書いてはいけない？
     | expr '+' expr { Op Add $1 $3 }
@@ -188,7 +187,6 @@ expr
     | expr '==' expr { Op Eq $1 $3 }
 
     | VAR '{' record_expr '}'  { RecordOf $1 $3 }
-
     | expr_short  { $1 }
 
 record_expr :: { [(String, Expr AlexPosn)] }
@@ -264,8 +262,8 @@ type
     | '_'  { NoType }
     | SELF { SelfType }
     | VAR  { ConType (Id [$1]) }
-    | REF '<' type '>'  { RefType $3 }
-    | type '<' types_comma '>'  { AppType $1 $3 }
+    | REF '[' type ']'  { RefType $3 }
+    | type '[' types_comma ']'  { AppType $1 $3 }
 
 types_comma :: { [Type] }
 types_comma

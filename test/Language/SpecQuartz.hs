@@ -30,24 +30,24 @@ spec_quartz = do
   describe "quartz" $ do
     specify "let a = 10; a" $
       [r| { let a = 10; a } |] `evalETo` parseE [r| 10 |]
-    specify "id(1000)" $ [r| { let id = <A>(a: A): A -> a; id(1000) } |] `evalETo` parseE [r| 1000 |]
-    specify "id(\"hello\")" $ [r| { let id = <A>(a: A): A -> a; id("hello") } |] `evalETo` Lit (StringLit "hello")
+    specify "id(1000)" $ [r| { let id = [A](a: A): A => a; id(1000) } |] `evalETo` parseE [r| 1000 |]
+    specify "id(\"hello\")" $ [r| { let id = [A](a: A): A => a; id("hello") } |] `evalETo` Lit (StringLit "hello")
     specify "10" $ [r| 10 |] `evalETo` parseE [r| 10 |]
     specify "(a) -> a" $ do
-      result <- runExpr [r| (a: string): string -> { a } |]
+      result <- runExpr [r| [](a: string): string => { a } |]
       case result of
         Right (ClosureE _) -> () `shouldBe` ()
         _ -> fail "error"
     specify "(\\a. a)(10)" $ [r|
       {
-        let f = <A>(a: A): A -> { a };
+        let f = [A](a: A): A => { a };
         let z = 10;
         f(z)
       }
     |] `evalETo` parseE [r| 10 |]
     specify "(\\a b. b)(10, 20)" $ [r|
       {
-        let f = (a: int, b: int): int -> { b };
+        let f = [](a: int, b: int): int => { b };
         let z = 10;
         f(z, 20)
       }
@@ -65,7 +65,7 @@ spec_quartz = do
 
     specify "array indexing" $ [r|
       {
-        let a = [1,2,3,4];
+        let a = array![1,2,3,4];
         a[2]
       }
     |] `evalETo` parseE [r| 3 |]
@@ -202,8 +202,8 @@ spec_quartz = do
 
     specify "array_literal" $ [r|
       {
-        let id = <A>(x: A): A -> x;
-        [id(1)][0]
+        let id = [A](x: A): A => x;
+        array![id(1)][0]
       }
     |] `evalETo` Lit (IntLit 1)
 
@@ -293,7 +293,7 @@ spec_quartz = do
     |] `evalDTo` Lit (IntLit 20)
 
     specify "reference modification through function" $ [r|
-      func setVal(r: ref<int>, v: int) {
+      func setVal(r: ref[int], v: int) {
         r = v;
       }
 
@@ -355,7 +355,7 @@ spec_quartz = do
 
     specify "array index assignment" $ [r|
       func main(): int {
-        let ref r = [1,2,3,4];
+        let ref r = array![1,2,3,4];
         r[2] = 10;
         (*r)[2]
       }
@@ -391,7 +391,7 @@ spec_quartz = do
     describe "array" $ do
       specify "for-push" $ [r|
         {
-          let ref arr = [0,0,0];
+          let ref arr = array![0,0,0];
           for i in range(0,2) {
             arr[i] = i + 1;
           }
@@ -402,7 +402,7 @@ spec_quartz = do
 
       specify "grow_array" $ [r|
         {
-          let ref arr = [1,2,3];
+          let ref arr = array![1,2,3];
           arr = grow_array(*arr, 2);
           length_array(*arr)
         }

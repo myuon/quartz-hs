@@ -55,6 +55,7 @@ tokens :-
   \/ { wrap $ \_ -> TSlash }
   \<= { wrap $ \_ -> TLeq }
   \>= { wrap $ \_ -> TGeq }
+  array! { wrap $ \_ -> TArrayLit }
   $digit+ { wrap (TInt . read) }
   [$alpha \_] [$alpha $digit \_]* { wrap TVar }
   @string { wrap (\s -> TStrLit $ init $ tail s) }
@@ -101,6 +102,7 @@ data Token
   | TStar
   | TSlash
   | TLeq
+  | TArrayLit
   | TGeq
   | TInt Int
   | TVar String

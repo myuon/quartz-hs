@@ -52,7 +52,7 @@ runExpr s = do
 
   -- stdを読み込む必要があるので一旦moduleに送るという強引な手段を取る
   runExceptT
-    $   ($ std ++ "func main<A>(): A {" ++ s ++ "}")
+    $   ($ std ++ "func main[A](): A {" ++ s ++ "}")
     $   (withExceptT ParseError . ExceptT . return . parseModule)
     >=> (return . map (transformSelfTypeD . transformVarConTypeD . desugarOpD))
     >=> (withExceptT TypeCheckError . runTypeCheckModule)
