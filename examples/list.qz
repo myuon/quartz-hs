@@ -1,23 +1,23 @@
-enum List<T> {
+enum List[T] {
   Nil,
-  Cons(T, List<T>),
+  Cons(T, List[T]),
 }
 
-func is_nil<T>(xs: List<T>): bool {
+func is_nil[T](xs: List[T]): bool {
   match xs {
     List::Nil => true,
     _ => false,
   }
 }
 
-func snoc<T>(xs: List<T>, x: T): List<T> {
+func snoc[T](xs: List[T], x: T): List[T] {
   match xs {
     List::Nil => List::Cons(x, List::Nil),
     List::Cons(y, ys) => List::Cons(y, snoc(ys, x)),
   }
 }
 
-func append<T>(xs: List<T>, ys: List<T>): List<T> {
+func append[T](xs: List[T], ys: List[T]): List[T] {
   match ys {
     List::Nil => xs,
     List::Cons(z, zs) => append(snoc(xs, z), zs),

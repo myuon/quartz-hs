@@ -8,7 +8,7 @@ func main() {
     x: 10,
     y: 20,
   };
-  let sum = (p: Position): int -> {
+  let sum = [](p: Position): int => {
     p.x + p.y
   };
 
