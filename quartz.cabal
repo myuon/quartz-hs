@@ -49,7 +49,7 @@ library
     vector,
   hs-source-dirs:      src
   default-language:    Haskell2010
-  build-tools:         alex, happy
+  build-tools:         alex
   ghc-options: -Wall
   default-extensions:
     FlexibleContexts
@@ -79,6 +79,10 @@ executable qzfmt
 test-suite unit-tests
   type: exitcode-stdio-1.0
   main-is: Driver.hs
+  other-modules:
+    Language.Quartz.SpecParser
+    Language.Quartz.SpecTypeCheck
+    Language.SpecQuartz
   build-tool-depends:
     tasty-discover:tasty-discover >= 4.2 && < 4.3,
   build-depends:
