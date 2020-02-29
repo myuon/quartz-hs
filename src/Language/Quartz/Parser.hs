@@ -1,5 +1,6 @@
 module Language.Quartz.Parser where
 
+import           Control.Applicative
 import           Control.Error
 import           Control.Monad.ST
 import           Control.Monad.State
@@ -11,28 +12,30 @@ import           Language.Quartz.AST
 type TokenConsumer s e m a
   = ExceptT String (ReaderT (PBV.PBVector s e) (StateT [Lexeme] m)) a
 
-consume :: Monad m => TokenConsumer s (Expr AlexPosn) m (Maybe Lexeme)
+consume :: Monad m => TokenConsumer s (Expr AlexPosn) m Lexeme
 consume = do
   lexs <- get
   case lexs of
     (t : ts) -> do
       put ts
-      return $ Just t
-    _ -> return Nothing
+      return t
+    _ -> throwE "Given Lexeme stream is exhausted"
 
-prepare :: Monad m => Maybe Lexeme -> TokenConsumer s (Expr AlexPosn) m ()
-prepare lex = case lex of
-  Just l -> do
-    st <- get
-    put $ l : st
-  Nothing -> return ()
+prepare :: Monad m => Lexeme -> TokenConsumer s (Expr AlexPosn) m ()
+prepare l = do
+  st <- get
+  put $ l : st
 
-expect :: Monad m => Token -> TokenConsumer s (Expr AlexPosn) m (Maybe Lexeme)
-expect t = do
+expectWith
+  :: Monad m => (Token -> Bool) -> TokenConsumer s (Expr AlexPosn) m Lexeme
+expectWith f = do
   lex <- consume
-  case fmap tokenOfLexeme lex of
-    Just t' | t' == t -> return lex
-    _                 -> prepare lex >> return Nothing
+  case tokenOfLexeme lex of
+    t' | f t' -> return lex
+    _         -> throwE $ "Unexpected token: " ++ show lex
+
+expect :: Monad m => Token -> TokenConsumer s (Expr AlexPosn) m Lexeme
+expect t = expectWith (== t)
 
 report :: e -> TokenConsumer s e (ST s) ()
 report e = do
@@ -40,27 +43,52 @@ report e = do
   PBV.push v e
 
 pop :: TokenConsumer s e (ST s) (Maybe e)
-pop = do
-  v <- ask
-  PBV.pop v
+pop = ask >>= PBV.pop
+
+requireEof :: Monad m => TokenConsumer s e m ()
+requireEof = do
+  ls <- get
+  if null ls then return () else throwE $ "Expected eof, but got " ++ show ls
+
+greedy :: Monad m => TokenConsumer s e m a -> TokenConsumer s e m [a]
+greedy m = ExceptT $ do
+  result <- runExceptT m
+  case result of
+    Left  err -> error $ show err
+    Right r   -> fmap (r :) <$> runExceptT (greedy m)
 
 --
 
-exprShortTerminals
-  :: TokenConsumer s (Expr AlexPosn) (ST s) (Maybe (Expr AlexPosn))
+exprShortTerminals :: TokenConsumer s (Expr AlexPosn) (ST s) ()
 exprShortTerminals = do
   lex <- consume
-  case fmap tokenOfLexeme lex of
-    Just (TInt    n) -> return $ Just $ Lit $ IntLit n
-    Just (TStrLit s) -> return $ Just $ Lit $ StringLit s
-    Just (TVar    n) -> return $ Just $ Var Nothing (Id [n])
-    Just TSelf       -> return $ Just $ Self SelfType
-    _                -> return Nothing
+  case tokenOfLexeme lex of
+    TInt    n -> report $ Lit $ IntLit n
+    TStrLit s -> report $ Lit $ StringLit s
+    TVar    n -> report $ Var Nothing (Id [n])
+    TSelf     -> report $ Self SelfType
+    _         -> throwE $ "Unsupported token: " ++ show lex
 
 exprShort :: TokenConsumer s (Expr AlexPosn) (ST s) ()
 exprShort = do
-  e1 <- exprShortTerminals
-  forM_ e1 report
+  exprShortTerminals
+  many member
+  return ()
+
+ where
+  var = do
+    lex <- consume
+    case tokenOfLexeme lex of
+      TVar v -> report $ Var Nothing (Id [v])
+      _      -> throwE $ "Unexpected token: " ++ show lex
+
+  member = do
+    expect TDot
+    var
+
+    Just (Var Nothing (Id [n])) <- pop
+    Just v                      <- pop
+    report $ Member v n
 
 parserExpr :: [Lexeme] -> Either String (Expr AlexPosn)
 parserExpr lexs = runST $ do

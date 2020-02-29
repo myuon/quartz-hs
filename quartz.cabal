@@ -54,6 +54,7 @@ library
   default-extensions:
     FlexibleContexts
     TypeApplications
+    LambdaCase
 
 executable quartz
   main-is:             Main.hs

@@ -45,6 +45,11 @@ spec_parser = do
       parseE [r| "あああ" |] `shouldBe` Lit (StringLit "あああ")
 
     it "" $ do
+      parseE [r| x.y.z.w |] `shouldBe` Member
+        (Member (Member (Var Nothing (Id ["x"])) "y") "z")
+        "w"
+
+    it "" $ do
       parseE "foo(x,y,z)" `shouldBe` FnCall
         (Var Nothing (Id ["foo"]))
         [Var Nothing (Id ["x"]), Var Nothing (Id ["y"]), Var Nothing (Id ["z"])]
