@@ -29,8 +29,17 @@ pushMaybe lex = case lex of
     put $ l : st
   Nothing -> return ()
 
-literal :: TokenConsumer (ST s) (Maybe Literal)
-literal = do
+expect :: Monad m => Token -> TokenConsumer m (Maybe Lexeme)
+expect t = do
+  lex <- pop
+  case fmap tokenOfLexeme lex of
+    Just t' | t' == t -> return lex
+    _                 -> pushMaybe lex >> return Nothing
+
+--
+
+literal :: TokenConsumer (ST s) (Maybe (Expr AlexPosn))
+literal = fmap (fmap Lit) $ do
   lex <- pop
   case fmap tokenOfLexeme lex of
     Just (TInt    n) -> return $ Just $ IntLit n
@@ -42,15 +51,22 @@ var = do
   lex <- pop
   case fmap tokenOfLexeme lex of
     Just (TVar n) -> return $ Just $ Var Nothing (Id [n])
+    Just TSelf    -> return $ Just $ Self SelfType
     Nothing       -> return Nothing
     _             -> pushMaybe lex >> return Nothing
+
+exprShort :: TokenConsumer (ST s) (Maybe (Expr AlexPosn))
+exprShort = do
+  lit <- literal
+  v   <- var
+
+  -- 遅延評価なので最初にJustになったタイミングでそれ以降のアクションは実行されない
+  return $ lit <|> v
 
 parserExpr :: [Lexeme] -> Either String (Expr AlexPosn)
 parserExpr lexs =
   let (a, rest) = runST $ flip runStateT lexs $ do
-        v   <- var
-        lit <- literal
-        return $ fmap Lit lit <|> v
+        exprShort
   in  if not (null rest)
         then Left ("parse failed: " ++ show rest)
         else case a of
