@@ -50,37 +50,46 @@ requireEof = do
   ls <- get
   if null ls then return () else throwE $ "Expected eof, but got " ++ show ls
 
-greedy :: Monad m => TokenConsumer s e m a -> TokenConsumer s e m [a]
-greedy m = ExceptT $ do
-  result <- runExceptT m
-  case result of
-    Left  err -> error $ show err
-    Right r   -> fmap (r :) <$> runExceptT (greedy m)
-
 --
 
-exprShortTerminals :: TokenConsumer s (Expr AlexPosn) (ST s) ()
-exprShortTerminals = do
-  lex <- consume
-  case tokenOfLexeme lex of
-    TInt    n -> report $ Lit $ IntLit n
-    TStrLit s -> report $ Lit $ StringLit s
-    TVar    n -> report $ Var Nothing (Id [n])
-    TSelf     -> report $ Self SelfType
-    _         -> throwE $ "Unsupported token: " ++ show lex
+argument :: TokenConsumer s (Expr AlexPosn) (ST s) ()
+argument = do
+  expect TLParen
+  many $ expr >> expect TComma
+  expect TRParen
+
+  return ()
 
 exprShort :: TokenConsumer s (Expr AlexPosn) (ST s) ()
 exprShort = do
-  exprShortTerminals
-  many member
+  var <|> literal <|> self
+  many $ member <|> argument
   return ()
-
  where
   var = do
     lex <- consume
     case tokenOfLexeme lex of
       TVar v -> report $ Var Nothing (Id [v])
-      _      -> throwE $ "Unexpected token: " ++ show lex
+      _      -> do
+        prepare lex
+        throwE $ "Unexpected token: " ++ show lex
+
+  self = do
+    lex <- consume
+    case tokenOfLexeme lex of
+      TSelf -> report $ Self SelfType
+      _     -> do
+        prepare lex
+        throwE $ "Unexpected token: " ++ show lex
+
+  literal = do
+    lex <- consume
+    case tokenOfLexeme lex of
+      TInt    n -> report $ Lit $ IntLit n
+      TStrLit s -> report $ Lit $ StringLit s
+      _         -> do
+        prepare lex
+        throwE $ "Unexpected token: " ++ show lex
 
   member = do
     expect TDot
@@ -90,12 +99,14 @@ exprShort = do
     Just v                      <- pop
     report $ Member v n
 
+expr :: TokenConsumer s (Expr AlexPosn) (ST s) ()
+expr = exprShort
+
 parserExpr :: [Lexeme] -> Either String (Expr AlexPosn)
 parserExpr lexs = runST $ do
   stack          <- PBV.new 0
-  (result, rest) <-
-    flip runStateT lexs $ flip runReaderT stack $ runExceptT $ do
-      exprShort
+  (result, rest) <- flip runStateT lexs $ flip runReaderT stack $ runExceptT
+    expr
 
   unless (null rest) $ fail $ "Parse Error (tokens): " ++ show rest
 
