@@ -12,6 +12,7 @@ import           Language.Quartz.AST
 data ExprFragment
   = FExpr (Expr AlexPosn)
   | FArgumentStart
+  | FArrayStart
   deriving (Eq, Show)
 
 type TokenConsumer s e m a
@@ -78,11 +79,35 @@ argument = do
 
   return ()
 
-exprShort :: TokenConsumer s ExprFragment (ST s) ()
-exprShort = do
-  var <|> literal <|> self
-  many $ member <|> argument
+arrayLit :: TokenConsumer s ExprFragment (ST s) ()
+arrayLit = do
+  expect TArrayLit
+  report FArrayStart
+  expect TLBracket
+  many $ expr >> expect TComma
+  expect TRBracket
+
+  args <- popUntil (== FArrayStart)
+  report $ FExpr $ ArrayLit $ map (\(FExpr e) -> e) $ reverse args
+
   return ()
+
+exprShort :: TokenConsumer s ExprFragment (ST s) ()
+exprShort =
+  (do
+      expect TLParen
+      expr
+      expect TRParen
+
+      return ()
+    )
+    <|> (do
+          var <|> literal <|> self
+          many $ member <|> argument <|> indexArray
+
+          return ()
+        )
+    <|> arrayLit
  where
   var = do
     lex <- consume
@@ -116,6 +141,15 @@ exprShort = do
     Just (FExpr (Var Nothing (Id [n]))) <- pop
     Just (FExpr v                     ) <- pop
     report $ FExpr $ Member v n
+
+  indexArray = do
+    expect TLBracket
+    expr
+    expect TRBracket
+
+    Just (FExpr e1) <- pop
+    Just (FExpr e2) <- pop
+    report $ FExpr $ IndexArray e2 e1
 
 expr :: TokenConsumer s ExprFragment (ST s) ()
 expr = exprShort
