@@ -13,6 +13,15 @@ data ExprFragment
   = FExpr (Expr AlexPosn)
   | FArgumentStart
   | FArrayStart
+  | FBlockStart
+  | FIdent String
+  | FStatements [Expr AlexPosn]
+  | FBranchStart
+  | FIfBranch (Expr AlexPosn) (Expr AlexPosn)
+  | FMatchBranch Pattern (Expr AlexPosn)
+  | FPattern Pattern
+  | FLit Literal
+  | FPattenStart
   deriving (Eq, Show)
 
 type TokenConsumer s e m a
@@ -27,22 +36,28 @@ consume = do
       return t
     _ -> throwE "Given Lexeme stream is exhausted"
 
+peekToken :: Monad m => TokenConsumer s e m (Maybe Lexeme)
+peekToken = do
+  lexs <- get
+  case lexs of
+    (t : _) -> return $ Just t
+    _       -> return Nothing
+
 prepare :: Monad m => Lexeme -> TokenConsumer s ExprFragment m ()
 prepare l = do
   st <- get
   put $ l : st
 
-expectWith
-  :: Monad m => (Token -> Bool) -> TokenConsumer s ExprFragment m Lexeme
+expectWith :: Monad m => (Token -> Bool) -> TokenConsumer s ExprFragment m ()
 expectWith f = do
   lex <- consume
   case tokenOfLexeme lex of
-    t' | f t' -> return lex
+    t' | f t' -> return ()
     _         -> do
       prepare lex
       throwE $ "Unexpected token: " ++ show lex
 
-expect :: Monad m => Token -> TokenConsumer s ExprFragment m Lexeme
+expect :: Monad m => Token -> TokenConsumer s ExprFragment m ()
 expect t = expectWith (== t)
 
 report :: e -> TokenConsumer s e (ST s) ()
@@ -66,11 +81,20 @@ requireEof = do
 
 --
 
+ident :: TokenConsumer s ExprFragment (ST s) ()
+ident = do
+  lex <- consume
+  case tokenOfLexeme lex of
+    TVar v -> report $ FIdent v
+    _      -> do
+      prepare lex
+      throwE $ "Unexpected token: " ++ show lex
+
 argument :: TokenConsumer s ExprFragment (ST s) ()
 argument = do
   expect TLParen
   report FArgumentStart
-  many $ expr >> expect TComma
+  void $ many $ expr >> expect TComma
   expect TRParen
 
   args           <- popUntil (== FArgumentStart)
@@ -84,53 +108,204 @@ arrayLit = do
   expect TArrayLit
   report FArrayStart
   expect TLBracket
-  many $ expr >> expect TComma
+  void $ many $ expr >> expect TComma
   expect TRBracket
 
   args <- popUntil (== FArrayStart)
   report $ FExpr $ ArrayLit $ map (\(FExpr e) -> e) $ reverse args
 
-  return ()
+ifBlock :: TokenConsumer s ExprFragment (ST s) ()
+ifBlock = do
+  expect TIf
+  report FBranchStart
+  expect TLBrace
+  void $ many $ do
+    exprShort
+    expect TDArrow
+    expr
+    expect TComma
+
+    Just (FExpr e) <- pop
+    Just (FExpr b) <- pop
+    report $ FIfBranch b e
+  expect TRBrace
+
+  brs <- popUntil (== FBranchStart)
+  report $ FExpr $ If $ map (\(FIfBranch x y) -> (x, y)) $ reverse brs
+
+pat :: TokenConsumer s ExprFragment (ST s) ()
+pat = do
+  -- terminals
+  pany <|> pident <|> pliteral
+
+  void $ many $ papply
+
+ where
+  pident = do
+    ident
+    Just (FIdent v) <- pop
+    report $ FPattern $ PVar (Id [v])
+
+  pliteral = do
+    literal
+    Just (FLit l) <- pop
+    report $ FPattern $ PLit l
+
+  pany = do
+    expect TUnderscore
+    report $ FPattern PAny
+
+  papply = do
+    expect TLParen
+    report FPattenStart
+    void $ many $ do
+      pat
+      expect TComma <|> return ()
+    expect TRParen
+
+    ps                <- popUntil (== FPattenStart)
+    Just (FPattern p) <- pop
+    report $ FPattern $ PApp p $ map (\(FPattern p') -> p') $ reverse ps
+
+match :: TokenConsumer s ExprFragment (ST s) ()
+match = do
+  expect TMatch
+  exprShort
+  report FBranchStart
+  expect TLBrace
+  void $ many $ do
+    pat
+    expect TDArrow
+    expr
+    expect TComma
+
+    Just (FExpr    e) <- pop
+    Just (FPattern p) <- pop
+    report $ FMatchBranch p e
+  expect TRBrace
+
+  brs            <- popUntil (== FBranchStart)
+  Just (FExpr e) <- pop
+  report $ FExpr $ Match e $ map (\(FMatchBranch x y) -> (x, y)) $ reverse brs
+
+statements :: TokenConsumer s ExprFragment (ST s) ()
+statements = do
+  expect TLBrace
+  report FBlockStart
+  void $ many statement
+  expr <|> report (FExpr Unit)
+  expect TRBrace
+
+  Just e <- pop
+  es     <- popUntil (== FBlockStart)
+  report
+    $  FExpr
+    $  Procedure
+    $  map ((,) Nothing)
+    $  map (\(FExpr e) -> e)
+    $  reverse es
+    ++ [e]
+
+ where
+  statement =
+    for <|> ifBlock <|> match <|> letStatement <|> assignment <|> exprStatement
+
+  exprStatement = do
+    expr
+    expect TSemiColon
+
+    Just (FExpr e) <- pop
+    report $ FExpr $ Stmt e
+
+  letStatement = do
+    expect TLet
+    isRef <- peekToken >>= \case
+      Just t | tokenOfLexeme t == TRef -> return True
+      _ -> return False
+    ident
+    expect TEq
+    expr
+    expect TSemiColon
+
+    Just (FExpr  e) <- pop
+    Just (FIdent v) <- pop
+
+    if isRef
+      then report $ FExpr $ Stmt $ LetRef v e
+      else report $ FExpr $ Stmt $ Let (Id [v]) e
+
+  assignment = do
+    exprShort
+    expect TEq
+    expr
+    expect TSemiColon
+
+    Just (FExpr e1) <- pop
+    Just (FExpr e2) <- pop
+    report $ FExpr $ Stmt $ Assign e2 e1
+
+  for = do
+    expect TFor
+    ident
+    expect TIn
+    exprShort
+    statements
+
+    Just (FStatements s) <- pop
+    Just (FExpr       e) <- pop
+    Just (FIdent      v) <- pop
+    report $ FExpr $ ForIn v e $ map ((,) Nothing) s
+
+generics :: TokenConsumer s ExprFragment (ST s) ()
+generics = undefined
+
+literal :: TokenConsumer s ExprFragment (ST s) ()
+literal = do
+  lex <- consume
+  case tokenOfLexeme lex of
+    TInt    n -> report $ FLit $ IntLit n
+    TStrLit s -> report $ FLit $ StringLit s
+    _         -> do
+      prepare lex
+      throwE $ "Unexpected token: " ++ show lex
 
 exprShort :: TokenConsumer s ExprFragment (ST s) ()
-exprShort =
-  (do
-      expect TLParen
-      expr
-      expect TRParen
+exprShort = do
+  -- terminals
+  var <|> litE <|> self <|> parenExpr <|> statements <|> arrayLit <|> deref
 
-      return ()
-    )
-    <|> (do
-          var <|> literal <|> self
-          many $ member <|> argument <|> indexArray
-
-          return ()
-        )
-    <|> arrayLit
+  -- 左再帰部
+  void $ many $ member <|> argument <|> indexArray
  where
   var = do
-    lex <- consume
-    case tokenOfLexeme lex of
-      TVar v -> report $ FExpr $ Var Nothing (Id [v])
-      _      -> do
-        prepare lex
-        throwE $ "Unexpected token: " ++ show lex
+    ident
+    Just (FIdent v) <- pop
+    report $ FExpr $ Var Nothing (Id [v])
+
+  litE = do
+    literal
+    Just (FLit l) <- pop
+    report $ FExpr $ Lit l
+
+  parenExpr = do
+    expect TLParen
+    expr
+    expect TRParen
+
+    return ()
+
+  deref = do
+    expect TStar
+    expr
+
+    Just (FExpr e) <- pop
+    report $ FExpr $ Deref e
 
   self = do
     lex <- consume
     case tokenOfLexeme lex of
       TSelf -> report $ FExpr $ Self SelfType
       _     -> do
-        prepare lex
-        throwE $ "Unexpected token: " ++ show lex
-
-  literal = do
-    lex <- consume
-    case tokenOfLexeme lex of
-      TInt    n -> report $ FExpr $ Lit $ IntLit n
-      TStrLit s -> report $ FExpr $ Lit $ StringLit s
-      _         -> do
         prepare lex
         throwE $ "Unexpected token: " ++ show lex
 
@@ -152,7 +327,16 @@ exprShort =
     report $ FExpr $ IndexArray e2 e1
 
 expr :: TokenConsumer s ExprFragment (ST s) ()
-expr = exprShort
+expr = do
+  -- terminals
+  exprShort <|> match <|> ifBlock <|> lambdaAbs
+ where
+  lambdaAbs = do
+    generics
+    argument
+    -- return type
+    expect TDArrow
+    expr
 
 parserExpr :: [Lexeme] -> Either String (Expr AlexPosn)
 parserExpr lexs = runST $ do
