@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 module Language.Quartz.Parser where
 
 import           Control.Applicative
@@ -35,7 +36,7 @@ data ExprFragment
 type TokenConsumer s e m a
   = ExceptT String (ReaderT (PBV.PBVector s e) (StateT [Lexeme] m)) a
 
-consume :: Monad m => TokenConsumer s ExprFragment m Lexeme
+consume :: Monad m => TokenConsumer s e m Lexeme
 consume = do
   lexs <- get
   case lexs of
@@ -51,12 +52,10 @@ peekToken = do
     (t : _) -> return $ Just t
     _       -> return Nothing
 
-prepare :: Monad m => Lexeme -> TokenConsumer s ExprFragment m ()
-prepare l = do
-  st <- get
-  put $ l : st
+prepare :: Monad m => Lexeme -> TokenConsumer s e m ()
+prepare l = modify (l :)
 
-expectWith :: Monad m => (Token -> Bool) -> TokenConsumer s ExprFragment m ()
+expectWith :: Monad m => (Token -> Bool) -> TokenConsumer s e m ()
 expectWith f = do
   lex <- consume
   case tokenOfLexeme lex of
@@ -65,7 +64,7 @@ expectWith f = do
       prepare lex
       throwE $ "Unexpected token: " ++ show lex
 
-expect :: Monad m => Token -> TokenConsumer s ExprFragment m ()
+expect :: Monad m => Token -> TokenConsumer s e m ()
 expect t = expectWith (== t)
 
 report :: e -> TokenConsumer s e (ST s) ()
@@ -88,10 +87,7 @@ requireEof = do
   if null ls then return () else throwE $ "Expected eof, but got " ++ show ls
 
 manyUntil
-  :: Monad m
-  => Token
-  -> TokenConsumer s ExprFragment m a
-  -> TokenConsumer s ExprFragment m [a]
+  :: Monad m => Token -> TokenConsumer s e m a -> TokenConsumer s e m [a]
 manyUntil t m =
   (do
       a <- m
@@ -100,6 +96,25 @@ manyUntil t m =
       return (a : as)
     )
     <|> return []
+
+runParser
+  :: Show e
+  => (forall s . TokenConsumer s e (ST s) ())
+  -> [Lexeme]
+  -> Either String e
+runParser def lexs = runST $ do
+  stack          <- PBV.new 0
+  (result, rest) <- flip runStateT lexs $ flip runReaderT stack $ runExceptT def
+
+  unless (null rest) $ fail $ "Parse Error (tokens): " ++ show rest
+
+  len <- PBV.length stack
+  when (len /= 1) $ do
+    rs <- PBV.toList stack
+    fail $ "Parse Error (stack elements): " ++ show rs
+
+  Just k <- PBV.pop stack
+  return $ fmap (const k) result
 
 --
 
@@ -508,22 +523,15 @@ expr = do
     report $ FExpr $ Op op e2 e1
 
 parserExpr :: [Lexeme] -> Either String (Expr AlexPosn)
-parserExpr lexs = runST $ do
-  stack          <- PBV.new 0
-  (result, rest) <- flip runStateT lexs $ flip runReaderT stack $ runExceptT
-    expr
-
-  unless (null rest) $ fail $ "Parse Error (tokens): " ++ show rest
-
-  len <- PBV.length stack
-  when (len /= 1) $ do
-    rs <- PBV.toList stack
-    fail $ "Parse Error (stack elements): " ++ show rs
-
-  Just k <- PBV.pop stack
+parserExpr lexs = do
+  k <- runParser expr lexs
   case k of
-    FExpr e -> return $ fmap (\_ -> e) result
-    _       -> fail $ "Parse Error (unexpected fragment): " ++ show k
+    FExpr e -> return e
+    _       -> Left $ "Parse Error (unexpected fragment): " ++ show k
+
+--
+
+data DeclFragment
 
 parser :: [Lexeme] -> Either String (Decl AlexPosn)
 parser = undefined
