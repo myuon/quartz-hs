@@ -98,40 +98,16 @@ ident = do
       prepare lex
       throwE $ "Unexpected token: " ++ show lex
 
-argument :: TokenConsumer s ExprFragment (ST s) ()
-argument = do
-  expect TLParen
-  report FArgumentStart
-  void $ many $ expr >> expect TComma
-  expect TRParen
-
-  args           <- popUntil (== FArgumentStart)
-  Just (FExpr f) <- pop
-  report $ FExpr $ FnCall f $ map (\(FExpr e) -> e) $ reverse args
-
-  return ()
-
-arrayLit :: TokenConsumer s ExprFragment (ST s) ()
-arrayLit = do
-  expect TArrayLit
-  report FArrayStart
-  expect TLBracket
-  void $ many $ expr >> expect TComma
-  expect TRBracket
-
-  args <- popUntil (== FArrayStart)
-  report $ FExpr $ ArrayLit $ map (\(FExpr e) -> e) $ reverse args
-
 ifBlock :: TokenConsumer s ExprFragment (ST s) ()
 ifBlock = do
   expect TIf
   report FBranchStart
   expect TLBrace
   void $ many $ do
-    exprShort
+    expr
     expect TDArrow
     expr
-    expect TComma
+    expect TComma <|> return ()
 
     Just (FExpr e) <- pop
     Just (FExpr b) <- pop
@@ -201,18 +177,25 @@ statements = do
   expect TLBrace
   report FBlockStart
   void $ many statement
-  expr <|> report (FExpr Unit)
+
+  -- 最後のstatementはsemicolonがなくてよい
+  -- expr自体はexprStatementでparse済みなのでそれを利用する
+  mayExpr <- pop >>= \case
+    Just (FExpr e) -> return $ Just (FExpr e)
+    Just e         -> report e >> return Nothing
+    _              -> return Nothing
+
   expect TRBrace
 
   Just e <- pop
   es     <- popUntil (== FBlockStart)
   report
-    $  FExpr
-    $  Procedure
-    $  map ((,) Nothing)
-    $  map (\(FExpr e) -> e)
-    $  reverse es
-    ++ [e]
+    $ FExpr
+    $ Procedure
+    $ map ((,) Nothing)
+    $ map (\(FExpr e') -> e')
+    $ reverse
+    $ maybe id (:) mayExpr es
 
  where
   statement =
@@ -228,7 +211,7 @@ statements = do
   letStatement = do
     expect TLet
     isRef <- peekToken >>= \case
-      Just t | tokenOfLexeme t == TRef -> return True
+      Just t | tokenOfLexeme t == TRef -> consume >> return True
       _ -> return False
     ident
     expect TEq
@@ -282,6 +265,8 @@ literal = do
   case tokenOfLexeme lex of
     TInt    n -> report $ FLit $ IntLit n
     TStrLit s -> report $ FLit $ StringLit s
+    TTrue     -> report $ FLit $ BoolLit True
+    TFalse    -> report $ FLit $ BoolLit False
     _         -> do
       prepare lex
       throwE $ "Unexpected token: " ++ show lex
@@ -376,6 +361,18 @@ exprShort = do
     Just (FExpr v                     ) <- pop
     report $ FExpr $ Member v n
 
+  argument = do
+    expect TLParen
+    report FArgumentStart
+    void $ manyUntil TComma expr
+    expect TRParen
+
+    args           <- popUntil (== FArgumentStart)
+    Just (FExpr f) <- pop
+    report $ FExpr $ FnCall f $ map (\(FExpr e) -> e) $ reverse args
+
+    return ()
+
   indexArray = do
     expect TLBracket
     expr
@@ -385,11 +382,37 @@ exprShort = do
     Just (FExpr e2) <- pop
     report $ FExpr $ IndexArray e2 e1
 
+  arrayLit = do
+    expect TArrayLit
+    report FArrayStart
+    expect TLBracket
+    void $ many $ expr >> expect TComma
+    expect TRBracket
+
+    args <- popUntil (== FArrayStart)
+    report $ FExpr $ ArrayLit $ map (\(FExpr e) -> e) $ reverse args
+
+manyUntil
+  :: Monad m
+  => Token
+  -> TokenConsumer s ExprFragment m a
+  -> TokenConsumer s ExprFragment m [a]
+manyUntil t m = do
+  a  <- m
+  as <-
+    (do
+        expect t
+        manyUntil t m <|> return []
+      )
+      <|> return []
+
+  return $ a : as
+
 funcArguments :: TokenConsumer s ExprFragment (ST s) ()
 funcArguments = do
   expect TLParen
   report FArgumentStart
-  void $ many $ do
+  void $ manyUntil TComma $ do
     ident
     mayType <-
       (do
@@ -400,8 +423,6 @@ funcArguments = do
           return $ Just t
         )
         <|> return Nothing
-
-    expect TComma <|> return ()
 
     Just (FIdent v) <- pop
     report $ FArgument v mayType
@@ -418,10 +439,10 @@ funcArguments = do
 expr :: TokenConsumer s ExprFragment (ST s) ()
 expr = do
   -- terminals
-  match <|> ifBlock <|> lambdaAbs <|> exprShort <|> record
+  match <|> ifBlock <|> lambdaAbs <|> exprShort
 
   -- recursion part
-  void $ many $ operators
+  record <|> (void $ many $ operators)
  where
   lambdaAbs = do
     generics
@@ -429,7 +450,7 @@ expr = do
 
     mayReturnType <-
       (do
-          expect TComma
+          expect TColon
           typ
 
           Just (FType t) <- pop
@@ -471,9 +492,10 @@ expr = do
 
     expect TRBrace
 
-    fs              <- popUntil (== FRecordStart)
-    Just (FIdent v) <- pop
-    report $ FExpr $ RecordOf v $ map (\(FRecordField x y) -> (x, y)) fs
+    fs                            <- popUntil (== FRecordStart)
+    Just (FExpr (Var _ (Id [v]))) <- pop
+    report $ FExpr $ RecordOf v $ map (\(FRecordField x y) -> (x, y)) $ reverse
+      fs
 
   operators = foldl1
     (<|>)
