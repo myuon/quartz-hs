@@ -87,6 +87,20 @@ requireEof = do
   ls <- get
   if null ls then return () else throwE $ "Expected eof, but got " ++ show ls
 
+manyUntil
+  :: Monad m
+  => Token
+  -> TokenConsumer s ExprFragment m a
+  -> TokenConsumer s ExprFragment m [a]
+manyUntil t m =
+  (do
+      a <- m
+      expect t
+      as <- manyUntil t m <|> return []
+      return (a : as)
+    )
+    <|> return []
+
 --
 
 ident :: TokenConsumer s ExprFragment (ST s) ()
@@ -103,11 +117,10 @@ ifBlock = do
   expect TIf
   report FBranchStart
   expect TLBrace
-  void $ many $ do
+  void $ manyUntil TComma $ do
     expr
     expect TDArrow
     expr
-    expect TComma <|> return ()
 
     Just (FExpr e) <- pop
     Just (FExpr b) <- pop
@@ -142,9 +155,7 @@ pat = do
   papply = do
     expect TLParen
     report FPattenStart
-    void $ many $ do
-      pat
-      expect TComma <|> return ()
+    void $ manyUntil TComma pat
     expect TRParen
 
     ps                <- popUntil (== FPattenStart)
@@ -157,11 +168,10 @@ match = do
   exprShort
   report FBranchStart
   expect TLBrace
-  void $ many $ do
+  void $ manyUntil TComma $ do
     pat
     expect TDArrow
     expr
-    expect TComma
 
     Just (FExpr    e) <- pop
     Just (FPattern p) <- pop
@@ -187,8 +197,7 @@ statements = do
 
   expect TRBrace
 
-  Just e <- pop
-  es     <- popUntil (== FBlockStart)
+  es <- popUntil (== FBlockStart)
   report
     $ FExpr
     $ Procedure
@@ -251,9 +260,7 @@ generics :: TokenConsumer s ExprFragment (ST s) ()
 generics = do
   expect TLBracket
   report FGenericsStart
-  void $ many $ do
-    ident
-    expect TComma <|> return ()
+  void $ manyUntil TComma ident
   expect TRBracket
 
   vs <- popUntil (== FGenericsStart)
@@ -303,9 +310,7 @@ typ = do
   typApply = do
     expect TLBracket
     report FTypeApplyStart
-    void $ many $ do
-      typ
-      expect TComma
+    void $ manyUntil TComma typ
     expect TRBracket
 
     ts             <- popUntil (== FTypeApplyStart)
@@ -386,27 +391,11 @@ exprShort = do
     expect TArrayLit
     report FArrayStart
     expect TLBracket
-    void $ many $ expr >> expect TComma
+    void $ manyUntil TComma expr
     expect TRBracket
 
     args <- popUntil (== FArrayStart)
     report $ FExpr $ ArrayLit $ map (\(FExpr e) -> e) $ reverse args
-
-manyUntil
-  :: Monad m
-  => Token
-  -> TokenConsumer s ExprFragment m a
-  -> TokenConsumer s ExprFragment m [a]
-manyUntil t m = do
-  a  <- m
-  as <-
-    (do
-        expect t
-        manyUntil t m <|> return []
-      )
-      <|> return []
-
-  return $ a : as
 
 funcArguments :: TokenConsumer s ExprFragment (ST s) ()
 funcArguments = do
@@ -442,7 +431,7 @@ expr = do
   match <|> ifBlock <|> lambdaAbs <|> exprShort
 
   -- recursion part
-  record <|> (void $ many $ operators)
+  record <|> (void $ many operators)
  where
   lambdaAbs = do
     generics
