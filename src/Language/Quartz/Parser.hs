@@ -10,8 +10,9 @@ import qualified Data.Vector.PushBack          as PBV
 import           Language.Quartz.Lexer
 import           Language.Quartz.AST
 
-data ExprFragment
+data Fragment
   = FExpr (Expr AlexPosn)
+  | FDecl (Decl AlexPosn)
   | FArgumentStart
   | FArgument String (Maybe Type)
   | FArguments [(String, Type)]
@@ -26,11 +27,15 @@ data ExprFragment
   | FLit Literal
   | FPattenStart
   | FRecordField String (Expr AlexPosn)
+  | FRecordDef RecordField
   | FRecordStart
   | FGenericsStart
   | FGenerics [String]
   | FType Type
   | FTypeApplyStart
+  | FEnumField EnumField
+  | FDeclStart
+  | FModule [Decl AlexPosn]
   deriving (Eq, Show)
 
 type TokenConsumer s e m a
@@ -118,7 +123,7 @@ runParser def lexs = runST $ do
 
 --
 
-ident :: TokenConsumer s ExprFragment (ST s) ()
+ident :: TokenConsumer s Fragment (ST s) ()
 ident = do
   lex <- consume
   case tokenOfLexeme lex of
@@ -127,7 +132,7 @@ ident = do
       prepare lex
       throwE $ "Unexpected token: " ++ show lex
 
-ifBlock :: TokenConsumer s ExprFragment (ST s) ()
+ifBlock :: TokenConsumer s Fragment (ST s) ()
 ifBlock = do
   expect TIf
   report FBranchStart
@@ -145,7 +150,7 @@ ifBlock = do
   brs <- popUntil (== FBranchStart)
   report $ FExpr $ If $ map (\(FIfBranch x y) -> (x, y)) $ reverse brs
 
-pat :: TokenConsumer s ExprFragment (ST s) ()
+pat :: TokenConsumer s Fragment (ST s) ()
 pat = do
   -- terminals
   pany <|> pident <|> pliteral
@@ -177,7 +182,7 @@ pat = do
     Just (FPattern p) <- pop
     report $ FPattern $ PApp p $ map (\(FPattern p') -> p') $ reverse ps
 
-match :: TokenConsumer s ExprFragment (ST s) ()
+match :: TokenConsumer s Fragment (ST s) ()
 match = do
   expect TMatch
   exprShort
@@ -197,7 +202,7 @@ match = do
   Just (FExpr e) <- pop
   report $ FExpr $ Match e $ map (\(FMatchBranch x y) -> (x, y)) $ reverse brs
 
-statements :: TokenConsumer s ExprFragment (ST s) ()
+statements :: TokenConsumer s Fragment (ST s) ()
 statements = do
   expect TLBrace
   report FBlockStart
@@ -271,7 +276,7 @@ statements = do
     Just (FIdent      v) <- pop
     report $ FExpr $ ForIn v e $ map ((,) Nothing) s
 
-generics :: TokenConsumer s ExprFragment (ST s) ()
+generics :: TokenConsumer s Fragment (ST s) ()
 generics = do
   expect TLBracket
   report FGenericsStart
@@ -281,7 +286,7 @@ generics = do
   vs <- popUntil (== FGenericsStart)
   report $ FGenerics $ map (\(FIdent v) -> v) $ reverse vs
 
-literal :: TokenConsumer s ExprFragment (ST s) ()
+literal :: TokenConsumer s Fragment (ST s) ()
 literal = do
   lex <- consume
   case tokenOfLexeme lex of
@@ -293,7 +298,7 @@ literal = do
       prepare lex
       throwE $ "Unexpected token: " ++ show lex
 
-typ :: TokenConsumer s ExprFragment (ST s) ()
+typ :: TokenConsumer s Fragment (ST s) ()
 typ = do
   unit <|> self <|> var <|> ref
   void $ many $ typApply
@@ -333,7 +338,7 @@ typ = do
 
     report $ FType $ AppType t $ map (\(FType t') -> t') ts
 
-exprShort :: TokenConsumer s ExprFragment (ST s) ()
+exprShort :: TokenConsumer s Fragment (ST s) ()
 exprShort = do
   -- terminals
   var <|> litE <|> self <|> parenExpr <|> statements <|> arrayLit <|> deref
@@ -412,7 +417,7 @@ exprShort = do
     args <- popUntil (== FArrayStart)
     report $ FExpr $ ArrayLit $ map (\(FExpr e) -> e) $ reverse args
 
-funcArguments :: TokenConsumer s ExprFragment (ST s) ()
+funcArguments :: TokenConsumer s Fragment (ST s) ()
 funcArguments = do
   expect TLParen
   report FArgumentStart
@@ -440,7 +445,28 @@ funcArguments = do
     $ reverse
     $ vs
 
-expr :: TokenConsumer s ExprFragment (ST s) ()
+funcHeader
+  :: TokenConsumer s Fragment (ST s) ([String], [(String, Type)], Maybe Type)
+funcHeader = do
+  generics
+  funcArguments <|> report (FGenerics [])
+
+  mayReturnType <-
+    (do
+        expect TColon
+        typ
+
+        Just (FType t) <- pop
+        return $ Just t
+      )
+      <|> return Nothing
+
+  Just (FArguments as) <- pop
+  Just (FGenerics  vs) <- pop
+
+  return (vs, as, mayReturnType)
+
+expr :: TokenConsumer s Fragment (ST s) ()
 expr = do
   -- terminals
   match <|> ifBlock <|> lambdaAbs <|> exprShort
@@ -449,25 +475,11 @@ expr = do
   record <|> (void $ many operators)
  where
   lambdaAbs = do
-    generics
-    funcArguments
-
-    mayReturnType <-
-      (do
-          expect TColon
-          typ
-
-          Just (FType t) <- pop
-          return $ Just t
-        )
-        <|> return Nothing
-
+    (vs, as, mayReturnType) <- funcHeader
     expect TDArrow
     expr
 
-    Just (FExpr      e ) <- pop
-    Just (FArguments as) <- pop
-    Just (FGenerics  vs) <- pop
+    Just (FExpr e) <- pop
 
     report $ FExpr $ ClosureE
       (Closure
@@ -531,10 +543,126 @@ parserExpr lexs = do
 
 --
 
-data DeclFragment
+decl :: TokenConsumer s Fragment (ST s) ()
+decl = externalFunc <|> func <|> enum <|> record
+ where
+  externalFunc = do
+    expect TExternal
+    expect TFunc
+    ident
+    (gs, as, ret) <- funcHeader
+    expect TSemiColon
+
+    Just (FIdent v) <- pop
+
+    report $ FDecl $ ExternalFunc
+      v
+      (FuncType gs
+                (ArgType False False as)
+                (maybe (ConType (Id ["unit"])) id ret)
+      )
+
+  func = do
+    expect TFunc
+    ident
+    (gs, as, ret) <- funcHeader
+    statements
+
+    Just (FExpr  e) <- pop
+    Just (FIdent v) <- pop
+
+    report $ FDecl $ Func
+      v
+      (Closure
+        (FuncType gs
+                  (ArgType False False as)
+                  (maybe (ConType (Id ["unit"])) id ret)
+        )
+        e
+      )
+
+  enum = do
+    expect TEnum
+    ident
+    gs <-
+      (do
+          generics
+          Just (FGenerics gs) <- pop
+
+          return gs
+        )
+        <|> return []
+    expect TLBrace
+    report FBlockStart
+    void $ manyUntil TComma $ do
+      ident
+      typs <-
+        (do
+            expect TLParen
+            report FTypeApplyStart
+            void $ manyUntil TComma typ
+            expect TRParen
+
+            ts <- popUntil (== FTypeApplyStart)
+            return $ reverse ts
+          )
+          <|> return []
+
+      Just (FIdent v) <- pop
+      report $ FEnumField $ EnumField v $ map (\(FType t) -> t) typs
+    expect TRBrace
+
+    bs              <- popUntil (== FBlockStart)
+    Just (FIdent v) <- pop
+    report $ FDecl $ Enum v gs $ map (\(FEnumField e) -> e) $ reverse bs
+
+  record = do
+    expect TRecord
+    ident
+    gs <-
+      (do
+          generics
+          Just (FGenerics gs) <- pop
+
+          return gs
+        )
+        <|> return []
+    expect TLBrace
+    report FBlockStart
+    void $ manyUntil TComma $ do
+      ident
+      expect TColon
+      typ
+
+      Just (FType  t) <- pop
+      Just (FIdent v) <- pop
+      report $ FRecordDef $ RecordField v t
+    expect TRBrace
+
+    bs              <- popUntil (== FBlockStart)
+    Just (FIdent v) <- pop
+
+    report $ FDecl $ Record v gs $ map (\(FRecordDef d) -> d) $ reverse bs
 
 parser :: [Lexeme] -> Either String (Decl AlexPosn)
-parser = undefined
+parser lexs = do
+  k <- runParser decl lexs
+  case k of
+    FDecl e -> return e
+    _       -> Left $ "Parse Error (unexpected fragment): " ++ show k
+
+decls :: TokenConsumer s Fragment (ST s) ()
+decls = do
+  report FDeclStart
+  void $ many decl
+
+  ds <- popUntil (== FDeclStart)
+  report $ FModule $ map (\(FDecl d) -> d) $ reverse ds
 
 parserDecls :: [Lexeme] -> Either String [Decl AlexPosn]
-parserDecls = undefined
+parserDecls lexs = do
+  k <- runParser decls lexs
+  case k of
+    FModule e -> return e
+    _         -> Left $ "Parse Error (unexpected fragment): " ++ show k
+
