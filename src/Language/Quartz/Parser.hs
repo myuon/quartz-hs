@@ -12,6 +12,8 @@ import           Language.Quartz.AST
 data ExprFragment
   = FExpr (Expr AlexPosn)
   | FArgumentStart
+  | FArgument String (Maybe Type)
+  | FArguments [(String, Type)]
   | FArrayStart
   | FBlockStart
   | FIdent String
@@ -22,6 +24,12 @@ data ExprFragment
   | FPattern Pattern
   | FLit Literal
   | FPattenStart
+  | FRecordField String (Expr AlexPosn)
+  | FRecordStart
+  | FGenericsStart
+  | FGenerics [String]
+  | FType Type
+  | FTypeApplyStart
   deriving (Eq, Show)
 
 type TokenConsumer s e m a
@@ -257,7 +265,16 @@ statements = do
     report $ FExpr $ ForIn v e $ map ((,) Nothing) s
 
 generics :: TokenConsumer s ExprFragment (ST s) ()
-generics = undefined
+generics = do
+  expect TLBracket
+  report FGenericsStart
+  void $ many $ do
+    ident
+    expect TComma <|> return ()
+  expect TRBracket
+
+  vs <- popUntil (== FGenericsStart)
+  report $ FGenerics $ map (\(FIdent v) -> v) $ reverse vs
 
 literal :: TokenConsumer s ExprFragment (ST s) ()
 literal = do
@@ -268,6 +285,48 @@ literal = do
     _         -> do
       prepare lex
       throwE $ "Unexpected token: " ++ show lex
+
+typ :: TokenConsumer s ExprFragment (ST s) ()
+typ = do
+  unit <|> self <|> var <|> ref
+  void $ many $ typApply
+
+ where
+  unit = do
+    expect TLParen
+    expect TRParen
+    report $ FType $ ConType (Id ["unit"])
+
+  self = do
+    expect TSelf
+    report $ FType SelfType
+
+  var = do
+    ident
+    Just (FIdent v) <- pop
+    report $ FType $ ConType (Id [v])
+
+  ref = do
+    expect TRef
+    expect TLBracket
+    typ
+    expect TRBracket
+
+    Just (FType t) <- pop
+    report $ FType t
+
+  typApply = do
+    expect TLBracket
+    report FTypeApplyStart
+    void $ many $ do
+      typ
+      expect TComma
+    expect TRBracket
+
+    ts             <- popUntil (== FTypeApplyStart)
+    Just (FType t) <- pop
+
+    report $ FType $ AppType t $ map (\(FType t') -> t') ts
 
 exprShort :: TokenConsumer s ExprFragment (ST s) ()
 exprShort = do
@@ -326,17 +385,116 @@ exprShort = do
     Just (FExpr e2) <- pop
     report $ FExpr $ IndexArray e2 e1
 
+funcArguments :: TokenConsumer s ExprFragment (ST s) ()
+funcArguments = do
+  expect TLParen
+  report FArgumentStart
+  void $ many $ do
+    ident
+    mayType <-
+      (do
+          expect TColon
+          typ
+
+          Just (FType t) <- pop
+          return $ Just t
+        )
+        <|> return Nothing
+
+    expect TComma <|> return ()
+
+    Just (FIdent v) <- pop
+    report $ FArgument v mayType
+
+  expect TRParen
+
+  vs <- popUntil (== FArgumentStart)
+  report
+    $ FArguments
+    $ map (\(FArgument s t) -> (s, maybe NoType id t))
+    $ reverse
+    $ vs
+
 expr :: TokenConsumer s ExprFragment (ST s) ()
 expr = do
   -- terminals
-  exprShort <|> match <|> ifBlock <|> lambdaAbs
+  match <|> ifBlock <|> lambdaAbs <|> exprShort <|> record
+
+  -- recursion part
+  void $ many $ operators
  where
   lambdaAbs = do
     generics
-    argument
-    -- return type
+    funcArguments
+
+    mayReturnType <-
+      (do
+          expect TComma
+          typ
+
+          Just (FType t) <- pop
+          return $ Just t
+        )
+        <|> return Nothing
+
     expect TDArrow
     expr
+
+    Just (FExpr      e ) <- pop
+    Just (FArguments as) <- pop
+    Just (FGenerics  vs) <- pop
+
+    report $ FExpr $ ClosureE
+      (Closure
+        (FuncType vs
+                  (ArgType False False as)
+                  (maybe (ConType (Id ["unit"])) id mayReturnType)
+        )
+        e
+      )
+
+  -- recordはexpr_shortのvarにマッチさせてから取る(かなりAdhocなのでやめたいが…)
+  record = do
+    expect TLBrace
+    report FRecordStart
+
+    void $ many $ do
+      ident
+      expect TColon
+      expr
+
+      expect TComma <|> return ()
+
+      Just (FExpr  e) <- pop
+      Just (FIdent v) <- pop
+      report $ FRecordField v e
+
+    expect TRBrace
+
+    fs              <- popUntil (== FRecordStart)
+    Just (FIdent v) <- pop
+    report $ FExpr $ RecordOf v $ map (\(FRecordField x y) -> (x, y)) fs
+
+  operators = foldl1
+    (<|>)
+    [ binOp TPlus   Add
+    , binOp TMinus  Sub
+    , binOp TStar   Mult
+    , binOp TSlash  Div
+    , binOp TLeq    Leq
+    , binOp TLAngle Lt
+    , binOp TGeq    Geq
+    , binOp TRAngle Gt
+    , binOp TEq2    Eq
+    ]
+
+  binOp t op = do
+    expect t
+    expr
+
+    Just (FExpr e1) <- pop
+    Just (FExpr e2) <- pop
+    report $ FExpr $ Op op e2 e1
 
 parserExpr :: [Lexeme] -> Either String (Expr AlexPosn)
 parserExpr lexs = runST $ do
@@ -351,10 +509,10 @@ parserExpr lexs = runST $ do
     rs <- PBV.toList stack
     fail $ "Parse Error (stack elements): " ++ show rs
 
-  Just (FExpr k) <- PBV.pop stack
-  return $ do
-    result
-    return k
+  Just k <- PBV.pop stack
+  case k of
+    FExpr e -> return $ fmap (\_ -> e) result
+    _       -> fail $ "Parse Error (unexpected fragment): " ++ show k
 
 parser :: [Lexeme] -> Either String (Decl AlexPosn)
 parser = undefined
