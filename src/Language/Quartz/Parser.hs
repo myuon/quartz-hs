@@ -15,7 +15,7 @@ data Fragment
   | FDecl (Decl AlexPosn)
   | FArgumentStart
   | FArgument String (Maybe Type)
-  | FArguments [(String, Type)]
+  | FArguments ArgType
   | FArrayStart
   | FBlockStart
   | FIdent String
@@ -429,39 +429,10 @@ exprShort = do
     args <- popUntil (== FArrayStart)
     report $ FExpr $ ArrayLit $ map (\(FExpr e) -> e) $ reverse args
 
-funcArguments :: TokenConsumer s Fragment (ST s) ()
-funcArguments = do
-  expect TLParen
-  report FArgumentStart
-  void $ manyUntil TComma $ do
-    ident
-    mayType <-
-      (do
-          expect TColon
-          typ
-
-          Just (FType t) <- pop
-          return $ Just t
-        )
-        <|> return Nothing
-
-    Just (FIdent v) <- pop
-    report $ FArgument v mayType
-
-  expect TRParen
-
-  vs <- popUntil (== FArgumentStart)
-  report
-    $ FArguments
-    $ map (\(FArgument s t) -> (s, maybe NoType id t))
-    $ reverse
-    $ vs
-
-funcHeader
-  :: TokenConsumer s Fragment (ST s) ([String], [(String, Type)], Maybe Type)
+funcHeader :: TokenConsumer s Fragment (ST s) ([String], ArgType, Maybe Type)
 funcHeader = do
-  generics
-  funcArguments <|> report (FGenerics [])
+  gs <- mayGenerics
+  funcArguments
 
   mayReturnType <-
     (do
@@ -474,9 +445,47 @@ funcHeader = do
       <|> return Nothing
 
   Just (FArguments as) <- pop
-  Just (FGenerics  vs) <- pop
 
-  return (vs, as, mayReturnType)
+  return (gs, as, mayReturnType)
+
+ where
+  funcArguments :: TokenConsumer s Fragment (ST s) ()
+  funcArguments = do
+    expect TLParen
+    maySelf <-
+      (do
+          isRef <- (expect TRef >> return True) <|> return False
+          expect TSelf
+
+          return $ Just isRef
+        )
+        <|> return Nothing
+
+    report FArgumentStart
+    void $ manyUntil TComma $ do
+      ident
+      mayType <-
+        (do
+            expect TColon
+            typ
+
+            Just (FType t) <- pop
+            return $ Just t
+          )
+          <|> return Nothing
+
+      Just (FIdent v) <- pop
+      report $ FArgument v mayType
+
+    expect TRParen
+
+    vs <- popUntil (== FArgumentStart)
+    report
+      $ FArguments
+      $ ArgType (maybe False id maySelf) (maybe False (const True) maySelf)
+      $ map (\(FArgument s t) -> (s, maybe NoType id t))
+      $ reverse
+      $ vs
 
 expr :: TokenConsumer s Fragment (ST s) ()
 expr = do
@@ -495,10 +504,7 @@ expr = do
 
     report $ FExpr $ ClosureE
       (Closure
-        (FuncType vs
-                  (ArgType False False as)
-                  (maybe (ConType (Id ["unit"])) id mayReturnType)
-        )
+        (FuncType vs as (maybe (ConType (Id ["unit"])) id mayReturnType))
         e
       )
 
@@ -569,10 +575,7 @@ decl = externalFunc <|> func <|> enum <|> record <|> interface <|> derive
 
     report $ FDecl $ ExternalFunc
       v
-      (FuncType gs
-                (ArgType False False as)
-                (maybe (ConType (Id ["unit"])) id ret)
-      )
+      (FuncType gs as (maybe (ConType (Id ["unit"])) id ret))
 
   func = do
     expect TFunc
@@ -585,25 +588,12 @@ decl = externalFunc <|> func <|> enum <|> record <|> interface <|> derive
 
     report $ FDecl $ Func
       v
-      (Closure
-        (FuncType gs
-                  (ArgType False False as)
-                  (maybe (ConType (Id ["unit"])) id ret)
-        )
-        e
-      )
+      (Closure (FuncType gs as (maybe (ConType (Id ["unit"])) id ret)) e)
 
   enum = do
     expect TEnum
     ident
-    gs <-
-      (do
-          generics
-          Just (FGenerics gs) <- pop
-
-          return gs
-        )
-        <|> return []
+    gs <- mayGenerics
     expect TLBrace
     report FBlockStart
     void $ manyUntil TComma $ do
@@ -631,14 +621,7 @@ decl = externalFunc <|> func <|> enum <|> record <|> interface <|> derive
   record = do
     expect TRecord
     ident
-    gs <-
-      (do
-          generics
-          Just (FGenerics gs) <- pop
-
-          return gs
-        )
-        <|> return []
+    gs <- mayGenerics
     expect TLBrace
     report FBlockStart
     void $ manyUntil TComma $ do
@@ -669,12 +652,8 @@ decl = externalFunc <|> func <|> enum <|> record <|> interface <|> derive
       expect TSemiColon
 
       Just (FIdent v) <- pop
-      report $ FFuncDecl
-        v
-        (FuncType gs
-                  (ArgType False False as)
-                  (maybe (ConType (Id ["unit"])) id ret)
-        )
+      report
+        $ FFuncDecl v (FuncType gs as (maybe (ConType (Id ["unit"])) id ret))
     expect TRBrace
 
     fs              <- popUntil (== FInterfaceStart)
