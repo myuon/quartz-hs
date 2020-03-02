@@ -188,6 +188,18 @@ spec_parser = do
                      ]
 
     it "" $ do
+      parseE [r|
+        if {
+          (x == y) => e1,
+        }
+      |]
+        `shouldBe` If
+                     [ ( Op Eq (Var Nothing (Id ["x"])) (Var Nothing (Id ["y"]))
+                       , Var Nothing (Id ["e1"])
+                       )
+                     ]
+
+    it "" $ do
       parseD "func id[A](x: A): A { let y = x; y }" `shouldBe` Func
         "id"
         (Closure

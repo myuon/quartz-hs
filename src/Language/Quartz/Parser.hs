@@ -360,6 +360,77 @@ typ = do
 
     report $ FType $ AppType t $ map (\(FType t') -> t') ts
 
+funcHeader
+  :: Bool -> TokenConsumer s Fragment (ST s) ([String], ArgType, Maybe Type)
+funcHeader mustGenerics = do
+  gs <- if mustGenerics
+    then
+      (do
+        generics
+        Just (FGenerics gs) <- pop
+        return gs
+      )
+    else mayGenerics
+  funcArguments
+
+  mayReturnType <-
+    (do
+        expect TColon
+        typ
+
+        Just (FType t) <- pop
+        return $ Just t
+      )
+      <|> return Nothing
+
+  Just (FArguments as) <- pop
+
+  return (gs, as, mayReturnType)
+
+ where
+  funcArguments :: TokenConsumer s Fragment (ST s) ()
+  funcArguments = do
+    expect TLParen
+    (maySelf, cont) <-
+      (do
+          isRef <- (expect TRef >> return True) <|> return False
+          expect TSelf
+
+          cont <- (expect TComma >> return True) <|> return False
+          return (Just isRef, cont)
+        )
+        <|> return (Nothing, True)
+
+    vs <- if cont
+      then do
+        report FArgumentStart
+        void $ manyUntil TComma $ do
+          ident
+          mayType <-
+            (do
+                expect TColon
+                typ
+
+                Just (FType t) <- pop
+                return $ Just t
+              )
+              <|> return Nothing
+
+          Just (FIdent v) <- pop
+          report $ FArgument v mayType
+
+        popUntil (== FArgumentStart)
+      else return []
+
+    expect TRParen
+
+    report
+      $ FArguments
+      $ ArgType (maybe False id maySelf) (maybe False (const True) maySelf)
+      $ map (\(FArgument s t) -> (s, maybe NoType id t))
+      $ reverse
+      $ vs
+
 exprShort :: TokenConsumer s Fragment (ST s) ()
 exprShort = do
   -- terminals
@@ -382,8 +453,6 @@ exprShort = do
     expect TLParen
     expr
     expect TRParen
-
-    return ()
 
   deref = do
     expect TStar
@@ -445,70 +514,6 @@ exprShort = do
 
     report $ FExpr $ Procedure $ map ((,) Nothing) st
 
-funcHeader :: TokenConsumer s Fragment (ST s) ([String], ArgType, Maybe Type)
-funcHeader = do
-  gs <- mayGenerics
-  funcArguments
-
-  mayReturnType <-
-    (do
-        expect TColon
-        typ
-
-        Just (FType t) <- pop
-        return $ Just t
-      )
-      <|> return Nothing
-
-  Just (FArguments as) <- pop
-
-  return (gs, as, mayReturnType)
-
- where
-  funcArguments :: TokenConsumer s Fragment (ST s) ()
-  funcArguments = do
-    expect TLParen
-    (maySelf, cont) <-
-      (do
-          isRef <- (expect TRef >> return True) <|> return False
-          expect TSelf
-
-          cont <- (expect TComma >> return True) <|> return False
-          return (Just isRef, cont)
-        )
-        <|> return (Nothing, True)
-
-    vs <- if cont
-      then do
-        report FArgumentStart
-        void $ manyUntil TComma $ do
-          ident
-          mayType <-
-            (do
-                expect TColon
-                typ
-
-                Just (FType t) <- pop
-                return $ Just t
-              )
-              <|> return Nothing
-
-          Just (FIdent v) <- pop
-          report $ FArgument v mayType
-
-        popUntil (== FArgumentStart)
-      else do
-        return []
-
-    expect TRParen
-
-    report
-      $ FArguments
-      $ ArgType (maybe False id maySelf) (maybe False (const True) maySelf)
-      $ map (\(FArgument s t) -> (s, maybe NoType id t))
-      $ reverse
-      $ vs
-
 exprRecursion :: TokenConsumer s Fragment (ST s) ()
 exprRecursion = record <|> (void $ many operators)
  where
@@ -565,7 +570,7 @@ expr = do
   exprRecursion
  where
   lambdaAbs = do
-    (vs, as, mayReturnType) <- funcHeader
+    (vs, as, mayReturnType) <- funcHeader True
     expect TDArrow
     expr
 
@@ -593,7 +598,7 @@ decl = externalFunc <|> func <|> enum <|> record <|> interface <|> derive
     expect TExternal
     expect TFunc
     ident
-    (gs, as, ret) <- funcHeader
+    (gs, as, ret) <- funcHeader False
     expect TSemiColon
 
     Just (FIdent v) <- pop
@@ -605,7 +610,7 @@ decl = externalFunc <|> func <|> enum <|> record <|> interface <|> derive
   func = do
     expect TFunc
     ident
-    (gs, as, ret) <- funcHeader
+    (gs, as, ret) <- funcHeader False
     statements
 
     Just (FStatements st) <- pop
@@ -676,7 +681,7 @@ decl = externalFunc <|> func <|> enum <|> record <|> interface <|> derive
     void $ many $ do
       expect TFunc
       ident
-      (gs, as, ret) <- funcHeader
+      (gs, as, ret) <- funcHeader False
       expect TSemiColon
 
       Just (FIdent v) <- pop
