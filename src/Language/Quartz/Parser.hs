@@ -481,10 +481,11 @@ funcHeader = do
           Just (FIdent v) <- pop
           report $ FArgument v mayType
 
-        expect TRParen
-
         popUntil (== FArgumentStart)
-      else return []
+      else do
+        return []
+
+    expect TRParen
 
     report
       $ FArguments
