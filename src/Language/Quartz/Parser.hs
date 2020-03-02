@@ -243,7 +243,8 @@ statements = do
     for <|> ifBlock <|> match <|> letStatement <|> assignment <|> exprStatement
 
   exprStatement = do
-    expr
+    -- この前にassignmentでexpr_shortまでのパースは済ませているため、recursion partのみ実行する(Adhocすぎるのでやめたい…)
+    exprRecursion
     expect TSemiColon
 
     Just (FExpr e) <- pop
@@ -452,34 +453,39 @@ funcHeader = do
   funcArguments :: TokenConsumer s Fragment (ST s) ()
   funcArguments = do
     expect TLParen
-    maySelf <-
+    (maySelf, cont) <-
       (do
           isRef <- (expect TRef >> return True) <|> return False
           expect TSelf
 
-          return $ Just isRef
+          cont <- (expect TComma >> return True) <|> return False
+          return (Just isRef, cont)
         )
-        <|> return Nothing
+        <|> return (Nothing, True)
 
-    report FArgumentStart
-    void $ manyUntil TComma $ do
-      ident
-      mayType <-
-        (do
-            expect TColon
-            typ
+    vs <- if cont
+      then do
+        report FArgumentStart
+        void $ manyUntil TComma $ do
+          ident
+          mayType <-
+            (do
+                expect TColon
+                typ
 
-            Just (FType t) <- pop
-            return $ Just t
-          )
-          <|> return Nothing
+                Just (FType t) <- pop
+                return $ Just t
+              )
+              <|> return Nothing
 
-      Just (FIdent v) <- pop
-      report $ FArgument v mayType
+          Just (FIdent v) <- pop
+          report $ FArgument v mayType
 
-    expect TRParen
+        expect TRParen
 
-    vs <- popUntil (== FArgumentStart)
+        popUntil (== FArgumentStart)
+      else return []
+
     report
       $ FArguments
       $ ArgType (maybe False id maySelf) (maybe False (const True) maySelf)
@@ -487,27 +493,9 @@ funcHeader = do
       $ reverse
       $ vs
 
-expr :: TokenConsumer s Fragment (ST s) ()
-expr = do
-  -- terminals
-  match <|> ifBlock <|> lambdaAbs <|> exprShort
-
-  -- recursion part
-  record <|> (void $ many operators)
+exprRecursion :: TokenConsumer s Fragment (ST s) ()
+exprRecursion = record <|> (void $ many operators)
  where
-  lambdaAbs = do
-    (vs, as, mayReturnType) <- funcHeader
-    expect TDArrow
-    expr
-
-    Just (FExpr e) <- pop
-
-    report $ FExpr $ ClosureE
-      (Closure
-        (FuncType vs as (maybe (ConType (Id ["unit"])) id mayReturnType))
-        e
-      )
-
   -- recordはexpr_shortのvarにマッチさせてから取る(かなりAdhocなのでやめたいが…)
   record = do
     expect TLBrace
@@ -551,6 +539,27 @@ expr = do
     Just (FExpr e1) <- pop
     Just (FExpr e2) <- pop
     report $ FExpr $ Op op e2 e1
+
+expr :: TokenConsumer s Fragment (ST s) ()
+expr = do
+  -- terminals
+  match <|> ifBlock <|> lambdaAbs <|> exprShort
+
+  -- recursion part
+  exprRecursion
+ where
+  lambdaAbs = do
+    (vs, as, mayReturnType) <- funcHeader
+    expect TDArrow
+    expr
+
+    Just (FExpr e) <- pop
+
+    report $ FExpr $ ClosureE
+      (Closure
+        (FuncType vs as (maybe (ConType (Id ["unit"])) id mayReturnType))
+        e
+      )
 
 parserExpr :: [Lexeme] -> Either String (Expr AlexPosn)
 parserExpr lexs = do
