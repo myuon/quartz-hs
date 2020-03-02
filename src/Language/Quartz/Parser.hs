@@ -252,7 +252,8 @@ statements = do
     for <|> ifBlock <|> match <|> letStatement <|> assignment <|> exprStatement
 
   exprStatement = do
-    -- この前にassignmentでexpr_shortまでのパースは済ませているため、recursion partのみ実行する(Adhocすぎるのでやめたい…)
+    -- この前にassignmentでexpr_shortまでのパースは済ませているため、recursion partのみ実行することも必要になる(Adhocすぎるのでやめたい…)
+    exprLongTerminals <|> return ()
     exprRecursion
     expect TSemiColon
 
@@ -561,13 +562,8 @@ exprRecursion = record <|> (void $ many operators)
     Just (FExpr e2) <- pop
     report $ FExpr $ Op op e2 e1
 
-expr :: TokenConsumer s Fragment (ST s) ()
-expr = do
-  -- terminals
-  match <|> ifBlock <|> lambdaAbs <|> exprShort
-
-  -- recursion part
-  exprRecursion
+exprLongTerminals :: TokenConsumer s Fragment (ST s) ()
+exprLongTerminals = match <|> ifBlock <|> lambdaAbs
  where
   lambdaAbs = do
     (vs, as, mayReturnType) <- funcHeader True
@@ -581,6 +577,14 @@ expr = do
         (FuncType vs as (maybe (ConType (Id ["unit"])) id mayReturnType))
         e
       )
+
+expr :: TokenConsumer s Fragment (ST s) ()
+expr = do
+  -- terminals
+  exprLongTerminals <|> exprShort
+
+  -- recursion part
+  exprRecursion
 
 parserExpr :: [Lexeme] -> Either String (Expr AlexPosn)
 parserExpr lexs = do

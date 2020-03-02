@@ -200,6 +200,25 @@ spec_parser = do
                      ]
 
     it "" $ do
+      parseE [r|
+        {
+          [](s) => s
+        }
+      |]
+        `shouldBe` Procedure
+                     [ ( Nothing
+                       , ClosureE
+                         (Closure
+                           (FuncType []
+                                     (ArgType False False [("s", NoType)])
+                                     (ConType (Id ["unit"]))
+                           )
+                           (Var Nothing (Id ["s"]))
+                         )
+                       )
+                     ]
+
+    it "" $ do
       parseD "func id[A](x: A): A { let y = x; y }" `shouldBe` Func
         "id"
         (Closure
