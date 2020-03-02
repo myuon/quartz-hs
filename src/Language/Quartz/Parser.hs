@@ -36,6 +36,8 @@ data Fragment
   | FEnumField EnumField
   | FDeclStart
   | FModule [Decl AlexPosn]
+  | FInterfaceStart
+  | FFuncDecl String FuncType
   deriving (Eq, Show)
 
 type TokenConsumer s e m a
@@ -122,6 +124,16 @@ runParser def lexs = runST $ do
   return $ fmap (const k) result
 
 --
+
+mayGenerics :: TokenConsumer s Fragment (ST s) [String]
+mayGenerics =
+  (do
+      generics
+      Just (FGenerics gs) <- pop
+
+      return gs
+    )
+    <|> return []
 
 ident :: TokenConsumer s Fragment (ST s) ()
 ident = do
@@ -544,7 +556,7 @@ parserExpr lexs = do
 --
 
 decl :: TokenConsumer s Fragment (ST s) ()
-decl = externalFunc <|> func <|> enum <|> record
+decl = externalFunc <|> func <|> enum <|> record <|> interface <|> derive
  where
   externalFunc = do
     expect TExternal
@@ -643,6 +655,53 @@ decl = externalFunc <|> func <|> enum <|> record
     Just (FIdent v) <- pop
 
     report $ FDecl $ Record v gs $ map (\(FRecordDef d) -> d) $ reverse bs
+
+  interface = do
+    expect TInterface
+    ident
+    gs <- mayGenerics
+    expect TLBrace
+    report FInterfaceStart
+    void $ many $ do
+      expect TFunc
+      ident
+      (gs, as, ret) <- funcHeader
+      expect TSemiColon
+
+      Just (FIdent v) <- pop
+      report $ FFuncDecl
+        v
+        (FuncType gs
+                  (ArgType False False as)
+                  (maybe (ConType (Id ["unit"])) id ret)
+        )
+    expect TRBrace
+
+    fs              <- popUntil (== FInterfaceStart)
+    Just (FIdent v) <- pop
+    report $ FDecl $ Interface v gs $ map (\(FFuncDecl x y) -> (x, y)) $ reverse
+      fs
+
+  derive = do
+    expect TDerive
+    ident
+    gs      <- mayGenerics
+    forType <-
+      (do
+          expect TFor
+          typ
+
+          Just (FType t) <- pop
+          return $ Just t
+        )
+        <|> return Nothing
+    expect TLBrace
+    decls
+    expect TRBrace
+
+    Just (FModule ds) <- pop
+    Just (FIdent  v ) <- pop
+    report $ FDecl $ Derive v gs forType ds
 
 parser :: [Lexeme] -> Either String (Decl AlexPosn)
 parser lexs = do

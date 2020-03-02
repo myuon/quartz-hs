@@ -228,9 +228,11 @@ spec_parser = do
         ["X", "Y"]
         [RecordField "proj1" (VarType "X"), RecordField "proj2" (VarType "Y")]
 
+    {-
     it "" $ do
       parseD "open List::Foo::Bar::*;"
         `shouldBe` OpenD (Id ["List", "Foo", "Bar", "*"])
+    -}
 
     it "" $ do
       parseD [r|
