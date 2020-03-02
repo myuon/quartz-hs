@@ -1,14 +1,18 @@
 {-# LANGUAGE QuasiQuotes #-}
 module Language.Quartz.SpecTypeCheck where
 
-import Control.Error
-import Language.Quartz.Lexer (alexScanTokens, AlexPosn)
-import Language.Quartz.AST
-import Language.Quartz.Parser
-import Language.Quartz.Transform
-import Language.Quartz.TypeCheck
-import Test.Tasty.Hspec hiding (Failure, Success)
-import Text.RawString.QQ
+import           Control.Error
+import           Language.Quartz.Lexer                    ( alexScanTokens
+                                                          , AlexPosn
+                                                          )
+import           Language.Quartz.AST
+import           Language.Quartz.Parser
+import           Language.Quartz.Transform
+import           Language.Quartz.TypeCheck
+import           Test.Tasty.Hspec                  hiding ( Failure
+                                                          , Success
+                                                          )
+import           Text.RawString.QQ
 
 runTypeCheck r1 r2 = do
   result <- runExceptT $ inferTypeE r1
@@ -22,34 +26,39 @@ check s = do
   either (fail . show) return result
   return ()
 
-parseE = either error id . fmap transformVarConTypeE . parserExpr . alexScanTokens
+parseE =
+  either error id . fmap transformVarConTypeE . parserExpr . alexScanTokens
 parseD = either error id . fmap transformVarConTypeD . parser . alexScanTokens
-parseDs = either error id . fmap (fmap transformVarConTypeD) . parserDecls . alexScanTokens
+parseDs =
+  either error id
+    . fmap (fmap transformVarConTypeD)
+    . parserDecls
+    . alexScanTokens
 
 spec_typecheck :: Spec
 spec_typecheck = do
   describe "typechecker" $ do
-    it "" $
-      parseE [r| 10 |] `runTypeCheck` ConType (Id ["int"])
+    it "" $ parseE [r| 10 |] `runTypeCheck` ConType (Id ["int"])
 
-    it "" $
-      parseE [r| array![1,2,3,4] |] `runTypeCheck` AppType (ConType (Id ["array"])) [ConType (Id ["int"])]
+    it "" $ parseE [r| array![1,2,3,4] |] `runTypeCheck` AppType
+      (ConType (Id ["array"]))
+      [ConType (Id ["int"])]
 
-    it "" $
-      parseE [r| array!["aaa","bbb"][0] |] `runTypeCheck` ConType (Id ["string"])
+    it "" $ parseE [r| array!["aaa","bbb"][0] |] `runTypeCheck` ConType
+      (Id ["string"])
 
-    it "" $
-      parseE [r| [](x: int): int => { x } |]
-        `runTypeCheck` FnType [ConType (Id ["int"])] (ConType (Id ["int"]))
+    it "" $ parseE [r| [](x: int): int => { x } |] `runTypeCheck` FnType
+      [ConType (Id ["int"])]
+      (ConType (Id ["int"]))
 
-    it "" $
-      parseE [r|
+    it ""
+      $ parseE [r|
         {
           let f = [](x: int): int => x;
           f(10)
         }
       |]
-        `runTypeCheck` ConType (Id ["int"])
+      `runTypeCheck` ConType (Id ["int"])
 
     it "" $ do
       parseE [r|
@@ -76,7 +85,8 @@ spec_typecheck = do
           let x = 10;
           f(x) == 20
         }
-      |] `runTypeCheck` ConType (Id ["bool"])
+      |]
+        `runTypeCheck` ConType (Id ["bool"])
 
     it "" $ do
       parseE [r|
@@ -84,7 +94,8 @@ spec_typecheck = do
           0 == 1 => "true",
           true => "false",
         }
-      |] `runTypeCheck` ConType (Id ["string"])
+      |]
+        `runTypeCheck` ConType (Id ["string"])
 
     it "" $ do
       check [r|
