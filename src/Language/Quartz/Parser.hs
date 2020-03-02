@@ -242,13 +242,10 @@ statements = do
   expect TRBrace
 
   es <- popUntil (== FBlockStart)
-  report
-    $ FExpr
-    $ Procedure
-    $ map ((,) Nothing)
-    $ map (\(FExpr e') -> e')
-    $ reverse
-    $ maybe id (:) mayExpr es
+  report $ FStatements $ map (\(FExpr e') -> e') $ reverse $ maybe id
+                                                                   (:)
+                                                                   mayExpr
+                                                                   es
 
  where
   statement =
@@ -366,7 +363,7 @@ typ = do
 exprShort :: TokenConsumer s Fragment (ST s) ()
 exprShort = do
   -- terminals
-  var <|> litE <|> self <|> parenExpr <|> statements <|> arrayLit <|> deref
+  var <|> litE <|> self <|> parenExpr <|> statementBlock <|> arrayLit <|> deref
 
   -- 左再帰部
   void $ many $ member <|> argument <|> indexArray
@@ -441,6 +438,12 @@ exprShort = do
 
     args <- popUntil (== FArrayStart)
     report $ FExpr $ ArrayLit $ map (\(FExpr e) -> e) $ reverse args
+
+  statementBlock = do
+    statements
+    Just (FStatements st) <- pop
+
+    report $ FExpr $ Procedure $ map ((,) Nothing) st
 
 funcHeader :: TokenConsumer s Fragment (ST s) ([String], ArgType, Maybe Type)
 funcHeader = do
@@ -605,12 +608,15 @@ decl = externalFunc <|> func <|> enum <|> record <|> interface <|> derive
     (gs, as, ret) <- funcHeader
     statements
 
-    Just (FExpr  e) <- pop
-    Just (FIdent v) <- pop
+    Just (FStatements st) <- pop
+    Just (FIdent      v ) <- pop
 
     report $ FDecl $ Func
       v
-      (Closure (FuncType gs as (maybe (ConType (Id ["unit"])) id ret)) e)
+      ( Closure (FuncType gs as (maybe (ConType (Id ["unit"])) id ret))
+      $ Procedure
+      $ map ((,) Nothing) st
+      )
 
   enum = do
     expect TEnum
