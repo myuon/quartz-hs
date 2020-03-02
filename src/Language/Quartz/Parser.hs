@@ -38,6 +38,8 @@ data Fragment
   | FModule [Decl AlexPosn]
   | FInterfaceStart
   | FFuncDecl String FuncType
+  | FNSIdent Id
+  | FNSIdentStart
   deriving (Eq, Show)
 
 type TokenConsumer s e m a
@@ -144,6 +146,16 @@ ident = do
       prepare lex
       throwE $ "Unexpected token: " ++ show lex
 
+namespaceIdent :: TokenConsumer s Fragment (ST s) ()
+namespaceIdent = do
+  ident
+  report FNSIdentStart
+  void $ many $ expect TColon2 >> ident
+
+  ps              <- popUntil (== FNSIdentStart)
+  Just (FIdent p) <- pop
+  report $ FNSIdent (Id $ (p :) $ map (\(FIdent v) -> v) $ reverse ps)
+
 ifBlock :: TokenConsumer s Fragment (ST s) ()
 ifBlock = do
   expect TIf
@@ -171,9 +183,9 @@ pat = do
 
  where
   pident = do
-    ident
-    Just (FIdent v) <- pop
-    report $ FPattern $ PVar (Id [v])
+    namespaceIdent
+    Just (FNSIdent v) <- pop
+    report $ FPattern $ PVar v
 
   pliteral = do
     literal
@@ -360,9 +372,9 @@ exprShort = do
   void $ many $ member <|> argument <|> indexArray
  where
   var = do
-    ident
-    Just (FIdent v) <- pop
-    report $ FExpr $ Var Nothing (Id [v])
+    namespaceIdent
+    Just (FNSIdent v) <- pop
+    report $ FExpr $ Var Nothing v
 
   litE = do
     literal
