@@ -1,5 +1,10 @@
 # Revision history for quartz
 
+## 0.2.1.0 -- 2020-03-04
+
+- Parser Rewrites
+  - Rewrite Parser by hand
+
 ## 0.2.0.0 -- 2020-02-28
 
 - Breaking change: Towards LL(1) syntax
