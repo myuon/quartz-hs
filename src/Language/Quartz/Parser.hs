@@ -179,7 +179,12 @@ ifBlock = do
   expect TRBrace
 
   brs <- popUntil (== FBranchStart)
-  report $ FExpr $ If $ map (\(FIfBranch x y) -> (x, y)) $ reverse brs
+  report
+    $ FExpr
+    $ ExprLoc (AlexPn 0 0 0) (AlexPn 0 0 0)
+    $ If
+    $ map (\(FIfBranch x y) -> (x, y))
+    $ reverse brs
 
 pat :: TokenConsumer s Fragment (ST s) ()
 pat = do
@@ -231,7 +236,12 @@ match = do
 
   brs            <- popUntil (== FBranchStart)
   Just (FExpr e) <- pop
-  report $ FExpr $ Match e $ map (\(FMatchBranch x y) -> (x, y)) $ reverse brs
+  report
+    $ FExpr
+    $ ExprLoc (AlexPn 0 0 0) (AlexPn 0 0 0)
+    $ Match e
+    $ map (\(FMatchBranch x y) -> (x, y))
+    $ reverse brs
 
 statements :: TokenConsumer s Fragment (ST s) ()
 statements = do
@@ -265,7 +275,8 @@ statements = do
     expect TSemiColon
 
     Just (FExpr e) <- pop
-    report $ FExpr $ Stmt e
+    p              <- getLexPos
+    report $ FExpr $ ExprLoc p p $ Stmt e
 
   letStatement = do
     expect TLet
@@ -280,9 +291,10 @@ statements = do
     Just (FExpr  e) <- pop
     Just (FIdent v) <- pop
 
+    p               <- getLexPos
     if isRef
-      then report $ FExpr $ Stmt $ LetRef v e
-      else report $ FExpr $ Stmt $ Let (Id [v]) e
+      then report $ FExpr $ ExprLoc p p $ Stmt $ ExprLoc p p $ LetRef v e
+      else report $ FExpr $ ExprLoc p p $ Stmt $ ExprLoc p p $ Let (Id [v]) e
 
   assignment = do
     exprShort
@@ -292,7 +304,8 @@ statements = do
 
     Just (FExpr e1) <- pop
     Just (FExpr e2) <- pop
-    report $ FExpr $ Stmt $ Assign e2 e1
+    p               <- getLexPos
+    report $ FExpr $ ExprLoc p p $ Stmt $ ExprLoc p p $ Assign e2 e1
 
   for = do
     expect TFor
@@ -304,7 +317,8 @@ statements = do
     Just (FStatements s) <- pop
     Just (FExpr       e) <- pop
     Just (FIdent      v) <- pop
-    report $ FExpr $ ForIn v e $ map ((,) Nothing) s
+    p                    <- getLexPos
+    report $ FExpr $ ExprLoc p p $ ForIn v e s
 
 generics :: TokenConsumer s Fragment (ST s) ()
 generics = do
@@ -450,12 +464,14 @@ exprShort = do
   var = do
     namespaceIdent
     Just (FNSIdent v) <- pop
-    report $ FExpr $ Var Nothing v
+    p                 <- getLexPos
+    report $ FExpr $ ExprLoc p p $ Var v
 
   litE = do
     literal
     Just (FLit l) <- pop
-    report $ FExpr $ Lit l
+    p             <- getLexPos
+    report $ FExpr $ ExprLoc p p $ Lit l
 
   parenExpr = do
     expect TLParen
@@ -467,12 +483,14 @@ exprShort = do
     expr
 
     Just (FExpr e) <- pop
-    report $ FExpr $ Deref e
+    p              <- getLexPos
+    report $ FExpr $ ExprLoc p p $ Deref e
 
   self = do
     lex <- consume
+    p   <- getLexPos
     case tokenOfLexeme lex of
-      TSelf -> report $ FExpr $ Self SelfType
+      TSelf -> report $ FExpr $ ExprLoc p p $ Self SelfType
       _     -> do
         prepare lex
         throwE $ "Unexpected token: " ++ show lex
@@ -481,9 +499,9 @@ exprShort = do
     expect TDot
     var
 
-    Just (FExpr (Var Nothing (Id [n]))) <- pop
-    Just (FExpr v                     ) <- pop
-    report $ FExpr $ Member v n
+    Just (FExpr (  ExprLoc p _ (Var (Id [n])))) <- pop
+    Just (FExpr v@(ExprLoc _ q _             )) <- pop
+    report $ FExpr $ ExprLoc p q $ Member v n
 
   argument = do
     expect TLParen
@@ -493,7 +511,9 @@ exprShort = do
 
     args           <- popUntil (== FArgumentStart)
     Just (FExpr f) <- pop
-    report $ FExpr $ FnCall f $ map (\(FExpr e) -> e) $ reverse args
+    p              <- getLexPos
+    report $ FExpr $ ExprLoc p p $ FnCall f $ map (\(FExpr e) -> e) $ reverse
+      args
 
     return ()
 
@@ -504,7 +524,8 @@ exprShort = do
 
     Just (FExpr e1) <- pop
     Just (FExpr e2) <- pop
-    report $ FExpr $ IndexArray e2 e1
+    p               <- getLexPos
+    report $ FExpr $ ExprLoc p p $ IndexArray e2 e1
 
   arrayLit = do
     expect TArrayLit
@@ -514,13 +535,16 @@ exprShort = do
     expect TRBracket
 
     args <- popUntil (== FArrayStart)
-    report $ FExpr $ ArrayLit $ map (\(FExpr e) -> e) $ reverse args
+    p    <- getLexPos
+    report $ FExpr $ ExprLoc p p $ ArrayLit $ map (\(FExpr e) -> e) $ reverse
+      args
 
   statementBlock = do
     statements
     Just (FStatements st) <- pop
+    p                     <- getLexPos
 
-    report $ FExpr $ Procedure $ map ((,) Nothing) st
+    report $ FExpr $ ExprLoc p p $ Procedure st
 
 exprRecursion :: TokenConsumer s Fragment (ST s) ()
 exprRecursion = record <|> (void $ many operators)
@@ -543,10 +567,15 @@ exprRecursion = record <|> (void $ many operators)
 
     expect TRBrace
 
-    fs                            <- popUntil (== FRecordStart)
-    Just (FExpr (Var _ (Id [v]))) <- pop
-    report $ FExpr $ RecordOf v $ map (\(FRecordField x y) -> (x, y)) $ reverse
-      fs
+    fs <- popUntil (== FRecordStart)
+    Just (FExpr (ExprLoc _ _ (Var (Id [v])))) <- pop
+    p  <- getLexPos
+    report
+      $ FExpr
+      $ ExprLoc p p
+      $ RecordOf v
+      $ map (\(FRecordField x y) -> (x, y))
+      $ reverse fs
 
   operators = foldl1
     (<|>)
@@ -567,7 +596,8 @@ exprRecursion = record <|> (void $ many operators)
 
     Just (FExpr e1) <- pop
     Just (FExpr e2) <- pop
-    report $ FExpr $ Op op e2 e1
+    p               <- getLexPos
+    report $ FExpr $ ExprLoc p p $ Op op e2 e1
 
 exprLongTerminals :: TokenConsumer s Fragment (ST s) ()
 exprLongTerminals = match <|> ifBlock <|> lambdaAbs
@@ -578,8 +608,9 @@ exprLongTerminals = match <|> ifBlock <|> lambdaAbs
     expr
 
     Just (FExpr e) <- pop
+    p              <- getLexPos
 
-    report $ FExpr $ ClosureE
+    report $ FExpr $ ExprLoc p p $ ClosureE
       (Closure
         (FuncType vs as (maybe (ConType (Id ["unit"])) id mayReturnType))
         e
@@ -626,12 +657,13 @@ decl = externalFunc <|> func <|> enum <|> record <|> interface <|> derive
 
     Just (FStatements st) <- pop
     Just (FIdent      v ) <- pop
+    p                     <- getLexPos
 
     report $ FDecl $ Func
       v
       ( Closure (FuncType gs as (maybe (ConType (Id ["unit"])) id ret))
-      $ Procedure
-      $ map ((,) Nothing) st
+      $ ExprLoc p p
+      $ Procedure st
       )
 
   enum = do

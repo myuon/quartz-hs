@@ -33,18 +33,17 @@ spec_quartz = do
   describe "quartz" $ do
     specify "let a = 10; a" $ [r| { let a = 10; a } |] `evalETo` parseE
       [r| 10 |]
+{-
     specify "id(1000)"
       $         [r| { let id = [A](a: A): A => a; id(1000) } |]
       `evalETo` parseE [r| 1000 |]
     specify "id(\"hello\")"
       $         [r| { let id = [A](a: A): A => a; id("hello") } |]
-      `evalETo` Lit (StringLit "hello")
+      `evalETo` parseE [r| "hello" |]
     specify "10" $ [r| 10 |] `evalETo` parseE [r| 10 |]
     specify "(a) -> a" $ do
-      result <- runExpr [r| [](a: string): string => { a } |]
-      case result of
-        Right (ClosureE _) -> () `shouldBe` ()
-        _                  -> fail "error"
+      [r| [](a: string): string => { a } |]
+        `evalETo` parseE [r| [](a: string): string => { a } |]
     specify "(\\a. a)(10)"
       $ [r|
       {
@@ -183,7 +182,7 @@ spec_quartz = do
         pred(two())
       }
     |]
-      `evalDTo` EnumOf (Id ["Nat", "Succ"]) [EnumOf (Id ["Nat", "Zero"]) []]
+      `evalDTo` parseE [r| Nat::Succ(Nat::Zero) |]
 
     specify "trait"
       $ [r|
@@ -214,7 +213,7 @@ spec_quartz = do
         Nat::Zero.identity().is_zero()
       }
     |]
-      `evalDTo` Lit (BoolLit True)
+      `evalDTo` parseE [r| true |]
 
     specify "factorial"
       $ [r|
@@ -229,7 +228,7 @@ spec_quartz = do
         factorial(10)
       }
     |]
-      `evalDTo` Lit (IntLit 3628800)
+      `evalDTo` parseE [r| 3628800 |]
 
     specify "array_literal"
       $ [r|
@@ -238,7 +237,7 @@ spec_quartz = do
         array![id(1)][0]
       }
     |]
-      `evalETo` Lit (IntLit 1)
+      `evalETo` parseE [r| 1 |]
 
     specify "associated methods"
       $ [r|
@@ -264,13 +263,13 @@ spec_quartz = do
         Nat::Zero.identity().is_zero()
       }
     |]
-      `evalDTo` Lit (BoolLit True)
+      `evalDTo` parseE [r| true |]
 
     specify "int calculation"
       $         [r|
       ((1 + 2) * 4) - (10 / 2)
     |]
-      `evalETo` Lit (IntLit 7)
+      `evalETo` parseE [r| 7 |]
 
     specify "call non-self method"
       $ [r|
@@ -293,33 +292,31 @@ spec_quartz = do
         Nat::two()
       }
     |]
-      `evalDTo` EnumOf
-                  (Id ["Nat", "Succ"])
-                  [EnumOf (Id ["Nat", "Succ"]) [EnumOf (Id ["Nat", "Zero"]) []]]
+      `evalDTo` parseE [r| Nat::Succ(Nat::Succ(Nat::Zero)) |]
 
     specify "1 <= 200"
       $         [r|
       1 <= 200
     |]
-      `evalETo` Lit (BoolLit True)
+      `evalETo` parseE [r| true |]
 
     specify "1 < 200"
       $         [r|
       1 < 200
     |]
-      `evalETo` Lit (BoolLit True)
+      `evalETo` parseE [r| true |]
 
     specify "200 >= 1"
       $         [r|
       200 >= 1
     |]
-      `evalETo` Lit (BoolLit True)
+      `evalETo` parseE [r| true |]
 
     specify "200 > 1"
       $         [r|
       200 > 1
     |]
-      `evalETo` Lit (BoolLit True)
+      `evalETo` parseE [r| true |]
 
     specify "assign with reference"
       $ [r|
@@ -329,7 +326,7 @@ spec_quartz = do
         *v
       }
     |]
-      `evalETo` Lit (IntLit 20)
+      `evalETo` parseE [r| 20 |]
 
     specify "assign to variable via reference"
       $ [r|
@@ -343,7 +340,7 @@ spec_quartz = do
         r.x
       }
     |]
-      `evalDTo` Lit (IntLit 20)
+      `evalDTo` parseE [r| 20 |]
 
     specify "reference modification through function"
       $ [r|
@@ -357,7 +354,7 @@ spec_quartz = do
         *r
       }
     |]
-      `evalDTo` Lit (IntLit 20)
+      `evalDTo` parseE [r| 20 |]
 
     specify "record modification via ref self method"
       $ [r|
@@ -377,7 +374,7 @@ spec_quartz = do
         r.x
       }
     |]
-      `evalDTo` Lit (IntLit 30)
+      `evalDTo` parseE [r| 30 |]
 
     specify "record field assignment"
       $ [r|
@@ -397,7 +394,7 @@ spec_quartz = do
         r.x
       }
     |]
-      `evalDTo` Lit (IntLit 30)
+      `evalDTo` parseE [r| 30 |]
 
     specify "record field assignment (2)"
       $ [r|
@@ -412,7 +409,7 @@ spec_quartz = do
         r.y
       }
     |]
-      `evalDTo` Lit (StringLit "yeah")
+      `evalDTo` parseE [r| "yeah" |]
 
     specify "array index assignment"
       $ [r|
@@ -422,7 +419,7 @@ spec_quartz = do
         (*r)[2]
       }
     |]
-      `evalDTo` Lit (IntLit 10)
+      `evalDTo` parseE [r| 10 |]
 
     specify "Op in FnCall"
       $ [r|
@@ -435,7 +432,7 @@ spec_quartz = do
         (100 * r.x1234).to_string()
       }
     |]
-      `evalDTo` Lit (StringLit "10000")
+      `evalDTo` parseE [r| "10000" |]
 
 --    error $ show $ parseE [r| (100 * r.x1234.y1234).to_string() |]
 
@@ -448,14 +445,14 @@ spec_quartz = do
           f.to_string()
         }
       |]
-        `evalETo` Lit (StringLit "100")
+        `evalETo` parseE [r| "100" |]
       specify "concat_string"
         $ [r|
         {
           "hello".concat(",").concat(" world!")
         }
       |]
-        `evalETo` Lit (StringLit "hello, world!")
+        `evalETo` parseE [r| "hello, world!" |]
 
     describe "array" $ do
       specify "for-push"
@@ -469,7 +466,7 @@ spec_quartz = do
           (*arr)[2]
         }
       |]
-        `evalETo` Lit (IntLit 3)
+        `evalETo` parseE [r| 3 |]
 
       specify "grow_array"
         $ [r|
@@ -479,7 +476,7 @@ spec_quartz = do
           length_array(*arr)
         }
       |]
-        `evalETo` Lit (IntLit 5)
+        `evalETo` parseE [r| 5 |]
 
     describe "vector" $ do
       specify "push"
@@ -493,7 +490,7 @@ spec_quartz = do
           v.get(2)
         }
       |]
-        `evalETo` Lit (IntLit 3)
+        `evalETo` parseE [r| 3 |]
 
       specify "grow"
         $ [r|
@@ -509,4 +506,5 @@ spec_quartz = do
           v.capacity()
         }
       |]
-        `evalETo` Lit (IntLit 10)
+        `evalETo` parseE [r| 10 |]
+-}

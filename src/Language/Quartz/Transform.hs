@@ -22,31 +22,36 @@ varToConTypeArgTypes vars' (FuncType vars (ArgType ref self args) ret) =
 transformVarConTypeE :: Expr posn -> Expr posn
 transformVarConTypeE expr = go [] expr
  where
-  go vars' expr = case expr of
-    Var _ _     -> expr
-    Lit _       -> expr
-    FnCall x ys -> FnCall (go vars' x) (map (go vars') ys)
-    Let    x e  -> Let x (go vars' e)
-    ClosureE (Closure args e) ->
-      ClosureE (Closure (varToConTypeArgTypes vars' args) (go vars' e))
-    Match e bs       -> Match (go vars' e) (map (\(p, e) -> (p, go vars' e)) bs)
-    If        es     -> If (map (\(x, y) -> (go vars' x, go vars' y)) es)
-    Procedure es     -> Procedure (map (\(x, y) -> (x, go vars' y)) es)
-    Unit             -> Unit
-    FFI x es         -> FFI x (map (go vars') es)
-    Array    _       -> expr
-    ArrayLit es      -> ArrayLit (map (go vars') es)
-    IndexArray e1 e2 -> IndexArray (go vars' e1) (go vars' e2)
-    ForIn s e es -> ForIn s (go vars' e) (map (\(x, y) -> (x, go vars' y)) es)
-    Op    op e1 e2   -> Op op (go vars' e1) (go vars' e2)
-    Member   e  r    -> Member (go vars' e) r
-    RecordOf s  es   -> RecordOf s (map (\(x, y) -> (x, go vars' y)) es)
-    EnumOf   s  es   -> EnumOf s (map (go vars') es)
-    Assign   e1 e2   -> Assign (go vars' e1) (go vars' e2)
-    Self s           -> Self s
-    Stmt s           -> Stmt $ go vars' s
-    LetRef x e       -> LetRef x (go vars' e)
-    Deref e          -> Deref $ go vars' e
+  go vars' expr = case unwrapExpr expr of
+    Var _                     -> expr
+    Lit _                     -> expr
+    FnCall x ys -> srcSpanExpr' expr $ FnCall (go vars' x) (map (go vars') ys)
+    Let    x e                -> srcSpanExpr' expr $ Let x (go vars' e)
+    ClosureE (Closure args e) -> srcSpanExpr' expr
+      $ ClosureE (Closure (varToConTypeArgTypes vars' args) (go vars' e))
+    Match e bs -> srcSpanExpr' expr
+      $ Match (go vars' e) (map (\(p, e) -> (p, go vars' e)) bs)
+    If es ->
+      srcSpanExpr' expr $ If (map (\(x, y) -> (go vars' x, go vars' y)) es)
+    Procedure es -> srcSpanExpr' expr $ Procedure (map (go vars') es)
+    Unit         -> srcSpanExpr' expr $ Unit
+    FFI x es     -> srcSpanExpr' expr $ FFI x (map (go vars') es)
+    Array    _   -> expr
+    ArrayLit es  -> srcSpanExpr' expr $ ArrayLit (map (go vars') es)
+    IndexArray e1 e2 ->
+      srcSpanExpr' expr $ IndexArray (go vars' e1) (go vars' e2)
+    ForIn s e es ->
+      srcSpanExpr' expr $ ForIn s (go vars' e) (map (go vars') es)
+    Op op e1 e2 -> srcSpanExpr' expr $ Op op (go vars' e1) (go vars' e2)
+    Member e r  -> srcSpanExpr' expr $ Member (go vars' e) r
+    RecordOf s es ->
+      srcSpanExpr' expr $ RecordOf s (map (\(x, y) -> (x, go vars' y)) es)
+    EnumOf s  es -> srcSpanExpr' expr $ EnumOf s (map (go vars') es)
+    Assign e1 e2 -> srcSpanExpr' expr $ Assign (go vars' e1) (go vars' e2)
+    Self s       -> srcSpanExpr' expr $ Self s
+    Stmt s       -> srcSpanExpr' expr $ Stmt $ go vars' s
+    LetRef x e   -> srcSpanExpr' expr $ LetRef x (go vars' e)
+    Deref e      -> srcSpanExpr' expr $ Deref $ go vars' e
 
 transformVarConTypeD :: Decl posn -> Decl posn
 transformVarConTypeD decl = go [] decl
@@ -81,30 +86,33 @@ transformSelfTypeE typ expr = go expr
     RefType typ'     -> RefType $ apply t typ'
     _                -> typ
 
-  go expr = case expr of
-    Var _ _                   -> expr
-    Lit _                     -> expr
-    FnCall x ys               -> FnCall (go x) (map go ys)
-    Let    x e                -> Let x (go e)
-    ClosureE (Closure args e) -> ClosureE (Closure (goArgTypes args) (go e))
-    Match e bs                -> Match (go e) (map (\(p, e) -> (p, go e)) bs)
-    If        es              -> If (map (\(x, y) -> (go x, go y)) es)
-    Procedure es              -> Procedure (map (\(x, y) -> (x, go y)) es)
-    Unit                      -> Unit
-    FFI x es                  -> FFI x (map go es)
-    Array    _                -> expr
-    ArrayLit es               -> ArrayLit (map go es)
-    IndexArray e1 e2          -> IndexArray (go e1) (go e2)
-    ForIn s  e  es            -> ForIn s (go e) (map (\(x, y) -> (x, go y)) es)
-    Op    op e1 e2            -> Op op (go e1) (go e2)
-    Member   e  r             -> Member (go e) r
-    RecordOf s  es            -> RecordOf s (map (\(x, y) -> (x, go y)) es)
-    EnumOf   s  es            -> EnumOf s (map go es)
-    Assign   e1 e2            -> Assign (go e1) (go e2)
-    Self selfType             -> Self (apply typ selfType)
-    Stmt e                    -> Stmt $ go e
-    LetRef x e                -> LetRef x (go e)
-    Deref e                   -> Deref $ go e
+  go expr = case unwrapExpr expr of
+    Var _       -> expr
+    Lit _       -> expr
+    FnCall x ys -> srcSpanExpr' expr $ FnCall (go x) (map go ys)
+    Let    x e  -> srcSpanExpr' expr $ Let x (go e)
+    ClosureE (Closure args e) ->
+      srcSpanExpr' expr $ ClosureE (Closure (goArgTypes args) (go e))
+    Match e bs ->
+      srcSpanExpr' expr $ Match (go e) (map (\(p, e) -> (p, go e)) bs)
+    If es -> srcSpanExpr' expr $ If (map (\(x, y) -> (go x, go y)) es)
+    Procedure es     -> srcSpanExpr' expr $ Procedure (map go es)
+    Unit             -> srcSpanExpr' expr $ Unit
+    FFI x es         -> srcSpanExpr' expr $ FFI x (map go es)
+    Array    _       -> expr
+    ArrayLit es      -> srcSpanExpr' expr $ ArrayLit (map go es)
+    IndexArray e1 e2 -> srcSpanExpr' expr $ IndexArray (go e1) (go e2)
+    ForIn s  e  es   -> srcSpanExpr' expr $ ForIn s (go e) (map go es)
+    Op    op e1 e2   -> srcSpanExpr' expr $ Op op (go e1) (go e2)
+    Member e r       -> srcSpanExpr' expr $ Member (go e) r
+    RecordOf s es ->
+      srcSpanExpr' expr $ RecordOf s (map (\(x, y) -> (x, go y)) es)
+    EnumOf s  es  -> srcSpanExpr' expr $ EnumOf s (map go es)
+    Assign e1 e2  -> srcSpanExpr' expr $ Assign (go e1) (go e2)
+    Self selfType -> srcSpanExpr' expr $ Self (apply typ selfType)
+    Stmt e        -> srcSpanExpr' expr $ Stmt $ go e
+    LetRef x e    -> srcSpanExpr' expr $ LetRef x (go e)
+    Deref e       -> srcSpanExpr' expr $ Deref $ go e
 
   goArgTypes (FuncType vars (ArgType ref self args) ret) = FuncType
     vars
@@ -145,42 +153,45 @@ transformSelfTypeD decl = case decl of
 desugarOpE :: Expr posn -> Expr posn
 desugarOpE expr = go expr
  where
-  go expr = case expr of
+  go expr = case unwrapExpr expr of
     Op op e1 e2 ->
       let e1' = go e1
           e2' = go e2
-      in  case op of
-            Add  -> FnCall (Member e1' "_add_") [e2']
-            Sub  -> FnCall (Member e1' "_subtract_") [e2']
-            Mult -> FnCall (Member e1' "_mult_") [e2']
-            Div  -> FnCall (Member e1' "_div_") [e2']
-            Leq  -> FnCall (Member e1' "_leq_") [e2']
-            Lt   -> FnCall (Member e1' "_lt_") [e2']
-            Geq  -> FnCall (Member e1' "_geq_") [e2']
-            Gt   -> FnCall (Member e1' "_gt_") [e2']
+      in  srcSpanExpr' expr $ case op of
+            Add  -> FnCall (srcSpanExpr' expr $ Member e1' "_add_") [e2']
+            Sub  -> FnCall (srcSpanExpr' expr $ Member e1' "_subtract_") [e2']
+            Mult -> FnCall (srcSpanExpr' expr $ Member e1' "_mult_") [e2']
+            Div  -> FnCall (srcSpanExpr' expr $ Member e1' "_div_") [e2']
+            Leq  -> FnCall (srcSpanExpr' expr $ Member e1' "_leq_") [e2']
+            Lt   -> FnCall (srcSpanExpr' expr $ Member e1' "_lt_") [e2']
+            Geq  -> FnCall (srcSpanExpr' expr $ Member e1' "_geq_") [e2']
+            Gt   -> FnCall (srcSpanExpr' expr $ Member e1' "_gt_") [e2']
             _    -> Op op e1' e2'
-    Var _ _                   -> expr
-    Lit _                     -> expr
-    FnCall x ys               -> FnCall (go x) (map go ys)
-    Let    x e                -> Let x (go e)
-    ClosureE (Closure args e) -> ClosureE (Closure args (go e))
-    Match e bs                -> Match (go e) (map (\(p, e) -> (p, go e)) bs)
-    If        es              -> If (map (\(x, y) -> (go x, go y)) es)
-    Procedure es              -> Procedure (map (\(x, y) -> (x, go y)) es)
-    Unit                      -> Unit
-    FFI x es                  -> FFI x (map go es)
-    Array    _                -> expr
-    ArrayLit es               -> ArrayLit (map go es)
-    IndexArray e1 e2          -> IndexArray (go e1) (go e2)
-    ForIn s e es              -> ForIn s (go e) (map (\(x, y) -> (x, go y)) es)
-    Member   e  r             -> Member (go e) r
-    RecordOf s  es            -> RecordOf s (map (\(x, y) -> (x, go y)) es)
-    EnumOf   s  es            -> EnumOf s (map go es)
-    Assign   e1 e2            -> Assign (go e1) (go e2)
-    Self selfType             -> Self selfType
-    Stmt e                    -> Stmt $ go e
-    LetRef x e                -> LetRef x (go e)
-    Deref e                   -> Deref $ go e
+    Var _       -> expr
+    Lit _       -> expr
+    FnCall x ys -> srcSpanExpr' expr $ FnCall (go x) (map go ys)
+    Let    x e  -> srcSpanExpr' expr $ Let x (go e)
+    ClosureE (Closure args e) ->
+      srcSpanExpr' expr $ ClosureE (Closure args (go e))
+    Match e bs ->
+      srcSpanExpr' expr $ Match (go e) (map (\(p, e) -> (p, go e)) bs)
+    If es -> srcSpanExpr' expr $ If (map (\(x, y) -> (go x, go y)) es)
+    Procedure es     -> srcSpanExpr' expr $ Procedure (map go es)
+    Unit             -> srcSpanExpr' expr $ Unit
+    FFI x es         -> srcSpanExpr' expr $ FFI x (map go es)
+    Array    _       -> expr
+    ArrayLit es      -> srcSpanExpr' expr $ ArrayLit (map go es)
+    IndexArray e1 e2 -> srcSpanExpr' expr $ IndexArray (go e1) (go e2)
+    ForIn s e es     -> srcSpanExpr' expr $ ForIn s (go e) (map go es)
+    Member e r       -> srcSpanExpr' expr $ Member (go e) r
+    RecordOf s es ->
+      srcSpanExpr' expr $ RecordOf s (map (\(x, y) -> (x, go y)) es)
+    EnumOf s  es  -> srcSpanExpr' expr $ EnumOf s (map go es)
+    Assign e1 e2  -> srcSpanExpr' expr $ Assign (go e1) (go e2)
+    Self selfType -> srcSpanExpr' expr $ Self selfType
+    Stmt e        -> srcSpanExpr' expr $ Stmt $ go e
+    LetRef x e    -> srcSpanExpr' expr $ LetRef x (go e)
+    Deref e       -> srcSpanExpr' expr $ Deref $ go e
 
 desugarOpD :: Decl posn -> Decl posn
 desugarOpD decl = go decl
@@ -193,30 +204,33 @@ desugarOpD decl = go decl
 transformIgnorePosnE :: Expr posn -> Expr posn
 transformIgnorePosnE expr = go expr
  where
-  go expr = case expr of
-    Var _ v                   -> Var Nothing v
-    Lit _                     -> expr
-    FnCall x ys               -> FnCall (go x) (map go ys)
-    Let    x e                -> Let x (go e)
-    ClosureE (Closure args e) -> ClosureE (Closure args (go e))
-    Match e bs                -> Match (go e) (map (\(p, e) -> (p, go e)) bs)
-    If        es              -> If (map (\(x, y) -> (go x, go y)) es)
-    Procedure es              -> Procedure (map (\(x, y) -> (x, go y)) es)
-    Unit                      -> Unit
-    FFI x es                  -> FFI x (map go es)
-    Array    _                -> expr
-    ArrayLit es               -> ArrayLit (map go es)
-    IndexArray e1 e2          -> IndexArray (go e1) (go e2)
-    ForIn s e es -> ForIn s (go e) (map (\(x, y) -> (Nothing, go y)) es)
-    Op    op e1 e2            -> Op op (go e1) (go e2)
-    Member   e  r             -> Member (go e) r
-    RecordOf s  es            -> RecordOf s (map (\(x, y) -> (x, go y)) es)
-    EnumOf   s  es            -> EnumOf s (map go es)
-    Assign   e1 e2            -> Assign (go e1) (go e2)
-    Self selfType             -> expr
-    Stmt e                    -> Stmt $ go e
-    LetRef x e                -> LetRef x (go e)
-    Deref e                   -> Deref $ go e
+  go expr = case unwrapExpr expr of
+    Var v       -> srcSpanExpr' expr $ Var v
+    Lit _       -> expr
+    FnCall x ys -> srcSpanExpr' expr $ FnCall (go x) (map go ys)
+    Let    x e  -> srcSpanExpr' expr $ Let x (go e)
+    ClosureE (Closure args e) ->
+      srcSpanExpr' expr $ ClosureE (Closure args (go e))
+    Match e bs ->
+      srcSpanExpr' expr $ Match (go e) (map (\(p, e) -> (p, go e)) bs)
+    If es -> srcSpanExpr' expr $ If (map (\(x, y) -> (go x, go y)) es)
+    Procedure es     -> srcSpanExpr' expr $ Procedure (map go es)
+    Unit             -> srcSpanExpr' expr $ Unit
+    FFI x es         -> srcSpanExpr' expr $ FFI x (map go es)
+    Array    _       -> expr
+    ArrayLit es      -> srcSpanExpr' expr $ ArrayLit (map go es)
+    IndexArray e1 e2 -> srcSpanExpr' expr $ IndexArray (go e1) (go e2)
+    ForIn s  e  es   -> srcSpanExpr' expr $ ForIn s (go e) (map go es)
+    Op    op e1 e2   -> srcSpanExpr' expr $ Op op (go e1) (go e2)
+    Member e r       -> srcSpanExpr' expr $ Member (go e) r
+    RecordOf s es ->
+      srcSpanExpr' expr $ RecordOf s (map (\(x, y) -> (x, go y)) es)
+    EnumOf s  es  -> srcSpanExpr' expr $ EnumOf s (map go es)
+    Assign e1 e2  -> srcSpanExpr' expr $ Assign (go e1) (go e2)
+    Self selfType -> expr
+    Stmt e        -> srcSpanExpr' expr $ Stmt $ go e
+    LetRef x e    -> srcSpanExpr' expr $ LetRef x (go e)
+    Deref e       -> srcSpanExpr' expr $ Deref $ go e
 
 transformIgnorePosnD :: Decl posn -> Decl posn
 transformIgnorePosnD decl = go decl

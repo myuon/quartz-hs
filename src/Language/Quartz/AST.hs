@@ -1,6 +1,7 @@
 module Language.Quartz.AST where
 
 import           Data.Primitive.Array
+import           Data.Default
 import           Data.Dynamic
 import           Data.IORef
 import           Control.Monad.Primitive                  ( RealWorld )
@@ -28,8 +29,18 @@ data Op
   | Gt
   deriving (Eq, Show)
 
-data Expr posn
-  = Var (Maybe posn) Id
+data Expr posn = ExprLoc posn posn (ExprRec posn)
+  deriving (Show)
+
+-- テストでコード位置に左右されないようにEqでは飛ばす
+instance Eq posn => Eq (Expr posn) where
+  (ExprLoc _ _ e1) == (ExprLoc _ _ e2) = e1 == e2
+
+exprPos0 :: Default posn => ExprRec posn -> Expr posn
+exprPos0 = ExprLoc def def
+
+data ExprRec posn
+  = Var Id
   | Lit Literal
   | FnCall (Expr posn) [Expr posn]
   | Let Id (Expr posn)
@@ -37,12 +48,12 @@ data Expr posn
   | OpenE Id
   | Match (Expr posn) [(Pattern, Expr posn)]
   | If [(Expr posn, Expr posn)]
-  | Procedure [(Maybe (posn, posn), Expr posn)]
+  | Procedure [Expr posn]
   | Unit
   | FFI Id [Expr posn]
   | ArrayLit [Expr posn]
   | IndexArray (Expr posn) (Expr posn)
-  | ForIn String (Expr posn) [(Maybe (posn, posn), Expr posn)]
+  | ForIn String (Expr posn) [Expr posn]
   | Op Op (Expr posn) (Expr posn)
   | Member (Expr posn) String
   | RecordOf String [(String, Expr posn)]
@@ -60,6 +71,18 @@ data Expr posn
   | Array (MArray posn)
   | RefTo Id
   deriving (Eq, Show)
+
+srcSpanExpr :: Expr posn -> Expr posn -> ExprRec posn -> Expr posn
+srcSpanExpr (ExprLoc p _ _) (ExprLoc _ q _) e = ExprLoc p q e
+
+srcSpanExpr' :: Expr posn -> ExprRec posn -> Expr posn
+srcSpanExpr' (ExprLoc p q _) e = ExprLoc p q e
+
+unwrapExpr :: Expr posn -> ExprRec posn
+unwrapExpr (ExprLoc _ _ v) = v
+
+getSrcSpan :: Expr posn -> (posn, posn)
+getSrcSpan (ExprLoc p q _) = (p, q)
 
 data Dynamic' posn = Dynamic' (Maybe posn) Dynamic
   deriving (Show)

@@ -1,5 +1,7 @@
 {
 module Language.Quartz.Lexer where
+
+import Data.Default
 }
 
 %wrapper "posn"
@@ -120,4 +122,7 @@ tokenOfLexeme (Lexeme _ t) = t
 
 wrap :: (String -> Token) -> AlexPosn -> String -> Lexeme
 wrap f p s = Lexeme p (f s)
+
+instance Default AlexPosn where
+  def = AlexPn 0 0 0
 }
