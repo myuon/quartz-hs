@@ -1,21 +1,21 @@
 module Language.Quartz.Transform where
 
-import Language.Quartz.AST
+import           Language.Quartz.AST
 
 varToConType :: [String] -> Type -> Type
 varToConType vars t = case t of
   ConType (Id [i]) | i `elem` vars -> VarType i
-  FnType  xs y  -> FnType (map (varToConType vars) xs) (varToConType vars y)
-  AppType x  ys -> AppType (varToConType vars x) (map (varToConType vars) ys)
-  RefType x     -> RefType (varToConType vars x)
-  _             -> t
+  FnType xs y -> FnType (map (varToConType vars) xs) (varToConType vars y)
+  AppType x ys -> AppType (varToConType vars x) (map (varToConType vars) ys)
+  RefType x -> RefType (varToConType vars x)
+  _ -> t
 
 varToConTypeArgTypes :: [String] -> FuncType -> FuncType
 varToConTypeArgTypes vars' (FuncType vars (ArgType ref self args) ret) =
   FuncType
     vars
     ( ArgType ref self
-    $ map     (\(x, y) -> (x, varToConType (vars' ++ vars) y)) args
+    $ map (\(x, y) -> (x, varToConType (vars' ++ vars) y)) args
     )
     (varToConType (vars' ++ vars) ret)
 
@@ -137,7 +137,7 @@ transformSelfTypeD decl = case decl of
 
   go t (Func name (Closure argtypes@(FuncType _ at _) body)) = Func
     name
-    ( Closure
+    (Closure
       (goArgTypes t argtypes)
       (transformSelfTypeE (if isRefSelfArgType at then RefType t else t) body)
     )
@@ -201,7 +201,7 @@ transformIgnorePosnE expr = go expr
     ClosureE (Closure args e) -> ClosureE (Closure args (go e))
     Match e bs                -> Match (go e) (map (\(p, e) -> (p, go e)) bs)
     If        es              -> If (map (\(x, y) -> (go x, go y)) es)
-    Procedure es              -> Procedure (map (\(x, y) -> (Nothing, go y)) es)
+    Procedure es              -> Procedure (map (\(x, y) -> (x, go y)) es)
     Unit                      -> Unit
     FFI x es                  -> FFI x (map go es)
     Array    _                -> expr

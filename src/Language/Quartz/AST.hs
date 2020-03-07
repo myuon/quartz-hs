@@ -1,9 +1,9 @@
 module Language.Quartz.AST where
 
-import Data.Primitive.Array
-import Data.Dynamic
-import Data.IORef
-import Control.Monad.Primitive (RealWorld)
+import           Data.Primitive.Array
+import           Data.Dynamic
+import           Data.IORef
+import           Control.Monad.Primitive                  ( RealWorld )
 
 data Literal
   = IntLit Int
@@ -37,12 +37,12 @@ data Expr posn
   | OpenE Id
   | Match (Expr posn) [(Pattern, Expr posn)]
   | If [(Expr posn, Expr posn)]
-  | Procedure [(Maybe posn, Expr posn)]
+  | Procedure [(Maybe (posn, posn), Expr posn)]
   | Unit
   | FFI Id [Expr posn]
   | ArrayLit [Expr posn]
   | IndexArray (Expr posn) (Expr posn)
-  | ForIn String (Expr posn) [(Maybe posn, Expr posn)]
+  | ForIn String (Expr posn) [(Maybe (posn, posn), Expr posn)]
   | Op Op (Expr posn) (Expr posn)
   | Member (Expr posn) String
   | RecordOf String [(String, Expr posn)]
@@ -114,7 +114,7 @@ data ArgType = ArgType Bool Bool [(String, Type)]
 
 listArgTypes :: ArgType -> [Type]
 listArgTypes (ArgType ref self xs) =
-  ( if ref && self
+  (if ref && self
       then (RefType SelfType :)
       else if self then (SelfType :) else id
     )

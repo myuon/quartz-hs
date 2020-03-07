@@ -43,26 +43,32 @@ data Fragment
   deriving (Eq, Show)
 
 type TokenConsumer s e m a
-  = ExceptT String (ReaderT (PBV.PBVector s e) (StateT [Lexeme] m)) a
+  = ExceptT
+      String
+      (ReaderT (PBV.PBVector s e) (StateT ([Lexeme], AlexPosn) m))
+      a
+
+getLexPos :: Monad m => TokenConsumer s e m AlexPosn
+getLexPos = gets snd
 
 consume :: Monad m => TokenConsumer s e m Lexeme
 consume = do
-  lexs <- get
+  (lexs, _) <- get
   case lexs of
-    (t : ts) -> do
-      put ts
+    (t@(Lexeme p _) : ts) -> do
+      put (ts, p)
       return t
     _ -> throwE "Given Lexeme stream is exhausted"
 
 peekToken :: Monad m => TokenConsumer s e m (Maybe Lexeme)
 peekToken = do
-  lexs <- get
+  (lexs, _) <- get
   case lexs of
     (t : _) -> return $ Just t
     _       -> return Nothing
 
 prepare :: Monad m => Lexeme -> TokenConsumer s e m ()
-prepare l = modify (l :)
+prepare l = modify (\(x, y) -> (l : x, y))
 
 expectWith :: Monad m => (Token -> Bool) -> TokenConsumer s e m ()
 expectWith f = do
@@ -112,8 +118,9 @@ runParser
   -> [Lexeme]
   -> Either String e
 runParser def lexs = runST $ do
-  stack          <- PBV.new 0
-  (result, rest) <- flip runStateT lexs $ flip runReaderT stack $ runExceptT def
+  stack               <- PBV.new 0
+  (result, (rest, _)) <-
+    flip runStateT (lexs, AlexPn 0 0 0) $ flip runReaderT stack $ runExceptT def
 
   unless (null rest) $ fail $ "Parse Error (tokens): " ++ show rest
 
