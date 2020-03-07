@@ -1,5 +1,10 @@
 # Revision history for quartz
 
+## 0.2.2.0 -- 2020-03-07
+
+- Formatter Update
+  - Preserves newlines between expressions in statement blocks
+
 ## 0.2.1.0 -- 2020-03-04
 
 - Parser Rewrites
