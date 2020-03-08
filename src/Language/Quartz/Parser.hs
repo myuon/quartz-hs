@@ -114,14 +114,18 @@ manyUntil t m =
     )
     <|> return []
 
-markSourcePosition :: AlexPosn -> String -> Doc a
-markSourcePosition (AlexPn _ y x) source =
-  vcat $ map (\(s, n) -> pretty n <+> pretty "|" <+> s) $ zip
-    (insert 3
-            (pretty (concat $ replicate (x - 1) " ") <> pretty "^")
-            (map pretty (drop (y - 3) $ lines source))
-    )
-    [y - 2, y - 1, y, y, y + 1, y + 2]
+markSourcePosition :: Int -> AlexPosn -> String -> Doc a
+markSourcePosition area (AlexPn _ y x) source =
+  let s = (y - area) `max` 0
+  in  vcat $ map (\(s, n) -> n <+> pretty "|" <+> s) $ zip
+        (insert (area + 1)
+                (pretty (concat $ replicate (x - 1) " ") <> pretty "^")
+                (map pretty (drop (s - 1) $ lines source))
+        )
+        ( insert (area + 1) (pretty $ replicate (length $ show s) ' ')
+        $ take (area * 2 + 1)
+        $ map pretty [s ..]
+        )
   where insert n x xs = let (ys, zs) = splitAt n xs in ys ++ x : zs
 
 runParser
@@ -137,7 +141,7 @@ runParser def lexs source = runST $ do
 
   unless (null rest) $ fail $ "Parse Error (tokens): \n\n" ++ renderString
     (layoutPretty defaultLayoutOptions
-                  (markSourcePosition (posOfLexeme $ head rest) source)
+                  (markSourcePosition 2 (posOfLexeme $ head rest) source)
     )
 
   len <- PBV.length stack
