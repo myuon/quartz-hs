@@ -116,7 +116,7 @@ manyUntil t m =
 
 markSourcePosition :: Int -> AlexPosn -> String -> Doc a
 markSourcePosition area (AlexPn _ y x) source =
-  let s = (y - area) `max` 0
+  let s = (y - area) `max` 1
   in  vcat $ map (\(s, n) -> n <+> pretty "|" <+> s) $ zip
         (insert (area + 1)
                 (pretty (concat $ replicate (x - 1) " ") <> pretty "^")
