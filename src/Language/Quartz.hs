@@ -1,44 +1,42 @@
-{-# LANGUAGE TemplateHaskell #-}
-module Language.Quartz (
-  module Language.Quartz.AST,
-  evalE,
-  evalD,
-  runMain,
-  runEvalE,
-  parseExpr,
-  parseDecl,
-  parseModule,
-  typecheckExpr,
-  typecheckModule,
-  runExpr,
-  runModule,
-  runModuleWith,
-) where
+module Language.Quartz
+  ( module Language.Quartz.AST
+  , evalE
+  , evalD
+  , runMain
+  , runEvalE
+  , parseExpr
+  , parseDecl
+  , parseModule
+  , typecheckExpr
+  , typecheckModule
+  , runExpr
+  , runModule
+  , runModuleWith
+  )
+where
 
-import Control.Error
-import Control.Monad
-import Control.Monad.IO.Class
-import Data.Bifunctor
-import Data.Dynamic
-import Data.FileEmbed
-import qualified Data.Map as M
-import Language.Quartz.AST
-import Language.Quartz.Lexer
-import Language.Quartz.Parser
-import Language.Quartz.Transform
-import Language.Quartz.TypeCheck
-import Language.Quartz.Eval
-import Language.Quartz.Std
-import Paths_quartz
+import           Control.Error
+import           Control.Monad
+import           Control.Monad.IO.Class
+import           Data.Dynamic
+import qualified Data.Map                      as M
+import           Language.Quartz.AST
+import           Language.Quartz.Lexer
+import           Language.Quartz.Parser
+import           Language.Quartz.Transform
+import           Language.Quartz.TypeCheck
+import           Language.Quartz.Eval
+import           Language.Quartz.Std
+import           Paths_quartz
 
 parseExpr :: String -> Either String (Expr AlexPosn)
-parseExpr = parserExpr . alexScanTokens
+parseExpr e = parserExpr (alexScanTokens e) e
 
 parseDecl :: String -> Either String (Decl AlexPosn)
-parseDecl = parser . alexScanTokens
+parseDecl e = parser (alexScanTokens e) e
 
 parseModule :: String -> Either String [Decl AlexPosn]
-parseModule = parserDecls . alexScanTokens
+parseModule e = parserDecls (alexScanTokens e) e
 
 data CompilerError
   = ParseError String

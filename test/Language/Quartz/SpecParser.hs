@@ -1,6 +1,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 module Language.Quartz.SpecParser where
 
+import           Language.Quartz
 import           Language.Quartz.AST
 import           Language.Quartz.Lexer
 import           Language.Quartz.Parser
@@ -15,25 +16,22 @@ shouldNoError a = a `shouldBe` a
 parseE =
   either error id
     . fmap (transformIgnorePosnE . transformVarConTypeE)
-    . parserExpr
-    . alexScanTokens
+    . parseExpr
 parseD =
   either error id
     . fmap (transformIgnorePosnD . transformVarConTypeD)
-    . parser
-    . alexScanTokens
+    . parseDecl
 parseDs =
   either error id
     . fmap (map (transformIgnorePosnD . transformVarConTypeD))
-    . parserDecls
-    . alexScanTokens
+    . parseModule
 
 spec_parser :: Spec
 spec_parser = do
   describe "parser" $ do
     it "" $ do
       shouldNoError $ parseE "xxx"
-{-
+
     it "" $ do
       shouldNoError $ parseE "10"
 
@@ -216,4 +214,3 @@ spec_parser = do
           }
         }
       |]
--}

@@ -7,6 +7,8 @@ import           Control.Monad.ST
 import           Control.Monad.State
 import           Control.Monad.Reader
 import qualified Data.Vector.PushBack          as PBV
+import           Data.Text.Prettyprint.Doc
+import           Data.Text.Prettyprint.Doc.Render.String  ( renderString )
 import           Language.Quartz.Lexer
 import           Language.Quartz.AST
 
@@ -112,17 +114,31 @@ manyUntil t m =
     )
     <|> return []
 
+markSourcePosition :: AlexPosn -> String -> Doc a
+markSourcePosition (AlexPn _ y x) source =
+  vcat $ map (\(s, n) -> pretty n <+> pretty "|" <+> s) $ zip
+    (insert 3
+            (pretty (concat $ replicate (x - 1) " ") <> pretty "^")
+            (map pretty (drop (y - 3) $ lines source))
+    )
+    [y - 2, y - 1, y, y, y + 1, y + 2]
+  where insert n x xs = let (ys, zs) = splitAt n xs in ys ++ x : zs
+
 runParser
   :: Show e
   => (forall s . TokenConsumer s e (ST s) ())
   -> [Lexeme]
+  -> String
   -> Either String e
-runParser def lexs = runST $ do
+runParser def lexs source = runST $ do
   stack               <- PBV.new 0
   (result, (rest, _)) <-
     flip runStateT (lexs, AlexPn 0 0 0) $ flip runReaderT stack $ runExceptT def
 
-  unless (null rest) $ fail $ "Parse Error (tokens): " ++ show rest
+  unless (null rest) $ fail $ "Parse Error (tokens): \n\n" ++ renderString
+    (layoutPretty defaultLayoutOptions
+                  (markSourcePosition (posOfLexeme $ head rest) source)
+    )
 
   len <- PBV.length stack
   when (len /= 1) $ do
@@ -624,9 +640,9 @@ expr = do
   -- recursion part
   exprRecursion
 
-parserExpr :: [Lexeme] -> Either String (Expr AlexPosn)
-parserExpr lexs = do
-  k <- runParser expr lexs
+parserExpr :: [Lexeme] -> String -> Either String (Expr AlexPosn)
+parserExpr lexs source = do
+  k <- runParser expr lexs source
   case k of
     FExpr e -> return e
     _       -> Left $ "Parse Error (unexpected fragment): " ++ show k
@@ -758,9 +774,9 @@ decl = externalFunc <|> func <|> enum <|> record <|> interface <|> derive
     Just (FIdent  v ) <- pop
     report $ FDecl $ Derive v gs forType ds
 
-parser :: [Lexeme] -> Either String (Decl AlexPosn)
-parser lexs = do
-  k <- runParser decl lexs
+parser :: [Lexeme] -> String -> Either String (Decl AlexPosn)
+parser lexs source = do
+  k <- runParser decl lexs source
   case k of
     FDecl e -> return e
     _       -> Left $ "Parse Error (unexpected fragment): " ++ show k
@@ -773,9 +789,9 @@ decls = do
   ds <- popUntil (== FDeclStart)
   report $ FModule $ map (\(FDecl d) -> d) $ reverse ds
 
-parserDecls :: [Lexeme] -> Either String [Decl AlexPosn]
-parserDecls lexs = do
-  k <- runParser decls lexs
+parserDecls :: [Lexeme] -> String -> Either String [Decl AlexPosn]
+parserDecls lexs source = do
+  k <- runParser decls lexs source
   case k of
     FModule e -> return e
     _         -> Left $ "Parse Error (unexpected fragment): " ++ show k

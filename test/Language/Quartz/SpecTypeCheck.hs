@@ -2,9 +2,7 @@
 module Language.Quartz.SpecTypeCheck where
 
 import           Control.Error
-import           Language.Quartz.Lexer                    ( alexScanTokens
-                                                          , AlexPosn
-                                                          )
+import           Language.Quartz
 import           Language.Quartz.AST
 import           Language.Quartz.Parser
 import           Language.Quartz.Transform
@@ -26,14 +24,9 @@ check s = do
   either (fail . show) return result
   return ()
 
-parseE =
-  either error id . fmap transformVarConTypeE . parserExpr . alexScanTokens
-parseD = either error id . fmap transformVarConTypeD . parser . alexScanTokens
-parseDs =
-  either error id
-    . fmap (fmap transformVarConTypeD)
-    . parserDecls
-    . alexScanTokens
+parseE = either error id . fmap transformVarConTypeE . parseExpr
+parseD = either error id . fmap transformVarConTypeD . parseDecl
+parseDs = either error id . fmap (fmap transformVarConTypeD) . parseModule
 
 spec_typecheck :: Spec
 spec_typecheck = do
