@@ -574,12 +574,10 @@ exprRecursion = record <|> (void $ many operators)
     expect TLBrace
     report FRecordStart
 
-    void $ many $ do
+    void $ manyUntil TComma $ do
       ident
       expect TColon
       expr
-
-      expect TComma <|> return ()
 
       Just (FExpr  e) <- pop
       Just (FIdent v) <- pop
