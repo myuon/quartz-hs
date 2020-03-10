@@ -129,6 +129,9 @@ spec_parser = do
       shouldNoError $ parseD "record User { user_id: string, age: int, }"
 
     it "" $ do
+      shouldNoError $ parseE "User{user_id:10, age:20}"
+
+    it "" $ do
       shouldNoError $ parseD "record Pair[X,Y] { proj1: X, proj2: Y, }"
 
     it "" $ do
