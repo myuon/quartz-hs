@@ -1,7 +1,9 @@
 module Data.SpecPathTree where
 
-import qualified Data.PathTree as PathTree
-import Test.Tasty.Hspec hiding (Failure, Success)
+import qualified Data.PathTree                 as PathTree
+import           Test.Tasty.Hspec                  hiding ( Failure
+                                                          , Success
+                                                          )
 
 spec_PathTree :: Spec
 spec_PathTree = do

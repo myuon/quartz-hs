@@ -12,6 +12,12 @@ import           Data.Text.Prettyprint.Doc.Render.String  ( renderString )
 import           Language.Quartz.Lexer
 import           Language.Quartz.AST
 
+data ParserState = ParserState {
+  lexemeStream :: [Lexeme],
+  currentPoisiton :: AlexPosn,
+  minPrecedence :: Int
+} deriving (Eq, Show)
+
 data Fragment
   = FExpr (Expr AlexPosn)
   | FDecl (Decl AlexPosn)
@@ -42,35 +48,39 @@ data Fragment
   | FFuncDecl String FuncType
   | FNSIdent Id
   | FNSIdentStart
+  | FOperatorLit Op
   deriving (Eq, Show)
 
 type TokenConsumer s e m a
   = ExceptT
       String
-      (ReaderT (PBV.PBVector s e) (StateT ([Lexeme], AlexPosn) m))
+      (ReaderT (PBV.PBVector s e) (StateT ParserState m))
       a
 
 getLexPos :: Monad m => TokenConsumer s e m AlexPosn
-getLexPos = gets snd
+getLexPos = gets currentPoisiton
+
+getMinPrecedence :: Monad m => TokenConsumer s e m Int
+getMinPrecedence = gets minPrecedence
 
 consume :: Monad m => TokenConsumer s e m Lexeme
 consume = do
-  (lexs, _) <- get
+  lexs <- gets lexemeStream
   case lexs of
-    (t@(Lexeme p _) : ts) -> do
-      put (ts, p)
+    (t@(Lexeme p _):ts) -> do
+      modify $ \pst -> pst { lexemeStream = ts, currentPoisiton = p }
       return t
     _ -> throwE "Given Lexeme stream is exhausted"
 
 peekToken :: Monad m => TokenConsumer s e m (Maybe Lexeme)
 peekToken = do
-  (lexs, _) <- get
+  lexs <- gets lexemeStream
   case lexs of
-    (t : _) -> return $ Just t
-    _       -> return Nothing
+    (t:_) -> return $ Just t
+    _     -> return Nothing
 
 prepare :: Monad m => Lexeme -> TokenConsumer s e m ()
-prepare l = modify (\(x, y) -> (l : x, y))
+prepare l = modify $ \pst -> pst { lexemeStream = l : lexemeStream pst }
 
 expectWith :: Monad m => (Token -> Bool) -> TokenConsumer s e m ()
 expectWith f = do
@@ -100,13 +110,13 @@ popUntil f = pop >>= \case
 
 requireEof :: Monad m => TokenConsumer s e m ()
 requireEof = do
-  ls <- get
+  ls <- gets lexemeStream
   if null ls then return () else throwE $ "Expected eof, but got " ++ show ls
 
 manyUntil
   :: Monad m => Token -> TokenConsumer s e m a -> TokenConsumer s e m [a]
 manyUntil t m =
-  (do
+  ( do
       a <- m
       expect t
       as <- manyUntil t m <|> return []
@@ -118,9 +128,9 @@ markSourcePosition :: Int -> AlexPosn -> String -> Doc a
 markSourcePosition area (AlexPn _ y x) source =
   let s = (y - area) `max` 1
   in  vcat $ map (\(s, n) -> n <+> pretty "|" <+> s) $ zip
-        (insert (area + 1)
-                (pretty (concat $ replicate (x - 1) " ") <> pretty "^")
-                (map pretty (drop (s - 1) $ lines source))
+        ( insert (area + 1)
+                 (pretty (concat $ replicate (x - 1) " ") <> pretty "^")
+                 (map pretty (drop (s - 1) $ lines source))
         )
         ( insert (area + 1) (pretty $ replicate (length $ show s) ' ')
         $ take (area * 2 + 1)
@@ -135,14 +145,32 @@ runParser
   -> String
   -> Either String e
 runParser def lexs source = runST $ do
-  stack               <- PBV.new 0
-  (result, (rest, _)) <-
-    flip runStateT (lexs, AlexPn 0 0 0) $ flip runReaderT stack $ runExceptT def
+  stack         <- PBV.new 0
+  (result, pst) <-
+    flip
+      runStateT
+      ( ParserState
+        { lexemeStream    = lexs
+        , currentPoisiton = AlexPn 0 0 0
+        , minPrecedence   = 0
+        }
+      )
+    $ flip runReaderT stack
+    $ runExceptT def
+  let rest = lexemeStream pst
+  stackList <- PBV.toList stack
 
-  unless (null rest) $ fail $ "Parse Error (tokens): \n\n" ++ renderString
-    (layoutPretty defaultLayoutOptions
-                  (markSourcePosition 2 (posOfLexeme $ head rest) source)
-    )
+  unless (null rest)
+    $  fail
+    $  show stackList
+    ++ "\n"
+    ++ show pst
+    ++ "\n----\n\nParse Error (tokens): \n\n"
+    ++ renderString
+         ( layoutPretty
+           defaultLayoutOptions
+           (markSourcePosition 2 (posOfLexeme $ head rest) source)
+         )
 
   len <- PBV.length stack
   when (len /= 1) $ do
@@ -156,7 +184,7 @@ runParser def lexs source = runST $ do
 
 mayGenerics :: TokenConsumer s Fragment (ST s) [String]
 mayGenerics =
-  (do
+  ( do
       generics
       Just (FGenerics gs) <- pop
 
@@ -212,7 +240,6 @@ pat = do
   pany <|> pident <|> pliteral
 
   void $ many $ papply
-
  where
   pident = do
     namespaceIdent
@@ -283,7 +310,6 @@ statements = do
                                                                    (:)
                                                                    mayExpr
                                                                    es
-
  where
   statement =
     for <|> ifBlock <|> match <|> letStatement <|> assignment <|> exprStatement
@@ -366,7 +392,6 @@ typ :: TokenConsumer s Fragment (ST s) ()
 typ = do
   unit <|> self <|> var <|> ref
   void $ many $ typApply
-
  where
   unit = do
     expect TLParen
@@ -407,7 +432,7 @@ funcHeader
 funcHeader mustGenerics = do
   gs <- if mustGenerics
     then
-      (do
+      ( do
         generics
         Just (FGenerics gs) <- pop
         return gs
@@ -416,7 +441,7 @@ funcHeader mustGenerics = do
   funcArguments
 
   mayReturnType <-
-    (do
+    ( do
         expect TColon
         typ
 
@@ -428,13 +453,12 @@ funcHeader mustGenerics = do
   Just (FArguments as) <- pop
 
   return (gs, as, mayReturnType)
-
  where
   funcArguments :: TokenConsumer s Fragment (ST s) ()
   funcArguments = do
     expect TLParen
     (maySelf, cont) <-
-      (do
+      ( do
           isRef <- (expect TRef >> return True) <|> return False
           expect TSelf
 
@@ -449,7 +473,7 @@ funcHeader mustGenerics = do
         void $ manyUntil TComma $ do
           ident
           mayType <-
-            (do
+            ( do
                 expect TColon
                 typ
 
@@ -494,9 +518,12 @@ exprShort = do
     report $ FExpr $ ExprLoc p p $ Lit l
 
   parenExpr = do
+    pred <- getMinPrecedence
     expect TLParen
+    modify $ \pst -> pst { minPrecedence = 0 }
     expr
     expect TRParen
+    modify $ \pst -> pst { minPrecedence = pred }
 
   deref = do
     expect TStar
@@ -566,8 +593,54 @@ exprShort = do
 
     report $ FExpr $ ExprLoc p p $ Procedure st
 
+precedence :: Op -> Int
+precedence = \case
+  Eq   -> 0
+  Leq  -> 0
+  Lt   -> 0
+  Geq  -> 0
+  Gt   -> 0
+  Add  -> 1
+  Sub  -> 1
+  Mult -> 2
+  Div  -> 2
+
+squashOperators :: TokenConsumer s Fragment (ST s) ()
+squashOperators = do
+  e1 <- pop
+  op <- pop
+  e2 <- pop
+  case (e1, op, e2) of
+    (Just (FExpr e1'), Just (FOperatorLit op'), Just (FExpr e2')) -> do
+      p <- getLexPos
+      report (FExpr $ ExprLoc p p (Op op' e2' e1'))
+      squashOperators
+    _ -> forM_ (catMaybes [e2, op, e1]) report
+
+operators :: TokenConsumer s Fragment (ST s) ()
+operators = do
+  op      <- expectOps
+  minPred <- getMinPrecedence
+  when (precedence op < minPred) $ squashOperators
+
+  modify $ \pst -> pst { minPrecedence = precedence op }
+  report $ FOperatorLit op
+ where
+  expectOps = foldl1
+    (<|>)
+    [ expect TEq2 >> return Eq
+    , expect TLeq >> return Leq
+    , expect TLAngle >> return Lt
+    , expect TGeq >> return Geq
+    , expect TRAngle >> return Gt
+    , expect TPlus >> return Add
+    , expect TMinus >> return Sub
+    , expect TStar >> return Mult
+    , expect TSlash >> return Div
+    ]
+
 exprRecursion :: TokenConsumer s Fragment (ST s) ()
-exprRecursion = record <|> (void $ many operators)
+exprRecursion = record <|> (operators >> expr) <|> return ()
  where
   -- recordはexpr_shortのvarにマッチさせてから取る(かなりAdhocなのでやめたいが…)
   record = do
@@ -595,28 +668,6 @@ exprRecursion = record <|> (void $ many operators)
       $ map (\(FRecordField x y) -> (x, y))
       $ reverse fs
 
-  operators = foldl1
-    (<|>)
-    [ binOp TPlus   Add
-    , binOp TMinus  Sub
-    , binOp TStar   Mult
-    , binOp TSlash  Div
-    , binOp TLeq    Leq
-    , binOp TLAngle Lt
-    , binOp TGeq    Geq
-    , binOp TRAngle Gt
-    , binOp TEq2    Eq
-    ]
-
-  binOp t op = do
-    expect t
-    expr
-
-    Just (FExpr e1) <- pop
-    Just (FExpr e2) <- pop
-    p               <- getLexPos
-    report $ FExpr $ ExprLoc p p $ Op op e2 e1
-
 exprLongTerminals :: TokenConsumer s Fragment (ST s) ()
 exprLongTerminals = match <|> ifBlock <|> lambdaAbs
  where
@@ -629,7 +680,7 @@ exprLongTerminals = match <|> ifBlock <|> lambdaAbs
     p              <- getLexPos
 
     report $ FExpr $ ExprLoc p p $ ClosureE
-      (Closure
+      ( Closure
         (FuncType vs as (maybe (ConType (Id ["unit"])) id mayReturnType))
         e
       )
@@ -641,6 +692,8 @@ expr = do
 
   -- recursion part
   exprRecursion
+
+  squashOperators
 
 parserExpr :: [Lexeme] -> String -> Either String (Expr AlexPosn)
 parserExpr lexs source = do
@@ -693,7 +746,7 @@ decl = externalFunc <|> func <|> enum <|> record <|> interface <|> derive
     void $ manyUntil TComma $ do
       ident
       typs <-
-        (do
+        ( do
             expect TLParen
             report FTypeApplyStart
             void $ manyUntil TComma typ
@@ -760,7 +813,7 @@ decl = externalFunc <|> func <|> enum <|> record <|> interface <|> derive
     ident
     gs      <- mayGenerics
     forType <-
-      (do
+      ( do
           expect TFor
           typ
 

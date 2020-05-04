@@ -217,3 +217,23 @@ spec_parser = do
           }
         }
       |]
+
+    it "" $ do
+      parseE [r| 4 + 1 * (5 - 2) - 5 <= 10 * 3 |]
+        `shouldBe` exprPos0 (Op Leq
+          (exprPos0 $ Op Sub
+            (exprPos0 $ Op Add
+              (exprPos0 $ Lit (IntLit 4))
+              (exprPos0 $ Op Mult
+                (exprPos0 $ Lit (IntLit 1))
+                (exprPos0 $ Op Sub
+                  (exprPos0 $ Lit (IntLit 5))
+                  (exprPos0 $ Lit (IntLit 2))
+                )
+              )
+            )
+            (exprPos0 $ Lit (IntLit 5))
+          )
+          (exprPos0 $ Op Mult
+            (exprPos0 $ Lit (IntLit 10))
+            (exprPos0 $ Lit (IntLit 3))))
